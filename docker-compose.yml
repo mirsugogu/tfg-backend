@@ -1,0 +1,39 @@
+services:
+  mysqldb:
+    image: mysql:8.0
+    container_name: mysqldb_optima
+    restart: always
+    environment:
+      - MYSQL_DATABASE=optima_db
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_USER=optima_user
+      - MYSQL_PASSWORD=optima_pass
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - optima-network
+
+  api:
+    build: .
+    container_name: api_optima
+    restart: on-failure
+    depends_on:
+      - mysqldb
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysqldb:3306/optima_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=optima_user
+      - SPRING_DATASOURCE_PASSWORD=optima_pass
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    networks:
+      - optima-network
+
+networks:
+  optima-network:
+    driver: bridge
+
+volumes:
+  db_data:
