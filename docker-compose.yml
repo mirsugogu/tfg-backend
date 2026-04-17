@@ -27,7 +27,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysqldb:3306/optima_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       - SPRING_DATASOURCE_USERNAME=optima_user
       - SPRING_DATASOURCE_PASSWORD=optima_pass
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=none
     networks:
       - optima-network
 
