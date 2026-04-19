@@ -38,7 +38,7 @@ services:
       SPRING_DEVTOOLS_RESTART_ENABLED: "true"
       SPRING_DEVTOOLS_LIVERELOAD_ENABLED: "true"
       JAVA_TOOL_OPTIONS: "-Dspring.devtools.restart.enabled=true -Dspring.devtools.restart.pollInterval=1000 -Dspring.devtools.restart.quietPeriod=400"
-      SPRING_DEVTOOLS_RESTART_TRIGGER_FILE: ".reloadtrigger"
+
     networks:
       - optima-network
 
