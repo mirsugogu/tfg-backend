@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Configuración local de Claude Code (personal, no compartir)
+.claude/
+CLAUDE.md
