@@ -8,6 +8,7 @@ DROP DATABASE IF EXISTS optima_db;
 CREATE DATABASE optima_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE optima_db;
 
+
 -- ------------------------------------------------------------
 -- 1. BUSINESSES (tenants of the SaaS platform)
 -- ------------------------------------------------------------
@@ -17,11 +18,22 @@ CREATE TABLE businesses (
                             slug                 VARCHAR(150)  NOT NULL UNIQUE,
                             email                VARCHAR(150)  NOT NULL UNIQUE,
                             phone                VARCHAR(20),
+
+    -- Campos de dirección desglosados y geolocalización
                             address              VARCHAR(255),
+                            city                 VARCHAR(100),
+                            state                VARCHAR(100),
+                            country              VARCHAR(100),
+                            postal_code          VARCHAR(20),
+                            latitude             DECIMAL(10, 8),
+                            longitude            DECIMAL(11, 8),
+
+    -- Configuración operativa
                             appointment_interval INT           NOT NULL DEFAULT 30,
                             is_active            BOOLEAN       NOT NULL DEFAULT TRUE,
                             created_at           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
                             deactivated_at       DATETIME      NULL,
+
                             CONSTRAINT chk_appointment_interval
                                 CHECK (appointment_interval IN (15, 30, 45, 60))
 ) ENGINE=InnoDB;
@@ -171,6 +183,7 @@ INSERT INTO appointment_statuses (name) VALUES
                                             ('CANCELLED'),
                                             ('NO_SHOW');
 
+
 -- ------------------------------------------------------------
 -- 10. APPOINTMENTS
 -- id_employee: the user (role EMPLOYEE or ADMIN) who attends the appointment
@@ -181,6 +194,10 @@ CREATE TABLE appointments (
                               id_client      BIGINT   NOT NULL,
                               id_employee    BIGINT   NOT NULL,
                               id_status      BIGINT   NOT NULL,
+
+    -- NUEVO CAMPO: Control de pagos para los filtros del calendario
+                              is_paid        BOOLEAN  NOT NULL DEFAULT FALSE,
+
                               start_datetime DATETIME NOT NULL,
                               end_datetime   DATETIME NOT NULL,
                               notes          TEXT,
@@ -217,4 +234,51 @@ CREATE TABLE appointment_services (
                                           CHECK (applied_price >= 0),
                                       CONSTRAINT chk_appsvc_applied_tax
                                           CHECK (applied_tax_percentage >= 0 AND applied_tax_percentage <= 100)
+) ENGINE=InnoDB;
+
+-- ------------------------------------------------------------
+-- 1.1. BUSINESS HOURS (Global operating hours for the business)
+-- ------------------------------------------------------------
+CREATE TABLE business_hours (
+                                id_business_hour BIGINT AUTO_INCREMENT PRIMARY KEY,
+                                id_business      BIGINT  NOT NULL,
+                                day_of_week      TINYINT NOT NULL, -- 1=Lunes, 2=Martes, ..., 7=Domingo
+                                start_time       TIME    NULL,     -- Puede ser nulo si el local está cerrado
+                                end_time         TIME    NULL,     -- Puede ser nulo si el local está cerrado
+                                is_closed        BOOLEAN NOT NULL DEFAULT FALSE,
+
+                                CONSTRAINT fk_business_hours_business
+                                    FOREIGN KEY (id_business) REFERENCES businesses(id_business)
+                                        ON DELETE CASCADE,
+
+                                CONSTRAINT chk_bh_day_of_week
+                                    CHECK (day_of_week BETWEEN 1 AND 7),
+
+                                CONSTRAINT chk_bh_times_logic
+                                    -- Si está cerrado, las horas no importan. Si está abierto, debe haber horas válidas.
+                                    CHECK (
+                                        is_closed = TRUE
+                                            OR (start_time IS NOT NULL AND end_time IS NOT NULL AND start_time < end_time)
+                                        )
+) ENGINE=InnoDB;
+
+
+-- ------------------------------------------------------------
+-- 12. EMPLOYEE ABSENCES (Bloqueos puntuales o vacaciones)
+-- Sobrescribe la disponibilidad de employee_schedules
+-- ------------------------------------------------------------
+CREATE TABLE employee_absences (
+                                   id_absence     BIGINT       AUTO_INCREMENT PRIMARY KEY,
+                                   id_employee    BIGINT       NOT NULL,
+                                   start_datetime DATETIME     NOT NULL,
+                                   end_datetime   DATETIME     NOT NULL,
+                                   reason         VARCHAR(255) NULL, -- Ej: "Cita médica", "Vacaciones"
+                                   created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+                                   CONSTRAINT fk_absence_employee
+                                       FOREIGN KEY (id_employee) REFERENCES users(id_user)
+                                           ON DELETE CASCADE,
+
+                                   CONSTRAINT chk_absence_times
+                                       CHECK (start_datetime < end_datetime)
 ) ENGINE=InnoDB;
