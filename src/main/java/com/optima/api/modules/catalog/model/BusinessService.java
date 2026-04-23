@@ -1,8 +1,7 @@
-package com.optima.api.businessservice;
+package com.optima.api.modules.catalog.model;
 
-import com.optima.api.business.Business;
-import com.optima.api.servicecategory.ServiceCategory;
-import com.optima.api.tax.Tax;
+import com.optima.api.modules.business.model.Business;
+import com.optima.api.modules.business.model.Tax;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

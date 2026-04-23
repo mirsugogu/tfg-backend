@@ -1,7 +1,6 @@
-package com.optima.api.bookedservice;
+package com.optima.api.modules.appointment.model;
 
-import com.optima.api.appointment.Appointment;
-import com.optima.api.businessservice.BusinessService;
+import com.optima.api.modules.catalog.model.BusinessService;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

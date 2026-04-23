@@ -1,9 +1,8 @@
-package com.optima.api.appointment;
+package com.optima.api.modules.appointment.model;
 
-import com.optima.api.appointmentstatus.AppointmentStatus;
-import com.optima.api.business.Business;
-import com.optima.api.client.Client;
-import com.optima.api.user.User;
+import com.optima.api.modules.business.model.Business;
+import com.optima.api.modules.client.model.Client;
+import com.optima.api.modules.user.model.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -14,12 +13,10 @@ import java.time.LocalDateTime;
 
 /**
  * Entidad que representa una cita (reserva) de un cliente con un empleado de un negocio.
-
- * Es la entidad central del sistema: los servicios se reservan a través de citas
+ * * Es la entidad central del sistema: los servicios se reservan a través de citas
  * (ver BookedService) y el flujo de una cita pasa por varios estados
  * (PENDING → CONFIRMED → IN_PROGRESS → COMPLETED, o CANCELLED / NO_SHOW).
-
- * No utiliza soft delete porque su propio estado (id_status) cumple esa función:
+ * * No utiliza soft delete porque su propio estado (id_status) cumple esa función:
  * las citas no se borran ni se desactivan, se marcan como CANCELLED o NO_SHOW.
  */
 @Entity
@@ -65,6 +62,12 @@ public class Appointment {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_status", nullable = false)
     private AppointmentStatus status;
+
+    /**
+     * Control de pagos para los filtros del calendario.
+     */
+    @Column(name = "is_paid", nullable = false)
+    private Boolean isPaid = false;
 
     /**
      * Fecha y hora de inicio de la cita.

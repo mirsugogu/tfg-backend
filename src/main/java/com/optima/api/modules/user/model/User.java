@@ -1,7 +1,7 @@
-package com.optima.api.user;
+package com.optima.api.modules.user.model;
 
-import com.optima.api.business.Business;
-import com.optima.api.role.Role;
+import com.optima.api.modules.business.model.Business;
+import com.optima.api.modules.business.model.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

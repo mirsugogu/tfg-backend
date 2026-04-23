@@ -1,5 +1,16 @@
 package com.optima.api;
 
+import com.optima.api.modules.appointment.model.Appointment;
+import com.optima.api.modules.appointment.model.AppointmentStatus;
+import com.optima.api.modules.appointment.model.BookedService;
+import com.optima.api.modules.business.model.Business;
+import com.optima.api.modules.business.model.Role;
+import com.optima.api.modules.business.model.Tax;
+import com.optima.api.modules.catalog.model.BusinessService;
+import com.optima.api.modules.catalog.model.ServiceCategory;
+import com.optima.api.modules.client.model.Client;
+import com.optima.api.modules.user.model.EmployeeSchedule;
+import com.optima.api.modules.user.model.User;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,17 +45,17 @@ class ApiApplicationTests {
 	void allEntitiesMatchDatabaseSchema() {
 		// Lista de todas las entidades que queremos validar
 		Class<?>[] entities = {
-				com.optima.api.business.Business.class,
-				com.optima.api.role.Role.class,
-				com.optima.api.user.User.class,
-				com.optima.api.employeeschedule.EmployeeSchedule.class,
-				com.optima.api.tax.Tax.class,
-				com.optima.api.client.Client.class,
-				com.optima.api.servicecategory.ServiceCategory.class,
-				com.optima.api.businessservice.BusinessService.class,
-				com.optima.api.appointmentstatus.AppointmentStatus.class,
-				com.optima.api.appointment.Appointment.class,
-				com.optima.api.bookedservice.BookedService.class
+				Business.class,
+				Role.class,
+				User.class,
+				EmployeeSchedule.class,
+				Tax.class,
+				Client.class,
+				ServiceCategory.class,
+				BusinessService.class,
+				AppointmentStatus.class,
+				Appointment.class,
+				BookedService.class
 		};
 
 		// Intenta ejecutar una consulta COUNT contra cada entidad.

@@ -1,4 +1,4 @@
-package com.optima.api.appointmentstatus;
+package com.optima.api.modules.appointment.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

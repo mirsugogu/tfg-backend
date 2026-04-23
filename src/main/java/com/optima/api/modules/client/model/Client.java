@@ -1,6 +1,6 @@
-package com.optima.api.client;
+package com.optima.api.modules.client.model;
 
-import com.optima.api.business.Business;
+import com.optima.api.modules.business.model.Business;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

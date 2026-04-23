@@ -1,4 +1,4 @@
-package com.optima.api.role;
+package com.optima.api.modules.business.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

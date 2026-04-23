@@ -1,6 +1,5 @@
-package com.optima.api.employeeschedule;
+package com.optima.api.modules.user.model;
 
-import com.optima.api.user.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

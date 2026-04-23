@@ -1,4 +1,4 @@
-package com.optima.api.business;
+package com.optima.api.modules.business.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -40,6 +41,25 @@ public class Business {
 
     @Column(name = "address", length = 255)
     private String address;
+
+    @Column(name = "city", length = 100)
+    private String city;
+
+    @Column(name = "state", length = 100)
+    private String state;
+
+    @Column(name = "country", length = 100)
+    private String country;
+
+    @Column(name = "postal_code", length = 20)
+    private String postalCode;
+
+    // Para DECIMAL(10,8) y DECIMAL(11,8) usamos BigDecimal
+    @Column(name = "latitude", precision = 10, scale = 8)
+    private BigDecimal latitude;
+
+    @Column(name = "longitude", precision = 11, scale = 8)
+    private BigDecimal longitude;
 
     @Column(name = "appointment_interval", nullable = false)
     private Integer appointmentInterval = 30;
