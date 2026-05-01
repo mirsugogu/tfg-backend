@@ -31,7 +31,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class BusinessService {
+public class  BusinessService {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
