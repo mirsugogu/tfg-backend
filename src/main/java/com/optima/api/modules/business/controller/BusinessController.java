@@ -1,7 +1,7 @@
 package com.optima.api.modules.business.controller;
 
 import com.optima.api.modules.business.model.Business;
-import com.optima.api.modules.business.repository.BussinessRepository;
+import com.optima.api.modules.business.repository.BusinessRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,15 +12,15 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class BusinessController {
     @Autowired
-    private BussinessRepository bussinessRepository;
+    private BusinessRepository businessRepository;
 
     @GetMapping("/")
     public List<Business> getAllBusinesses(){
-        return bussinessRepository.findAll();
+        return businessRepository.findAll();
     }
 
     @PostMapping("/")
     public Business createBusiness(@RequestBody Business business){
-        return bussinessRepository.save(business);
+        return businessRepository.save(business);
     }
 }
