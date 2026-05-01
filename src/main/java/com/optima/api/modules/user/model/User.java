@@ -39,7 +39,7 @@ public class User {
      * Negocio al que pertenece este usuario.
      * Relación muchos-a-uno: muchos usuarios pueden pertenecer al mismo negocio.
      */
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_business", nullable = false)
     private Business business;
 
@@ -47,7 +47,7 @@ public class User {
      * Rol del usuario dentro del negocio (ADMIN o EMPLOYEE).
      * Relación muchos-a-uno: muchos usuarios pueden tener el mismo rol.
      */
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_role", nullable = false)
     private Role role;
 
