@@ -68,8 +68,10 @@ public class AppointmentValidator {
 
         byte dayOfWeek = (byte) startDateTime.getDayOfWeek().getValue();
 
-        List<EmployeeSchedule> schedules = scheduleRepository
-                .findAllByUserIdAndDayOfWeek(employeeId, dayOfWeek);
+        List<EmployeeSchedule> schedules = scheduleRepository.findAllByUserIdAndDayOfWeek(
+                employeeId,
+                (int) dayOfWeek
+        );
 
         if (schedules.isEmpty()) {
             throw new IllegalArgumentException(

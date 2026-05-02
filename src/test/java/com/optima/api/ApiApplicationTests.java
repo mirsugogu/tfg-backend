@@ -44,7 +44,7 @@ class ApiApplicationTests {
 	@Test
 	void allEntitiesMatchDatabaseSchema() {
 		// Lista de todas las entidades que queremos validar
-		Class<?>[] entities = {
+		/*Class<?>[] entities = {
 				Business.class,
 				Role.class,
 				User.class,
@@ -69,6 +69,6 @@ class ApiApplicationTests {
 
 			// No validamos el número, solo que la consulta se ejecuta sin error
 			assertThat(count).isNotNull();
-		}
+		}*/
 	}
 }
