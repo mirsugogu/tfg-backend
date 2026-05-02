@@ -29,11 +29,14 @@ public class ServiceCategoryService {
         }
 
         // 2. Truco de rendimiento: Obtener el proxy del negocio sin hacer un SELECT a la BD
-        Business businessProxy = businessRepository.getReferenceById(request.businessId());
+        Business business = businessRepository.findById(request.businessId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No se encontró el negocio con ID: " + request.businessId()
+                ));
 
         // 3. Crear la entidad
         ServiceCategory category = new ServiceCategory();
-        category.setBusiness(businessProxy);
+        category.setBusiness(business);
         category.setName(request.name());
         category.setIsActive(true);
 
