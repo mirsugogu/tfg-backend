@@ -1,27 +1,50 @@
 package com.optima.api.modules.client.controller;
 
-import com.optima.api.modules.client.model.Client;
-import com.optima.api.modules.client.service.ClientModuleService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import com.optima.api.modules.client.dto.request.CreateClientRequest;
+import com.optima.api.modules.client.dto.request.UpdateClientRequest;
+import com.optima.api.modules.client.dto.response.ClientResponse;
+import com.optima.api.modules.client.service.ClientService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/clients")
-@CrossOrigin(origins = "*")
+@RequestMapping("/api/businesses/{businessId}/clients")
+@RequiredArgsConstructor
 public class ClientController {
-    @Autowired
-    private ClientModuleService clientModuleService;
 
-    @GetMapping("/business/{businessId}")
-    public ResponseEntity<List<Client>> getClients(@PathVariable Long businessId) {
-        return ResponseEntity.ok(clientModuleService.getByBusiness(businessId));
+    private final ClientService clientService;
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public ClientResponse create(@PathVariable Long businessId,
+                                 @Valid @RequestBody CreateClientRequest req) {
+        return clientService.create(businessId, req);
     }
 
-    @PostMapping("/")
-    public ResponseEntity<Client> createClient(@RequestBody Client client) {
-        return ResponseEntity.ok(clientModuleService.create(client));
+    @GetMapping
+    public List<ClientResponse> listByBusiness(@PathVariable Long businessId) {
+        return clientService.listByBusiness(businessId);
+    }
+
+    @GetMapping("/{id}")
+    public ClientResponse getById(@PathVariable Long businessId, @PathVariable Long id) {
+        return clientService.getById(businessId, id);
+    }
+
+    @PutMapping("/{id}")
+    public ClientResponse update(@PathVariable Long businessId,
+                                 @PathVariable Long id,
+                                 @Valid @RequestBody UpdateClientRequest req) {
+        return clientService.update(businessId, id, req);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deactivate(@PathVariable Long businessId, @PathVariable Long id) {
+        clientService.deactivate(businessId, id);
     }
 }

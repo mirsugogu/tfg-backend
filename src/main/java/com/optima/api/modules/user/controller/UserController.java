@@ -1,47 +1,50 @@
 package com.optima.api.modules.user.controller;
 
-import com.optima.api.modules.user.model.User;
-import com.optima.api.modules.user.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import com.optima.api.modules.user.dto.request.CreateUserRequest;
+import com.optima.api.modules.user.dto.request.UpdateUserRequest;
+import com.optima.api.modules.user.dto.response.UserResponse;
+import com.optima.api.modules.user.service.UserService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@CrossOrigin(origins = "*")
 @RestController
-@RequestMapping("/api/users")
-
+@RequestMapping("/api/businesses/{businessId}/users")
+@RequiredArgsConstructor
 public class UserController {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserService userService;
 
-    @PostMapping("/")
-    public User CreateUser(@RequestBody User user) {
-        return userRepository.save(user);
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public UserResponse create(@PathVariable Long businessId,
+                               @Valid @RequestBody CreateUserRequest req) {
+        return userService.create(businessId, req);
     }
-    @GetMapping("/business/{businessId}")
-    public List<User> getUsersByBusiness(@PathVariable Long businessId) {
-        return userRepository.findByBusinessId(businessId);
+
+    @GetMapping
+    public List<UserResponse> listByBusiness(@PathVariable Long businessId) {
+        return userService.listByBusiness(businessId);
     }
+
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        return userRepository.findById(id)
-                .map(user -> ResponseEntity.ok(user)) // Si existe, devuelve 200 OK + Usuario
-                .orElse(ResponseEntity.notFound().build()); // Si no existe, devuelve 404 Not Found
+    public UserResponse getById(@PathVariable Long businessId, @PathVariable Long id) {
+        return userService.getById(businessId, id);
     }
+
+    @PutMapping("/{id}")
+    public UserResponse update(@PathVariable Long businessId,
+                               @PathVariable Long id,
+                               @Valid @RequestBody UpdateUserRequest req) {
+        return userService.update(businessId, id, req);
+    }
+
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deactivateUser(@PathVariable Long id) {
-        return userRepository.findById(id).map(user -> {
-            // Marcamos como inactivo para bloquear el acceso
-            user.setIsActive(false);
-
-            // Registramos el momento exacto de la desactivación
-            user.setDeactivatedAt(java.time.LocalDateTime.now());
-
-            userRepository.save(user);
-            return ResponseEntity.noContent().<Void>build();
-        }).orElse(ResponseEntity.notFound().build());
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deactivate(@PathVariable Long businessId, @PathVariable Long id) {
+        userService.deactivate(businessId, id);
     }
 }

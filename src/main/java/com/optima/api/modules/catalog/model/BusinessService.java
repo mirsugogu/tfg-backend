@@ -14,14 +14,11 @@ import java.time.LocalDateTime;
 /**
  * Entidad que representa un servicio ofertado por un negocio
  * (ej: "Corte de pelo", "Tinte", "Manicura").
-
  * Cada servicio pertenece a un negocio, está asignado a una categoría
  * y lleva un impuesto aplicado. El precio se guarda como BigDecimal
  * para garantizar precisión exacta en cálculos monetarios.
-
  * Si se deja de ofrecer un servicio, se marca como inactivo en lugar
  * de borrarlo, para no romper las citas históricas que ya lo referencian.
-
  * Se nombra BusinessService (no Service) para evitar confusión con la
  * anotación @Service de Spring, que se usa en la capa de lógica de negocio.
  */
@@ -31,7 +28,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class  BusinessService {
+public class BusinessService {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

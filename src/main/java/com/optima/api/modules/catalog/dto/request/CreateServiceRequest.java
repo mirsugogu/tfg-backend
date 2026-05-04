@@ -8,10 +8,12 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
+/**
+ * DTO de entrada para crear un servicio.
+ * El {@code businessId} viene del path, no del body.
+ * La categoría y el impuesto se validan cross-tenant en el servicio.
+ */
 public record CreateServiceRequest(
-
-        @NotNull(message = "El ID del negocio es obligatorio")
-        Long businessId,
 
         @NotNull(message = "El ID de la categoría es obligatorio")
         Long categoryId,

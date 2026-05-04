@@ -4,7 +4,9 @@ import com.optima.api.modules.appointment.repository.AppointmentRepository;
 import com.optima.api.modules.user.model.EmployeeSchedule;
 import com.optima.api.modules.user.repository.EmployeeScheduleRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -49,8 +51,9 @@ public class AppointmentValidator {
         );
 
         if (hasOverlap) {
-            throw new IllegalArgumentException(
-                    "El empleado ya tiene una cita en ese horario."
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "El empleado ya tiene una cita en ese horario"
             );
         }
     }
@@ -74,8 +77,9 @@ public class AppointmentValidator {
         );
 
         if (schedules.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "El empleado no trabaja el día seleccionado."
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El empleado no trabaja el día seleccionado"
             );
         }
 
@@ -89,8 +93,9 @@ public class AppointmentValidator {
                 );
 
         if (!fitsInAnySchedule) {
-            throw new IllegalArgumentException(
-                    "La cita no encaja en el horario de trabajo del empleado."
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La cita no encaja en el horario de trabajo del empleado"
             );
         }
     }
@@ -108,9 +113,10 @@ public class AppointmentValidator {
         int minutes = startDateTime.getMinute();
 
         if (minutes % interval != 0) {
-            throw new IllegalArgumentException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "La hora de inicio debe ser múltiplo de "
-                            + interval + " minutos."
+                            + interval + " minutos"
             );
         }
     }
@@ -127,14 +133,16 @@ public class AppointmentValidator {
         Set<String> allowedTargets = VALID_TRANSITIONS.get(currentStatus);
 
         if (allowedTargets == null) {
-            throw new IllegalArgumentException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "La cita en estado " + currentStatus
-                            + " no puede cambiar de estado. Es un estado final."
+                            + " no puede cambiar de estado. Es un estado final"
             );
         }
 
         if (!allowedTargets.contains(newStatus)) {
-            throw new IllegalArgumentException(
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
                     "No se puede pasar de " + currentStatus
                             + " a " + newStatus + ". Transiciones válidas: "
                             + allowedTargets

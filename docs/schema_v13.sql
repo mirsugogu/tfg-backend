@@ -94,11 +94,12 @@ CREATE TABLE employee_schedules (
 -- 5. TAXES (each business defines its own taxes)
 -- ------------------------------------------------------------
 CREATE TABLE taxes (
-                       id_tax      BIGINT        AUTO_INCREMENT PRIMARY KEY,
-                       id_business BIGINT        NOT NULL,
-                       name        VARCHAR(50)   NOT NULL,
-                       percentage  DECIMAL(5,2)  NOT NULL,
-                       is_active   BOOLEAN       NOT NULL DEFAULT TRUE,
+                       id_tax         BIGINT        AUTO_INCREMENT PRIMARY KEY,
+                       id_business    BIGINT        NOT NULL,
+                       name           VARCHAR(50)   NOT NULL,
+                       percentage     DECIMAL(5,2)  NOT NULL,
+                       is_active      BOOLEAN       NOT NULL DEFAULT TRUE,
+                       deactivated_at DATETIME      NULL,
                        CONSTRAINT fk_tax_business
                            FOREIGN KEY (id_business) REFERENCES businesses(id_business),
                        CONSTRAINT uq_tax_business_name

@@ -1,9 +1,11 @@
 package com.optima.api.modules.appointment.dto.response;
 
+import com.optima.api.modules.appointment.model.Appointment;
+
 import java.time.LocalDateTime;
 
 public record AppointmentResponse(
-        Long idAppointment,
+        Long id,
         Long businessId,
 
         // Del cliente mostramos ID y nombre
@@ -23,4 +25,22 @@ public record AppointmentResponse(
         LocalDateTime endDateTime,
         String notes,
         LocalDateTime createdAt
-) {}
+) {
+    public static AppointmentResponse from(Appointment a) {
+        return new AppointmentResponse(
+                a.getId(),
+                a.getBusiness().getId(),
+                a.getClient().getId(),
+                a.getClient().getFullName(),
+                a.getEmployee().getId(),
+                a.getEmployee().getFullName(),
+                a.getStatus().getId(),
+                a.getStatus().getName(),
+                a.getIsPaid(),
+                a.getStartDateTime(),
+                a.getEndDateTime(),
+                a.getNotes(),
+                a.getCreatedAt()
+        );
+    }
+}

@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /**
  * Entidad que representa un impuesto de un negocio.
@@ -55,4 +56,7 @@ public class Tax {
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
+
+    @Column(name = "deactivated_at")
+    private LocalDateTime deactivatedAt;
 }

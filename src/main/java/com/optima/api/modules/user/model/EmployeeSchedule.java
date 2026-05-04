@@ -36,7 +36,7 @@ public class EmployeeSchedule {
     private User user;
 
     @Column(name = "day_of_week", nullable = false)
-    private Byte dayOfWeek;
+    private Integer dayOfWeek;
 
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;

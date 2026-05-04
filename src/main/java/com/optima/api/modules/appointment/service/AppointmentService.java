@@ -18,14 +18,17 @@ import com.optima.api.modules.client.repository.ClientRepository;
 import com.optima.api.modules.user.model.User;
 import com.optima.api.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class AppointmentService {
 
@@ -45,42 +48,46 @@ public class AppointmentService {
      * El endDateTime se calcula automáticamente sumando las duraciones
      * de todos los servicios seleccionados.
      */
-    @Transactional
-    public AppointmentResponse createAppointment(CreateAppointmentRequest request) {
+    public AppointmentResponse createAppointment(Long businessId, CreateAppointmentRequest request) {
 
         // 1. Buscar el negocio (necesitamos el appointmentInterval)
-        Business business = businessRepository.findById(request.businessId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No se encontró el negocio con ID: " + request.businessId()
+        Business business = businessRepository.findById(businessId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "No se encontró el negocio con ID: " + businessId
                 ));
 
         // 2. Cross-tenant: el cliente pertenece a este negocio
         Client client = clientRepository.findByIdAndBusinessId(
-                        request.clientId(), request.businessId())
-                .orElseThrow(() -> new IllegalArgumentException(
+                        request.clientId(), businessId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
                         "No se encontró el cliente con ID: " + request.clientId()
-                                + " en el negocio con ID: " + request.businessId()
+                                + " en el negocio con ID: " + businessId
                 ));
 
         // 2b. El cliente debe estar activo (Fix #43)
         if (!client.getIsActive()) {
-            throw new IllegalArgumentException(
-                    "El cliente con ID: " + request.clientId() + " está desactivado."
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El cliente con ID: " + request.clientId() + " está desactivado"
             );
         }
 
         // 3. Cross-tenant: el empleado pertenece a este negocio
         User employee = userRepository.findByIdAndBusinessId(
-                        request.employeeId(), request.businessId())
-                .orElseThrow(() -> new IllegalArgumentException(
+                        request.employeeId(), businessId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
                         "No se encontró el empleado con ID: " + request.employeeId()
-                                + " en el negocio con ID: " + request.businessId()
+                                + " en el negocio con ID: " + businessId
                 ));
 
         // 3b. El empleado debe estar activo (Fix #42)
         if (!employee.getIsActive()) {
-            throw new IllegalArgumentException(
-                    "El empleado con ID: " + request.employeeId() + " está desactivado."
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El empleado con ID: " + request.employeeId() + " está desactivado"
             );
         }
 
@@ -91,26 +98,22 @@ public class AppointmentService {
                 business.getAppointmentInterval()
         );
 
-        // 5. Buscar los servicios y validar cada uno
+        // 5. Buscar los servicios y validar cada uno (cross-tenant directo en la query)
         List<BusinessService> services = new ArrayList<>();
         for (Long serviceId : request.serviceIds()) {
-            BusinessService service = serviceRepository.findById(serviceId)
-                    .orElseThrow(() -> new IllegalArgumentException(
+            BusinessService service = serviceRepository
+                    .findByIdAndBusinessId(serviceId, businessId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
                             "No se encontró el servicio con ID: " + serviceId
+                                    + " en el negocio con ID: " + businessId
                     ));
-
-            // Cross-tenant: el servicio pertenece a este negocio
-            if (!service.getBusiness().getId().equals(request.businessId())) {
-                throw new IllegalArgumentException(
-                        "El servicio con ID: " + serviceId
-                                + " no pertenece al negocio con ID: " + request.businessId()
-                );
-            }
 
             // El servicio debe estar activo
             if (!service.getIsActive()) {
-                throw new IllegalArgumentException(
-                        "El servicio con ID: " + serviceId + " está desactivado."
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "El servicio con ID: " + serviceId + " está desactivado"
                 );
             }
 
@@ -140,10 +143,11 @@ public class AppointmentService {
                 endDateTime
         );
 
-        // 9. Buscar el estado PENDING (Fix #49: IllegalStateException en vez de
-        //    IllegalArgumentException, porque es un error del servidor, no del usuario)
+        // 9. Buscar el estado PENDING. Si no existe es un error de configuración
+        //    del servidor (faltan los INSERT del schema), por eso 500 INTERNAL_SERVER_ERROR.
         AppointmentStatus pendingStatus = statusRepository.findByName("PENDING")
-                .orElseThrow(() -> new IllegalStateException(
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
                         "Error de configuración: no se encontró el estado PENDING "
                                 + "en la base de datos. Ejecutar los INSERT del schema."
                 ));
@@ -179,7 +183,7 @@ public class AppointmentService {
         bookedServiceRepository.saveAll(bookedServices);
 
         // 12. Devolver respuesta
-        return toResponse(saved);
+        return AppointmentResponse.from(saved);
     }
 
     /**
@@ -189,7 +193,7 @@ public class AppointmentService {
     public List<AppointmentResponse> getAppointmentsByBusiness(Long businessId) {
         return appointmentRepository.findAllByBusinessId(businessId)
                 .stream()
-                .map(this::toResponse)
+                .map(AppointmentResponse::from)
                 .toList();
     }
 
@@ -199,18 +203,18 @@ public class AppointmentService {
     @Transactional(readOnly = true)
     public AppointmentResponse getAppointmentById(Long id, Long businessId) {
         Appointment appointment = appointmentRepository.findByIdAndBusinessId(id, businessId)
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
                         "No se encontró la cita con ID: " + id
                                 + " en el negocio con ID: " + businessId
                 ));
 
-        return toResponse(appointment);
+        return AppointmentResponse.from(appointment);
     }
 
     /**
      * Cambia el estado de una cita, validando que la transición sea legal.
      */
-    @Transactional
     public AppointmentResponse updateAppointmentStatus(Long appointmentId,
                                                        Long businessId,
                                                        UpdateAppointmentStatusRequest request) {
@@ -218,7 +222,8 @@ public class AppointmentService {
         // 1. Buscar la cita (con protección cross-tenant)
         Appointment appointment = appointmentRepository
                 .findByIdAndBusinessId(appointmentId, businessId)
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
                         "No se encontró la cita con ID: " + appointmentId
                                 + " en el negocio con ID: " + businessId
                 ));
@@ -226,8 +231,9 @@ public class AppointmentService {
         // 2. Buscar el nuevo estado por nombre
         AppointmentStatus newStatus = statusRepository
                 .findByName(request.statusName())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No existe el estado: " + request.statusName()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "No se encontró el estado: " + request.statusName()
                 ));
 
         // 3. Validar que la transición es permitida
@@ -239,29 +245,6 @@ public class AppointmentService {
 
         // 5. Guardar y devolver
         Appointment updated = appointmentRepository.save(appointment);
-        return toResponse(updated);
-    }
-
-    /**
-     * Convierte la entidad Appointment al DTO de respuesta.
-     * Incluye los nombres de cliente, empleado y estado para que
-     * el frontend no tenga que hacer llamadas extra.
-     */
-    private AppointmentResponse toResponse(Appointment appointment) {
-        return new AppointmentResponse(
-                appointment.getId(),
-                appointment.getBusiness().getId(),
-                appointment.getClient().getId(),
-                appointment.getClient().getFullName(),
-                appointment.getEmployee().getId(),
-                appointment.getEmployee().getFullName(),
-                appointment.getStatus().getId(),
-                appointment.getStatus().getName(),
-                appointment.getIsPaid(),
-                appointment.getStartDateTime(),
-                appointment.getEndDateTime(),
-                appointment.getNotes(),
-                appointment.getCreatedAt()
-        );
+        return AppointmentResponse.from(updated);
     }
 }

@@ -1,4 +1,4 @@
-package com.optima.api.modules.user.model; // Ajusta el paquete según tu estructura exacta
+package com.optima.api.modules.user.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

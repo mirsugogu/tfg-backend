@@ -7,10 +7,12 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * DTO de entrada para crear una cita.
+ * El {@code businessId} viene del path, no del body.
+ * El cliente, empleado y servicios se validan cross-tenant en el servicio.
+ */
 public record CreateAppointmentRequest(
-
-        @NotNull(message = "El ID del negocio es obligatorio")
-        Long businessId,
 
         @NotNull(message = "El ID del cliente es obligatorio")
         Long clientId,
