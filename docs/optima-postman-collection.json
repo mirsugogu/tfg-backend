@@ -1,0 +1,1678 @@
+{
+  "info": {
+    "name": "Optima Backend API",
+    "description": "Colección de pruebas del backend Optima (TFG DAM Spring Boot 3.4.1 / Java 21).\n\nVariables de colección:\n- baseUrl: http://localhost:8080\n- businessId, userId, taxId, hourId, scheduleId, absenceId, clientId, categoryId, serviceId, appointmentId, slug\n\nOrden recomendado de pruebas:\n1) auth → token\n2) business → POST (guardar id en businessId)\n3) roles → GET (anota un roleId)\n4) users → POST (con roleId)\n5) taxes → POST\n6) categories → POST\n7) services → POST (usa categoryId y taxId)\n8) clients → POST\n9) hours → POST (uno por día de la semana)\n10) schedules → POST (horario del empleado)\n11) appointments → POST (con clientId, employeeId, serviceIds)\n12) appointments → PATCH /status para cambiar a CONFIRMED, etc.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "auth",
+      "description": "Autenticación. POST /api/auth/token devuelve un JWT.",
+      "item": [
+        {
+          "name": "POST · login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "token"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@optima.com\",\n  \"password\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Devuelve un token JWT. Hoy compara contra credenciales hardcoded (admin@optima.com / 123456)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "business",
+      "description": "CRUD del tenant raíz. No va anidado bajo {{businessId}}.",
+      "item": [
+        {
+          "name": "POST · crear negocio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Peluquería La Esquina\",\n  \"slug\": \"pelu-la-esquina\",\n  \"email\": \"contacto@laesquina.com\",\n  \"phone\": \"+34 600 111 222\",\n  \"address\": \"Calle Mayor 1, Madrid\",\n  \"appointmentInterval\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET · lista activos (paginado)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET · por id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET · por slug",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/slug/{{slug}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "slug",
+                "{{slug}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT · actualizar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Peluquería La Esquina (renovada)\",\n  \"email\": \"hola@laesquina.com\",\n  \"phone\": \"+34 600 111 222\",\n  \"address\": \"Calle Mayor 1, Madrid\",\n  \"appointmentInterval\": 15\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE · soft delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH · reactivar (tras DELETE)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/reactivate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "reactivate"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "taxes",
+      "item": [
+        {
+          "name": "POST · crear impuesto",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/taxes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "taxes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"IVA general\",\n  \"percentage\": 21.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET · lista activos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/taxes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "taxes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET · por id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/taxes/{{taxId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "taxes",
+                "{{taxId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT · actualizar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/taxes/{{taxId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "taxes",
+                "{{taxId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"IVA reducido\",\n  \"percentage\": 10.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE · soft delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/taxes/{{taxId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "taxes",
+                "{{taxId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "roles",
+      "description": "Catálogo global ADMIN / EMPLOYEE. Solo lectura.",
+      "item": [
+        {
+          "name": "GET · lista de roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "roles"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "hours",
+      "description": "Horario semanal de apertura del negocio. Hard delete.",
+      "item": [
+        {
+          "name": "POST · crear tramo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/hours",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "hours"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dayOfWeek\": 1,\n  \"startTime\": \"09:00:00\",\n  \"endTime\": \"18:00:00\",\n  \"isClosed\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET · lista (lunes a domingo)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/hours",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "hours"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET · por id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/hours/{{hourId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "hours",
+                "{{hourId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT · actualizar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/hours/{{hourId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "hours",
+                "{{hourId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dayOfWeek\": 1,\n  \"startTime\": \"10:00:00\",\n  \"endTime\": \"20:00:00\",\n  \"isClosed\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE · borrar tramo",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/hours/{{hourId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "hours",
+                "{{hourId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "users",
+      "item": [
+        {
+          "name": "POST · crear usuario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": 2,\n  \"fullName\": \"Ana Pérez\",\n  \"email\": \"ana@laesquina.com\",\n  \"password\": \"secreta123\",\n  \"phone\": \"+34 600 333 444\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET · lista activos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET · por id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users",
+                "{{userId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT · actualizar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": 2,\n  \"fullName\": \"Ana Pérez García\",\n  \"email\": \"ana.perez@laesquina.com\",\n  \"phone\": \"+34 600 333 444\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE · soft delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users",
+                "{{userId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "schedules",
+      "description": "Horario semanal de cada empleado. Hard delete.",
+      "item": [
+        {
+          "name": "POST · crear tramo de horario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{userId}}/schedules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users",
+                "{{userId}}",
+                "schedules"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dayOfWeek\": 1,\n  \"startTime\": \"09:00:00\",\n  \"endTime\": \"13:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET · lista del empleado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{userId}}/schedules",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users",
+                "{{userId}}",
+                "schedules"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET · por id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{userId}}/schedules/{{scheduleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users",
+                "{{userId}}",
+                "schedules",
+                "{{scheduleId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT · actualizar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{userId}}/schedules/{{scheduleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users",
+                "{{userId}}",
+                "schedules",
+                "{{scheduleId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dayOfWeek\": 1,\n  \"startTime\": \"10:00:00\",\n  \"endTime\": \"14:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE · borrar tramo",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{userId}}/schedules/{{scheduleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users",
+                "{{userId}}",
+                "schedules",
+                "{{scheduleId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "absences",
+      "description": "Bloqueos puntuales (vacaciones, baja, cita médica). Hard delete.",
+      "item": [
+        {
+          "name": "POST · crear ausencia",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{userId}}/absences",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users",
+                "{{userId}}",
+                "absences"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDateTime\": \"2026-08-01T00:00:00\",\n  \"endDateTime\": \"2026-08-15T23:59:59\",\n  \"reason\": \"Vacaciones de verano\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET · lista del empleado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{userId}}/absences",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users",
+                "{{userId}}",
+                "absences"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET · por id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{userId}}/absences/{{absenceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users",
+                "{{userId}}",
+                "absences",
+                "{{absenceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT · actualizar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{userId}}/absences/{{absenceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users",
+                "{{userId}}",
+                "absences",
+                "{{absenceId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startDateTime\": \"2026-08-05T00:00:00\",\n  \"endDateTime\": \"2026-08-15T23:59:59\",\n  \"reason\": \"Vacaciones (acortadas)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE · cancelar ausencia",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{userId}}/absences/{{absenceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "users",
+                "{{userId}}",
+                "absences",
+                "{{absenceId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "clients",
+      "item": [
+        {
+          "name": "POST · crear cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/clients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "clients"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"María García\",\n  \"email\": \"maria@example.com\",\n  \"phone\": \"+34 611 222 333\",\n  \"notes\": \"Alergia al amoniaco\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET · lista activos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/clients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "clients"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET · por id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/clients/{{clientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "clients",
+                "{{clientId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT · actualizar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/clients/{{clientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "clients",
+                "{{clientId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"María García López\",\n  \"email\": \"maria@example.com\",\n  \"phone\": \"+34 611 222 333\",\n  \"notes\": \"Alergia al amoniaco. Prefiere mañanas.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE · soft delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/clients/{{clientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "clients",
+                "{{clientId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "categories",
+      "item": [
+        {
+          "name": "POST · crear categoría",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "categories"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Peluquería\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET · lista activas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "categories"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET · por id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/categories/{{categoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "categories",
+                "{{categoryId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT · actualizar nombre",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/categories/{{categoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "categories",
+                "{{categoryId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Peluquería de caballero\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE · soft delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/categories/{{categoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "categories",
+                "{{categoryId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "services",
+      "description": "Servicios ofertados. Categoría e impuesto se validan cross-tenant.",
+      "item": [
+        {
+          "name": "POST · crear servicio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/services",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "services"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": 1,\n  \"taxId\": 1,\n  \"name\": \"Corte de pelo\",\n  \"description\": \"Corte clásico, lavado incluido\",\n  \"price\": 18.0,\n  \"durationMinutes\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET · lista activos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/services",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "services"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET · por id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/services/{{serviceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "services",
+                "{{serviceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PUT · actualizar",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/services/{{serviceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "services",
+                "{{serviceId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": 1,\n  \"taxId\": 1,\n  \"name\": \"Corte + barba\",\n  \"description\": \"Corte clásico + arreglo de barba\",\n  \"price\": 25.0,\n  \"durationMinutes\": 45\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE · soft delete",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/services/{{serviceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "services",
+                "{{serviceId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "appointments",
+      "description": "Citas. No tiene PUT completo: el estado cambia con PATCH /status.",
+      "item": [
+        {
+          "name": "POST · crear cita",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "appointments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": 1,\n  \"employeeId\": 2,\n  \"startDateTime\": \"2026-06-15T10:00:00\",\n  \"notes\": \"Primera visita\",\n  \"serviceIds\": [\n    1,\n    2\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET · lista del negocio",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "appointments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET · por id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "appointments",
+                "{{appointmentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH · cambiar estado",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "businesses",
+                "{{businessId}}",
+                "appointments",
+                "{{appointmentId}}",
+                "status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"statusName\": \"CONFIRMED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Valores válidos para statusName: PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW. La transición de estado se valida en AppointmentValidator."
+          }
+        }
+      ]
+    },
+    {
+      "name": "appointment-statuses",
+      "description": "Catálogo global de estados. Solo lectura.",
+      "item": [
+        {
+          "name": "GET · lista de estados",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointment-statuses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointment-statuses"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET · por id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointment-statuses/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "appointment-statuses",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "businessId",
+      "value": "1"
+    },
+    {
+      "key": "slug",
+      "value": "pelu-la-esquina"
+    },
+    {
+      "key": "userId",
+      "value": "1"
+    },
+    {
+      "key": "taxId",
+      "value": "1"
+    },
+    {
+      "key": "hourId",
+      "value": "1"
+    },
+    {
+      "key": "scheduleId",
+      "value": "1"
+    },
+    {
+      "key": "absenceId",
+      "value": "1"
+    },
+    {
+      "key": "clientId",
+      "value": "1"
+    },
+    {
+      "key": "categoryId",
+      "value": "1"
+    },
+    {
+      "key": "serviceId",
+      "value": "1"
+    },
+    {
+      "key": "appointmentId",
+      "value": "1"
+    }
+  ]
+}
