@@ -69,11 +69,18 @@ public class AppointmentValidator {
                                          LocalDateTime startDateTime,
                                          LocalDateTime endDateTime) {
 
-        byte dayOfWeek = (byte) startDateTime.getDayOfWeek().getValue();
+        if (!startDateTime.toLocalDate().equals(endDateTime.toLocalDate())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La cita no puede cruzar medianoche"
+            );
+        }
+
+        int dayOfWeek = startDateTime.getDayOfWeek().getValue();
 
         List<EmployeeSchedule> schedules = scheduleRepository.findAllByUserIdAndDayOfWeek(
                 employeeId,
-                (int) dayOfWeek
+                dayOfWeek
         );
 
         if (schedules.isEmpty()) {

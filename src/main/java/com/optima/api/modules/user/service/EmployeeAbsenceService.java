@@ -35,6 +35,15 @@ public class EmployeeAbsenceService {
         User employee = ensureEmployeeOfBusiness(businessId, userId);
         validateRange(req.startDateTime(), req.endDateTime());
 
+        List<EmployeeAbsence> existingAbsences = absenceRepository.findAllByEmployeeId(userId);
+        for (EmployeeAbsence existing : existingAbsences) {
+            if (req.startDateTime().isBefore(existing.getEndDateTime())
+                    && req.endDateTime().isAfter(existing.getStartDateTime())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "El empleado ya tiene una ausencia en ese rango de fechas");
+            }
+        }
+
         EmployeeAbsence a = new EmployeeAbsence();
         a.setEmployee(employee);
         a.setStartDateTime(req.startDateTime());

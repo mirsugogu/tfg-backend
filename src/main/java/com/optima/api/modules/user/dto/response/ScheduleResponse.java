@@ -18,7 +18,7 @@ public record ScheduleResponse(
         return new ScheduleResponse(
                 s.getId(),
                 s.getUser().getId(),
-                s.getDayOfWeek() == null ? null : s.getDayOfWeek().intValue(),
+                s.getDayOfWeek(),
                 s.getStartTime(),
                 s.getEndTime()
         );

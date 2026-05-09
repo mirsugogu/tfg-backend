@@ -183,7 +183,7 @@ public class AppointmentService {
         bookedServiceRepository.saveAll(bookedServices);
 
         // 12. Devolver respuesta
-        return AppointmentResponse.from(saved);
+        return AppointmentResponse.from(saved, bookedServiceRepository);
     }
 
     /**
@@ -193,7 +193,7 @@ public class AppointmentService {
     public List<AppointmentResponse> getAppointmentsByBusiness(Long businessId) {
         return appointmentRepository.findAllByBusinessId(businessId)
                 .stream()
-                .map(AppointmentResponse::from)
+                .map(a -> AppointmentResponse.from(a, bookedServiceRepository))
                 .toList();
     }
 
@@ -209,7 +209,7 @@ public class AppointmentService {
                                 + " en el negocio con ID: " + businessId
                 ));
 
-        return AppointmentResponse.from(appointment);
+        return AppointmentResponse.from(appointment, bookedServiceRepository);
     }
 
     /**
@@ -245,6 +245,6 @@ public class AppointmentService {
 
         // 5. Guardar y devolver
         Appointment updated = appointmentRepository.save(appointment);
-        return AppointmentResponse.from(updated);
+        return AppointmentResponse.from(updated, bookedServiceRepository);
     }
 }
