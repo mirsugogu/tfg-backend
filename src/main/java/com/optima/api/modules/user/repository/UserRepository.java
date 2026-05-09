@@ -10,19 +10,10 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    Optional<User> findByEmail(String email);
-
     /**
      * Búsqueda tenant-safe: el usuario existe Y pertenece al negocio dado.
      */
     Optional<User> findByIdAndBusinessId(Long id, Long businessId);
-
-    /**
-     * Lista todos los usuarios (activos e inactivos) de un negocio.
-     * Mantenida por compatibilidad con código existente
-     * (ej. {@code AppointmentService}).
-     */
-    List<User> findByBusinessId(Long businessId);
 
     /**
      * Lista los usuarios activos de un negocio.

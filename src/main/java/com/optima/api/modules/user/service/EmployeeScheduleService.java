@@ -35,6 +35,16 @@ public class EmployeeScheduleService {
         User employee = ensureEmployeeOfBusiness(businessId, userId);
         validateHours(req.startTime(), req.endTime());
 
+        List<EmployeeSchedule> existingSchedules = scheduleRepository
+                .findAllByUserIdAndDayOfWeek(userId, req.dayOfWeek());
+        for (EmployeeSchedule existing : existingSchedules) {
+            if (req.startTime().isBefore(existing.getEndTime())
+                    && req.endTime().isAfter(existing.getStartTime())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "El empleado ya tiene un tramo en ese horario para ese día");
+            }
+        }
+
         EmployeeSchedule s = new EmployeeSchedule();
         s.setUser(employee);
         s.setDayOfWeek(req.dayOfWeek());

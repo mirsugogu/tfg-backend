@@ -1,8 +1,10 @@
 package com.optima.api.modules.appointment.dto.response;
 
 import com.optima.api.modules.appointment.model.Appointment;
+import com.optima.api.modules.appointment.repository.BookedServiceRepository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record AppointmentResponse(
         Long id,
@@ -24,9 +26,17 @@ public record AppointmentResponse(
         LocalDateTime startDateTime,
         LocalDateTime endDateTime,
         String notes,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        List<BookedServiceResponse> bookedServices
 ) {
-    public static AppointmentResponse from(Appointment a) {
+    public static AppointmentResponse from(Appointment a,
+                                           BookedServiceRepository bookedServiceRepository) {
+        List<BookedServiceResponse> bookedServices =
+                bookedServiceRepository
+                        .findAllByAppointmentId(a.getId())
+                        .stream()
+                        .map(BookedServiceResponse::from)
+                        .toList();
         return new AppointmentResponse(
                 a.getId(),
                 a.getBusiness().getId(),
@@ -40,7 +50,8 @@ public record AppointmentResponse(
                 a.getStartDateTime(),
                 a.getEndDateTime(),
                 a.getNotes(),
-                a.getCreatedAt()
+                a.getCreatedAt(),
+                bookedServices
         );
     }
 }

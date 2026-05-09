@@ -11,12 +11,6 @@ import java.util.Optional;
 public interface ClientRepository extends JpaRepository<Client, Long> {
 
     /**
-     * Lista todos los clientes (activos e inactivos) de un negocio.
-     * Mantenida por compatibilidad con código existente.
-     */
-    List<Client> findByBusinessId(Long businessId);
-
-    /**
      * Lista los clientes activos de un negocio.
      * Es la query que usa el listado por defecto del controller.
      */
