@@ -7,6 +7,7 @@ import com.optima.api.modules.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class UserController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public UserResponse create(@PathVariable Long businessId,
                                @Valid @RequestBody CreateUserRequest req) {
         return userService.create(businessId, req);
@@ -36,6 +38,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public UserResponse update(@PathVariable Long businessId,
                                @PathVariable Long id,
                                @Valid @RequestBody UpdateUserRequest req) {
@@ -44,6 +47,7 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void deactivate(@PathVariable Long businessId, @PathVariable Long id) {
         userService.deactivate(businessId, id);
     }

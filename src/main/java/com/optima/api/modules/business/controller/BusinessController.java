@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,6 +21,7 @@ public class BusinessController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public BusinessResponse create(@Valid @RequestBody CreateBusinessRequest req) {
         return businessService.create(req);
     }
@@ -40,17 +42,20 @@ public class BusinessController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public BusinessResponse update(@PathVariable Long id, @Valid @RequestBody UpdateBusinessRequest req) {
         return businessService.update(id, req);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void deactivate(@PathVariable Long id) {
         businessService.deactivate(id);
     }
 
     @PatchMapping("/{id}/reactivate")
+    @PreAuthorize("hasRole('ADMIN')")
     public BusinessResponse reactivate(@PathVariable Long id) {
         return businessService.reactivate(id);
     }

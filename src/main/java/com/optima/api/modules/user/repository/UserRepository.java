@@ -11,6 +11,14 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Long> {
 
     /**
+     * Busca un usuario por negocio + email (case-insensitive).
+     * Es el metodo que usa el login: respeta multi-tenant porque el email
+     * solo es unico por negocio (UNIQUE id_business, email). El cliente
+     * indica explicitamente el negocio via businessSlug en el body de login.
+     */
+    Optional<User> findByBusinessIdAndEmailIgnoreCase(Long businessId, String email);
+
+    /**
      * Búsqueda tenant-safe: el usuario existe Y pertenece al negocio dado.
      */
     Optional<User> findByIdAndBusinessId(Long id, Long businessId);

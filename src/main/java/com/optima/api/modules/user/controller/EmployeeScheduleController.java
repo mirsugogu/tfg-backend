@@ -7,6 +7,7 @@ import com.optima.api.modules.user.service.EmployeeScheduleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class EmployeeScheduleController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public ScheduleResponse create(@PathVariable Long businessId,
                                    @PathVariable Long userId,
                                    @Valid @RequestBody CreateScheduleRequest req) {
@@ -40,6 +42,7 @@ public class EmployeeScheduleController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ScheduleResponse update(@PathVariable Long businessId,
                                    @PathVariable Long userId,
                                    @PathVariable Long id,
@@ -49,6 +52,7 @@ public class EmployeeScheduleController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(@PathVariable Long businessId,
                        @PathVariable Long userId,
                        @PathVariable Long id) {

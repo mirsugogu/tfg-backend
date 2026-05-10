@@ -7,6 +7,7 @@ import com.optima.api.modules.catalog.service.ServiceCategoryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +25,7 @@ public class ServiceCategoryController {
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public CategoryResponse createCategory(@PathVariable Long businessId,
                                            @Valid @RequestBody CreateCategoryRequest request) {
         return categoryService.createCategory(businessId, request);
@@ -50,6 +52,7 @@ public class ServiceCategoryController {
      * Actualiza el nombre de una categoría dentro del negocio.
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public CategoryResponse updateCategory(@PathVariable Long businessId,
                                            @PathVariable Long id,
                                            @Valid @RequestBody UpdateCategoryRequest request) {
@@ -61,6 +64,7 @@ public class ServiceCategoryController {
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void deactivateCategory(@PathVariable Long businessId, @PathVariable Long id) {
         categoryService.deactivateCategory(businessId, id);
     }

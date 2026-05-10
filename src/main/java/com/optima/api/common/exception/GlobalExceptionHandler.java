@@ -3,6 +3,7 @@ package com.optima.api.common.exception;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -47,6 +48,20 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleEntityNotFound(jakarta.persistence.EntityNotFoundException ex) {
         return new ErrorResponse(404, "Not Found", ex.getMessage(),
+            Instant.now().toString());
+    }
+
+    /**
+     * Captura la excepcion que lanza Spring Security al rechazar un acceso
+     * por @PreAuthorize. La AOP la lanza a nivel de metodo y bypassa el
+     * AccessDeniedHandler del SecurityConfig (que solo cubre rechazos en
+     * la cadena de filtros), asi que la traducimos aqui al mismo 403.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleAccessDenied(AccessDeniedException ex) {
+        return new ErrorResponse(403, "403 FORBIDDEN",
+            "No tienes permisos suficientes para esta operacion",
             Instant.now().toString());
     }
 

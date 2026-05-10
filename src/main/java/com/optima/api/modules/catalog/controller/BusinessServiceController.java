@@ -7,6 +7,7 @@ import com.optima.api.modules.catalog.service.BusinessServiceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +25,7 @@ public class BusinessServiceController {
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public ServiceResponse createService(@PathVariable Long businessId,
                                          @Valid @RequestBody CreateServiceRequest request) {
         return businessServiceService.createService(businessId, request);
@@ -50,6 +52,7 @@ public class BusinessServiceController {
      * Actualiza los campos editables de un servicio dentro del negocio.
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ServiceResponse updateService(@PathVariable Long businessId,
                                          @PathVariable Long id,
                                          @Valid @RequestBody UpdateServiceRequest request) {
@@ -61,6 +64,7 @@ public class BusinessServiceController {
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void deactivateService(@PathVariable Long businessId, @PathVariable Long id) {
         businessServiceService.deactivateService(businessId, id);
     }

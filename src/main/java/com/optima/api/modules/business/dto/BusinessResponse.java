@@ -13,11 +13,13 @@ public record BusinessResponse(
     String address,
     Integer appointmentInterval,
     Boolean isActive,
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+    LocalDateTime deactivatedAt
 ) {
     public static BusinessResponse from(Business b) {
         return new BusinessResponse(b.getId(), b.getName(), b.getSlug(),
             b.getEmail(), b.getPhone(), b.getAddress(),
-            b.getAppointmentInterval(), b.getIsActive(), b.getCreatedAt());
+            b.getAppointmentInterval(), b.getIsActive(), b.getCreatedAt(),
+            b.getDeactivatedAt());
     }
 }

@@ -1,0 +1,733 @@
+{
+  "info": {
+    "_postman_id": "optima-tfg-audit-2026",
+    "name": "Optima API TFG (auditoria)",
+    "description": "Coleccion completa tras la auditoria academica. Incluye los 6 audit checks con assertions automaticas. Variables: baseUrl (por defecto http://localhost:8084) y token (se rellena solo al hacer login). Para correr de un tiron: Collection Runner > Run.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Recalcula fechas futuras (en hora LOCAL, no UTC) antes de cada request",
+          "const now = new Date();",
+          "const day = now.getDay();",
+          "const pad = (n) => String(n).padStart(2, '0');",
+          "const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;",
+          "const setLocal = (k, d) => pm.collectionVariables.set(k, fmt(d));",
+          "const nextDow = (target) => { const d = new Date(now); d.setDate(now.getDate() + (((target - day + 7) % 7) || 7)); return d; };",
+          "const mon = nextDow(1); mon.setHours(10,0,0,0); setLocal('nextMon1000', mon);",
+          "const mon1030 = new Date(mon); mon1030.setMinutes(30); setLocal('nextMon1030', mon1030);",
+          "const mon1015 = new Date(mon); mon1015.setMinutes(15); setLocal('nextMon1015', mon1015);",
+          "const mon1400 = new Date(mon); mon1400.setHours(14); setLocal('nextMon1400', mon1400);",
+          "const wed = nextDow(3); wed.setHours(10,0,0,0); setLocal('nextWed1000', wed);",
+          "const fri = nextDow(5); fri.setHours(23,0,0,0); setLocal('nextFri2300', fri);"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8084", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "uniqSuffix", "value": "", "type": "string" },
+    { "key": "businessId", "value": "", "type": "string" },
+    { "key": "businessId2", "value": "", "type": "string" },
+    { "key": "taxId", "value": "", "type": "string" },
+    { "key": "hourId", "value": "", "type": "string" },
+    { "key": "adminUserId", "value": "", "type": "string" },
+    { "key": "employeeUserId", "value": "", "type": "string" },
+    { "key": "scheduleId", "value": "", "type": "string" },
+    { "key": "absenceId", "value": "", "type": "string" },
+    { "key": "clientId", "value": "", "type": "string" },
+    { "key": "clientId2", "value": "", "type": "string" },
+    { "key": "categoryId", "value": "", "type": "string" },
+    { "key": "categoryId2", "value": "", "type": "string" },
+    { "key": "serviceId", "value": "", "type": "string" },
+    { "key": "serviceId2", "value": "", "type": "string" },
+    { "key": "appointmentId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "01 - Auth",
+      "item": [
+        {
+          "name": "Login (admin hardcoded)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('devuelve token', () => pm.expect(j.token).to.be.a('string').and.not.empty);",
+                  "pm.collectionVariables.set('token', j.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/token", "host": ["{{baseUrl}}"], "path": ["api","auth","token"] },
+            "body": { "mode": "raw", "raw": "{\"email\":\"admin@optima.com\",\"password\":\"123456\"}" }
+          }
+        },
+        {
+          "name": "Login credenciales mal -> 401",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/token", "host": ["{{baseUrl}}"], "path": ["api","auth","token"] },
+            "body": { "mode": "raw", "raw": "{\"email\":\"x@x.com\",\"password\":\"wrong\"}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Catalogos",
+      "item": [
+        {
+          "name": "GET roles",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));", "pm.test('contiene ADMIN y EMPLOYEE', () => { const names = pm.response.json().map(r => r.name); pm.expect(names).to.include.members(['ADMIN','EMPLOYEE']); });"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/roles", "host": ["{{baseUrl}}"], "path": ["api","roles"] } }
+        },
+        {
+          "name": "GET appointment-statuses",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));", "pm.test('6 estados', () => pm.expect(pm.response.json().length).to.eql(6));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/appointment-statuses", "host": ["{{baseUrl}}"], "path": ["api","appointment-statuses"] } }
+        }
+      ]
+    },
+    {
+      "name": "03 - Negocios",
+      "item": [
+        {
+          "name": "POST business (happy)",
+          "event": [
+            { "listen": "prerequest", "script": { "exec": ["pm.collectionVariables.set('uniqSuffix', String(Date.now()).slice(-6));"] } },
+            { "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('businessId', pm.response.json().id);"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses", "host": ["{{baseUrl}}"], "path": ["api","businesses"] },
+            "body": { "mode": "raw", "raw": "{\"name\":\"Salon Test {{uniqSuffix}}\",\"slug\":\"salon-test-{{uniqSuffix}}\",\"email\":\"test{{uniqSuffix}}@salon.com\",\"phone\":\"600111222\",\"address\":\"Calle Test 1\",\"appointmentInterval\":30}" }
+          }
+        },
+        {
+          "name": "POST business slug duplicado -> 409",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('409', () => pm.response.to.have.status(409));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses", "host": ["{{baseUrl}}"], "path": ["api","businesses"] },
+            "body": { "mode": "raw", "raw": "{\"name\":\"Dup\",\"slug\":\"salon-test-{{uniqSuffix}}\",\"email\":\"otro{{uniqSuffix}}@x.com\",\"appointmentInterval\":30}" }
+          }
+        },
+        {
+          "name": "POST business interval invalido -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses", "host": ["{{baseUrl}}"], "path": ["api","businesses"] },
+            "body": { "mode": "raw", "raw": "{\"name\":\"Bad\",\"slug\":\"bad-interval-{{uniqSuffix}}\",\"email\":\"bad{{uniqSuffix}}@x.com\",\"appointmentInterval\":17}" }
+          }
+        },
+        {
+          "name": "GET businesses (lista)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses", "host": ["{{baseUrl}}"], "path": ["api","businesses"] } }
+        },
+        {
+          "name": "GET business by id",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}"] } }
+        },
+        {
+          "name": "GET business by slug",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses/slug/salon-test-{{uniqSuffix}}", "host": ["{{baseUrl}}"], "path": ["api","businesses","slug","salon-test-{{uniqSuffix}}"] } }
+        },
+        {
+          "name": "PUT business",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}"] },
+            "body": { "mode": "raw", "raw": "{\"name\":\"Salon Updated\",\"email\":\"test{{uniqSuffix}}@salon.com\",\"phone\":\"600999888\",\"address\":\"Nueva calle\",\"appointmentInterval\":30}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Impuestos",
+      "item": [
+        {
+          "name": "POST tax (happy)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('taxId', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/taxes", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","taxes"] },
+            "body": { "mode": "raw", "raw": "{\"name\":\"IVA21\",\"percentage\":21.00}" }
+          }
+        },
+        {
+          "name": "POST tax porcentaje >100 -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/taxes", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","taxes"] },
+            "body": { "mode": "raw", "raw": "{\"name\":\"Sobre\",\"percentage\":150}" }
+          }
+        },
+        {
+          "name": "GET taxes",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/taxes", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","taxes"] } }
+        },
+        {
+          "name": "PUT tax",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/taxes/{{taxId}}", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","taxes","{{taxId}}"] },
+            "body": { "mode": "raw", "raw": "{\"name\":\"IVA general\",\"percentage\":21.00}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Horarios negocio",
+      "item": [
+        {
+          "name": "POST hour Lunes 09-18",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('hourId', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/hours", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","hours"] },
+            "body": { "mode": "raw", "raw": "{\"dayOfWeek\":1,\"startTime\":\"09:00:00\",\"endTime\":\"18:00:00\",\"isClosed\":false}" }
+          }
+        },
+        {
+          "name": "POST hour Domingo cerrado",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/hours", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","hours"] },
+            "body": { "mode": "raw", "raw": "{\"dayOfWeek\":7,\"isClosed\":true}" }
+          }
+        },
+        {
+          "name": "POST hour Lunes duplicado -> 409",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('409', () => pm.response.to.have.status(409));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/hours", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","hours"] },
+            "body": { "mode": "raw", "raw": "{\"dayOfWeek\":1,\"startTime\":\"10:00\",\"endTime\":\"14:00\",\"isClosed\":false}" }
+          }
+        },
+        {
+          "name": "GET hours",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/hours", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","hours"] } }
+        }
+      ]
+    },
+    {
+      "name": "06 - Usuarios",
+      "item": [
+        {
+          "name": "POST user ADMIN",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('adminUserId', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","users"] },
+            "body": { "mode": "raw", "raw": "{\"roleId\":1,\"fullName\":\"Admin Test\",\"email\":\"admin{{uniqSuffix}}@salon.com\",\"password\":\"password1\",\"phone\":\"600000001\"}" }
+          }
+        },
+        {
+          "name": "POST user EMPLOYEE",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('employeeUserId', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","users"] },
+            "body": { "mode": "raw", "raw": "{\"roleId\":2,\"fullName\":\"Empleado Test\",\"email\":\"emp{{uniqSuffix}}@salon.com\",\"password\":\"password1\",\"phone\":\"600000002\"}" }
+          }
+        },
+        {
+          "name": "POST user email duplicado -> 409",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('409', () => pm.response.to.have.status(409));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","users"] },
+            "body": { "mode": "raw", "raw": "{\"roleId\":1,\"fullName\":\"Dup\",\"email\":\"admin{{uniqSuffix}}@salon.com\",\"password\":\"password1\"}" }
+          }
+        },
+        {
+          "name": "POST user password corta -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","users"] },
+            "body": { "mode": "raw", "raw": "{\"roleId\":1,\"fullName\":\"X\",\"email\":\"short{{uniqSuffix}}@x.com\",\"password\":\"123\"}" }
+          }
+        },
+        {
+          "name": "GET users",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","users"] } }
+        }
+      ]
+    },
+    {
+      "name": "07 - Horarios empleado [AUDIT 5.2]",
+      "item": [
+        {
+          "name": "POST schedule Lunes 09-13",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('scheduleId', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{employeeUserId}}/schedules", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","users","{{employeeUserId}}","schedules"] },
+            "body": { "mode": "raw", "raw": "{\"dayOfWeek\":1,\"startTime\":\"09:00\",\"endTime\":\"13:00\"}" }
+          }
+        },
+        {
+          "name": "POST schedule Lunes 15-19 (no solapa)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{employeeUserId}}/schedules", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","users","{{employeeUserId}}","schedules"] },
+            "body": { "mode": "raw", "raw": "{\"dayOfWeek\":1,\"startTime\":\"15:00\",\"endTime\":\"19:00\"}" }
+          }
+        },
+        {
+          "name": "POST schedule Viernes 22-23:59 (para test medianoche)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{employeeUserId}}/schedules", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","users","{{employeeUserId}}","schedules"] },
+            "body": { "mode": "raw", "raw": "{\"dayOfWeek\":5,\"startTime\":\"22:00\",\"endTime\":\"23:59:59\"}" }
+          }
+        },
+        {
+          "name": "[AUDIT 5.2] schedule overlap -> 409",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('409', () => pm.response.to.have.status(409));", "pm.test('mensaje en espanol', () => { pm.expect(pm.response.json().message).to.include('tramo'); });"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{employeeUserId}}/schedules", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","users","{{employeeUserId}}","schedules"] },
+            "body": { "mode": "raw", "raw": "{\"dayOfWeek\":1,\"startTime\":\"12:00\",\"endTime\":\"15:00\"}" }
+          }
+        },
+        {
+          "name": "GET schedules",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{employeeUserId}}/schedules", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","users","{{employeeUserId}}","schedules"] } }
+        }
+      ]
+    },
+    {
+      "name": "08 - Ausencias [AUDIT 5.1, 5.3]",
+      "item": [
+        {
+          "name": "[AUDIT 5.1] ausencia en pasado -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));", "pm.test('msg @FutureOrPresent', () => { pm.expect(pm.response.json().message).to.include('pasado'); });"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{employeeUserId}}/absences", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","users","{{employeeUserId}}","absences"] },
+            "body": { "mode": "raw", "raw": "{\"startDateTime\":\"2024-01-01T09:00:00\",\"endDateTime\":\"2024-01-02T09:00:00\",\"reason\":\"Pasado\"}" }
+          }
+        },
+        {
+          "name": "POST ausencia futura (happy)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('absenceId', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{employeeUserId}}/absences", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","users","{{employeeUserId}}","absences"] },
+            "body": { "mode": "raw", "raw": "{\"startDateTime\":\"2026-12-01T00:00:00\",\"endDateTime\":\"2026-12-15T23:59:59\",\"reason\":\"Vacaciones\"}" }
+          }
+        },
+        {
+          "name": "[AUDIT 5.3] ausencia overlap -> 409",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('409', () => pm.response.to.have.status(409));", "pm.test('msg overlap', () => { pm.expect(pm.response.json().message).to.include('ausencia'); });"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{employeeUserId}}/absences", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","users","{{employeeUserId}}","absences"] },
+            "body": { "mode": "raw", "raw": "{\"startDateTime\":\"2026-12-10T00:00:00\",\"endDateTime\":\"2026-12-20T00:00:00\",\"reason\":\"Solapa\"}" }
+          }
+        },
+        {
+          "name": "GET absences",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/users/{{employeeUserId}}/absences", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","users","{{employeeUserId}}","absences"] } }
+        }
+      ]
+    },
+    {
+      "name": "09 - Clientes",
+      "item": [
+        {
+          "name": "POST client (happy)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('clientId', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/clients", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","clients"] },
+            "body": { "mode": "raw", "raw": "{\"fullName\":\"Cliente Test\",\"email\":\"cliente{{uniqSuffix}}@test.com\",\"phone\":\"600999000\",\"notes\":\"Sin alergias\"}" }
+          }
+        },
+        {
+          "name": "POST client email malo -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/clients", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","clients"] },
+            "body": { "mode": "raw", "raw": "{\"fullName\":\"X\",\"email\":\"no-es-email\"}" }
+          }
+        },
+        {
+          "name": "GET clients",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/clients", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","clients"] } }
+        },
+        {
+          "name": "PUT client",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/clients/{{clientId}}", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","clients","{{clientId}}"] },
+            "body": { "mode": "raw", "raw": "{\"fullName\":\"Cliente Updated\",\"email\":\"cliente2{{uniqSuffix}}@test.com\",\"phone\":\"600999111\",\"notes\":\"X\"}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Categorias",
+      "item": [
+        {
+          "name": "POST category (happy)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('categoryId', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/categories", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","categories"] },
+            "body": { "mode": "raw", "raw": "{\"name\":\"Cortes\"}" }
+          }
+        },
+        {
+          "name": "POST category segunda",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('categoryId2', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/categories", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","categories"] },
+            "body": { "mode": "raw", "raw": "{\"name\":\"Coloracion\"}" }
+          }
+        },
+        {
+          "name": "POST category nombre duplicado -> 409",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('409', () => pm.response.to.have.status(409));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/categories", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","categories"] },
+            "body": { "mode": "raw", "raw": "{\"name\":\"Cortes\"}" }
+          }
+        },
+        {
+          "name": "GET categories",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/categories", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","categories"] } }
+        }
+      ]
+    },
+    {
+      "name": "11 - Servicios [AUDIT 2.1]",
+      "item": [
+        {
+          "name": "[AUDIT 2.1] POST service: response incluye taxId",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "const j = pm.response.json();", "pm.test('AUDIT taxId presente', () => pm.expect(j.taxId).to.eql(Number(pm.collectionVariables.get('taxId'))));", "pm.collectionVariables.set('serviceId', j.id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/services", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","services"] },
+            "body": { "mode": "raw", "raw": "{\"categoryId\":{{categoryId}},\"taxId\":{{taxId}},\"name\":\"Corte premium\",\"description\":\"Premium\",\"price\":25.00,\"durationMinutes\":45}" }
+          }
+        },
+        {
+          "name": "POST service segundo (60min)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('serviceId2', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/services", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","services"] },
+            "body": { "mode": "raw", "raw": "{\"categoryId\":{{categoryId2}},\"taxId\":{{taxId}},\"name\":\"Tinte completo\",\"description\":\"Tinte\",\"price\":40.00,\"durationMinutes\":60}" }
+          }
+        },
+        {
+          "name": "POST service price negativo -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/services", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","services"] },
+            "body": { "mode": "raw", "raw": "{\"categoryId\":{{categoryId}},\"taxId\":{{taxId}},\"name\":\"X\",\"price\":-1,\"durationMinutes\":30}" }
+          }
+        },
+        {
+          "name": "GET services",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/services", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","services"] } }
+        },
+        {
+          "name": "GET service by id",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));", "pm.test('AUDIT taxId presente en GET', () => pm.expect(pm.response.json().taxId).to.eql(Number(pm.collectionVariables.get('taxId'))));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/services/{{serviceId}}", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","services","{{serviceId}}"] } }
+        }
+      ]
+    },
+    {
+      "name": "12 - Citas [AUDIT 2.2/2.3/2.4, 3.1]",
+      "item": [
+        {
+          "name": "[AUDIT 2.2/2.3/2.4] POST appointment: response incluye bookedServices",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "const j = pm.response.json();", "pm.collectionVariables.set('appointmentId', j.id);", "pm.test('AUDIT bookedServices array no vacio', () => pm.expect(j.bookedServices).to.be.an('array').and.not.empty);", "pm.test('AUDIT BookedServiceResponse.appliedPrice', () => pm.expect(j.bookedServices[0].appliedPrice).to.exist);", "pm.test('AUDIT BookedServiceResponse.appliedTaxPercentage', () => pm.expect(j.bookedServices[0].appliedTaxPercentage).to.exist);", "pm.test('AUDIT BookedServiceResponse.serviceName', () => pm.expect(j.bookedServices[0].serviceName).to.eql('Corte premium'));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments"] },
+            "body": { "mode": "raw", "raw": "{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1000}}\",\"notes\":\"Cita test\",\"serviceIds\":[{{serviceId}}]}" }
+          }
+        },
+        {
+          "name": "GET appointment by id",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));", "pm.test('GET tambien incluye bookedServices', () => pm.expect(pm.response.json().bookedServices).to.be.an('array').and.not.empty);"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments","{{appointmentId}}"] } }
+        },
+        {
+          "name": "GET appointments",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments"] } }
+        },
+        {
+          "name": "POST appointment en pasado -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments"] },
+            "body": { "mode": "raw", "raw": "{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"2024-01-01T10:00:00\",\"serviceIds\":[{{serviceId}}]}" }
+          }
+        },
+        {
+          "name": "POST appointment 10:15 (no multiplo 30) -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments"] },
+            "body": { "mode": "raw", "raw": "{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1015}}\",\"serviceIds\":[{{serviceId}}]}" }
+          }
+        },
+        {
+          "name": "POST appointment Lunes 14:00 fuera horario -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments"] },
+            "body": { "mode": "raw", "raw": "{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1400}}\",\"serviceIds\":[{{serviceId}}]}" }
+          }
+        },
+        {
+          "name": "POST appointment Miercoles sin schedule -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments"] },
+            "body": { "mode": "raw", "raw": "{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextWed1000}}\",\"serviceIds\":[{{serviceId}}]}" }
+          }
+        },
+        {
+          "name": "POST appointment overlap 10:30 -> 409",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('409', () => pm.response.to.have.status(409));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments"] },
+            "body": { "mode": "raw", "raw": "{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1030}}\",\"serviceIds\":[{{serviceId}}]}" }
+          }
+        },
+        {
+          "name": "[AUDIT 3.1] cita Vi 23:00 + 60min cruza medianoche -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));", "pm.test('msg medianoche', () => pm.expect(pm.response.json().message).to.include('medianoche'));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments"] },
+            "body": { "mode": "raw", "raw": "{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextFri2300}}\",\"serviceIds\":[{{serviceId2}}]}" }
+          }
+        },
+        {
+          "name": "PATCH PENDING -> CONFIRMED",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}/status", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments","{{appointmentId}}","status"] },
+            "body": { "mode": "raw", "raw": "{\"statusName\":\"CONFIRMED\"}" }
+          }
+        },
+        {
+          "name": "PATCH CONFIRMED -> COMPLETED ilegal -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}/status", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments","{{appointmentId}}","status"] },
+            "body": { "mode": "raw", "raw": "{\"statusName\":\"COMPLETED\"}" }
+          }
+        },
+        {
+          "name": "PATCH CONFIRMED -> IN_PROGRESS",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}/status", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments","{{appointmentId}}","status"] },
+            "body": { "mode": "raw", "raw": "{\"statusName\":\"IN_PROGRESS\"}" }
+          }
+        },
+        {
+          "name": "PATCH IN_PROGRESS -> COMPLETED",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}/status", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments","{{appointmentId}}","status"] },
+            "body": { "mode": "raw", "raw": "{\"statusName\":\"COMPLETED\"}" }
+          }
+        },
+        {
+          "name": "PATCH desde COMPLETED (estado final) -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}/status", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments","{{appointmentId}}","status"] },
+            "body": { "mode": "raw", "raw": "{\"statusName\":\"PENDING\"}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Cross-tenant",
+      "item": [
+        {
+          "name": "POST segundo negocio",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('businessId2', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses", "host": ["{{baseUrl}}"], "path": ["api","businesses"] },
+            "body": { "mode": "raw", "raw": "{\"name\":\"Otro Negocio\",\"slug\":\"otro-{{uniqSuffix}}\",\"email\":\"otro{{uniqSuffix}}@x.com\",\"appointmentInterval\":30}" }
+          }
+        },
+        {
+          "name": "POST cliente en negocio2",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('clientId2', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId2}}/clients", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId2}}","clients"] },
+            "body": { "mode": "raw", "raw": "{\"fullName\":\"Cliente Ajeno\"}" }
+          }
+        },
+        {
+          "name": "GET cliente del otro tenant -> 404",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('404', () => pm.response.to.have.status(404));"] } }],
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/clients/{{clientId2}}", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","clients","{{clientId2}}"] } }
+        },
+        {
+          "name": "POST appointment usando cliente ajeno -> 404",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('404', () => pm.response.to.have.status(404));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments"] },
+            "body": { "mode": "raw", "raw": "{\"clientId\":{{clientId2}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1030}}\",\"serviceIds\":[{{serviceId}}]}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 - Soft delete y reactivate",
+      "item": [
+        {
+          "name": "DELETE service2 (soft)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('204', () => pm.response.to.have.status(204));"] } }],
+          "request": { "method": "DELETE", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/services/{{serviceId2}}", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","services","{{serviceId2}}"] } }
+        },
+        {
+          "name": "POST appointment con servicio desactivado -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));", "pm.test('msg desactivado', () => pm.expect(pm.response.json().message).to.include('desactivado'));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/appointments", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","appointments"] },
+            "body": { "mode": "raw", "raw": "{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1030}}\",\"serviceIds\":[{{serviceId2}}]}" }
+          }
+        },
+        {
+          "name": "DELETE client (soft)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('204', () => pm.response.to.have.status(204));"] } }],
+          "request": { "method": "DELETE", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/clients/{{clientId}}", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","clients","{{clientId}}"] } }
+        },
+        {
+          "name": "PUT cliente desactivado -> 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId}}/clients/{{clientId}}", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId}}","clients","{{clientId}}"] },
+            "body": { "mode": "raw", "raw": "{\"fullName\":\"X\"}" }
+          }
+        },
+        {
+          "name": "DELETE business2",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('204', () => pm.response.to.have.status(204));"] } }],
+          "request": { "method": "DELETE", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId2}}", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId2}}"] } }
+        },
+        {
+          "name": "PATCH reactivate business2",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }],
+          "request": { "method": "PATCH", "url": { "raw": "{{baseUrl}}/api/businesses/{{businessId2}}/reactivate", "host": ["{{baseUrl}}"], "path": ["api","businesses","{{businessId2}}","reactivate"] } }
+        }
+      ]
+    }
+  ]
+}

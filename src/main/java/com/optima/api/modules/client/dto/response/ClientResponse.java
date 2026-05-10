@@ -2,6 +2,8 @@ package com.optima.api.modules.client.dto.response;
 
 import com.optima.api.modules.client.model.Client;
 
+import java.time.LocalDateTime;
+
 /**
  * DTO de salida para representar un cliente.
  */
@@ -12,7 +14,9 @@ public record ClientResponse(
         String email,
         String phone,
         String notes,
-        Boolean isActive
+        Boolean isActive,
+        LocalDateTime createdAt,
+        LocalDateTime deactivatedAt
 ) {
     public static ClientResponse from(Client c) {
         return new ClientResponse(
@@ -22,7 +26,9 @@ public record ClientResponse(
                 c.getEmail(),
                 c.getPhone(),
                 c.getNotes(),
-                c.getIsActive()
+                c.getIsActive(),
+                c.getCreatedAt(),
+                c.getDeactivatedAt()
         );
     }
 }

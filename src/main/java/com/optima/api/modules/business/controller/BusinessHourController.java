@@ -7,6 +7,7 @@ import com.optima.api.modules.business.service.BusinessHourService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class BusinessHourController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public BusinessHourResponse create(@PathVariable Long businessId,
                                        @Valid @RequestBody CreateBusinessHourRequest req) {
         return hourService.create(businessId, req);
@@ -36,6 +38,7 @@ public class BusinessHourController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public BusinessHourResponse update(@PathVariable Long businessId,
                                        @PathVariable Long id,
                                        @Valid @RequestBody UpdateBusinessHourRequest req) {
@@ -44,6 +47,7 @@ public class BusinessHourController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(@PathVariable Long businessId, @PathVariable Long id) {
         hourService.delete(businessId, id);
     }

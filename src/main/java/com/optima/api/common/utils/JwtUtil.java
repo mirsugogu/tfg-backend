@@ -1,5 +1,6 @@
 package com.optima.api.common.utils;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
@@ -21,10 +22,10 @@ import java.util.Map;
 @Component
 public class JwtUtil {
 
-    @Value("${JWT_SECRET:EstaEsUnaClaveSuperSecretaYMuyLargaParaQueNoExplote2026!}")
+    @Value("${app.jwt.secret}")
     private String secretString;
 
-    @Value("${JWT_EXPIRATION:86400000}")
+    @Value("${app.jwt.expiration-ms}")
     private long expirationTime;
 
     private SecretKey secretKey;
@@ -37,8 +38,9 @@ public class JwtUtil {
         this.secretKey = Keys.hmacShaKeyFor(secretString.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(String email, Long businessId, String role) {
+    public String generateToken(String email, Long userId, Long businessId, String role) {
         Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
         claims.put("businessId", businessId);
         claims.put("role", role);
         return Jwts.builder()
@@ -48,5 +50,19 @@ public class JwtUtil {
                 .expiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(secretKey)
                 .compact();
+    }
+
+    /**
+     * Valida firma y expiracion del token entrante. Devuelve los claims si todo
+     * es correcto. Lanza {@link io.jsonwebtoken.JwtException} si el token esta
+     * mal firmado, expirado, malformado, etc. — el filtro de seguridad usa esa
+     * excepcion como senal de "no autenticar esta request".
+     */
+    public Claims parseAndValidate(String token) {
+        return Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }
