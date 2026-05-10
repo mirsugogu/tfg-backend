@@ -1,5 +1,6 @@
 package com.optima.api.modules.user.dto.request;
 
+import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -11,6 +12,7 @@ import java.time.LocalDateTime;
 public record UpdateAbsenceRequest(
 
         @NotNull(message = "La fecha de inicio es obligatoria")
+        @FutureOrPresent(message = "La fecha de inicio no puede estar en el pasado")
         LocalDateTime startDateTime,
 
         @NotNull(message = "La fecha de fin es obligatoria")

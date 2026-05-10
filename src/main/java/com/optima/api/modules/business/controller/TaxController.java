@@ -7,6 +7,7 @@ import com.optima.api.modules.business.service.TaxService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class TaxController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public TaxResponse create(@PathVariable Long businessId,
                               @Valid @RequestBody CreateTaxRequest req) {
         return taxService.create(businessId, req);
@@ -36,6 +38,7 @@ public class TaxController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public TaxResponse update(@PathVariable Long businessId,
                               @PathVariable Long id,
                               @Valid @RequestBody UpdateTaxRequest req) {
@@ -44,6 +47,7 @@ public class TaxController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void deactivate(@PathVariable Long businessId, @PathVariable Long id) {
         taxService.deactivate(id, businessId);
     }

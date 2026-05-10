@@ -2,6 +2,8 @@ package com.optima.api.modules.user.dto.response;
 
 import com.optima.api.modules.user.model.User;
 
+import java.time.LocalDateTime;
+
 /**
  * DTO de salida para representar un usuario.
  * IMPORTANTE: nunca incluye {@code passwordHash}; el hash de la contraseña
@@ -15,7 +17,9 @@ public record UserResponse(
         String fullName,
         String email,
         String phone,
-        Boolean isActive
+        Boolean isActive,
+        LocalDateTime createdAt,
+        LocalDateTime deactivatedAt
 ) {
     public static UserResponse from(User u) {
         return new UserResponse(
@@ -26,7 +30,9 @@ public record UserResponse(
                 u.getFullName(),
                 u.getEmail(),
                 u.getPhone(),
-                u.getIsActive()
+                u.getIsActive(),
+                u.getCreatedAt(),
+                u.getDeactivatedAt()
         );
     }
 }
