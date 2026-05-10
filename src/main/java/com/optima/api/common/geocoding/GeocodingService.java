@@ -24,6 +24,21 @@ import java.util.Optional;
  * <p>Nominatim exige un User-Agent identificable con contacto. Se lee
  * de {@code app.geocoding.user-agent}. El timeout HTTP (connect+read)
  * es {@code app.geocoding.timeout-ms} (default 5 s).
+ *
+ * COMUNICACION:
+ * - Lo inyecta: BusinessService (en create() y update()).
+ * - Llama a (red externa): https://nominatim.openstreetmap.org/search
+ *   via RestClient (cliente HTTP de Spring 6, sucesor de RestTemplate).
+ * - Devuelve: Optional&lt;Coordinates&gt;.
+ *
+ * Lectura de configuracion (application.properties):
+ *   app.geocoding.user-agent       identificador requerido por Nominatim
+ *                                  (incluye email de contacto).
+ *   app.geocoding.timeout-ms       timeout connect+read, default 5000.
+ *
+ * Por que es best-effort: Nominatim es un servicio publico gratuito sin
+ * SLA. No es aceptable que un fallo en el (caida, rate limit) bloquee
+ * el alta de un negocio. Si falla, lat/lng quedan null y el flujo sigue.
  */
 @Slf4j
 @Service

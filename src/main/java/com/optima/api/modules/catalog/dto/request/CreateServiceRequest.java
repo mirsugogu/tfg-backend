@@ -12,6 +12,18 @@ import java.math.BigDecimal;
  * DTO de entrada para crear un servicio.
  * El {@code businessId} viene del path, no del body.
  * La categoría y el impuesto se validan cross-tenant en el servicio.
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson, lo valida @Valid en BusinessServiceController.
+ * - Lo consume BusinessServiceService.createService.
+ *
+ * Validaciones:
+ *   categoryId        @NotNull (se valida cross-tenant en el service).
+ *   taxId             @NotNull (se valida cross-tenant en el service).
+ *   name              @NotBlank, max 150.
+ *   description       opcional.
+ *   price             @NotNull, >= 0 (BigDecimal para precision monetaria).
+ *   durationMinutes   @NotNull, >= 1 minuto.
  */
 public record CreateServiceRequest(
 

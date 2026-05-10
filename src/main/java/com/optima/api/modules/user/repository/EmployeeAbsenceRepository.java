@@ -7,6 +7,17 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * EmployeeAbsenceRepository - Acceso a la tabla `employee_absences`.
+ *
+ * COMUNICACION:
+ * - Lo inyecta: EmployeeAbsenceService.
+ * - Habla con: MySQL via Hibernate.
+ *
+ * Tenant safety a nivel de empleado: findByIdAndEmployeeId. El
+ * EmployeeAbsenceService valida cross-tenant antes (que el empleado
+ * pertenezca al negocio del path).
+ */
 @Repository
 public interface EmployeeAbsenceRepository extends JpaRepository<EmployeeAbsence, Long> {
 

@@ -23,6 +23,19 @@ import java.util.List;
  * Capa de lógica de negocio del módulo user.
  * Sigue el patrón de TaxService: validación cross-tenant explícita en
  * todos los métodos, devolución de DTOs y nunca de la entidad cruda.
+ *
+ * COMUNICACION:
+ * - Lo invoca: UserController (todos los endpoints CRUD).
+ * - Llama a:
+ *     UserRepository                CRUD + busquedas tenant-safe.
+ *     BusinessRepository.findById   verifica existencia del negocio.
+ *     RoleRepository.findById       verifica existencia del rol.
+ *     PasswordEncoder.encode        BCrypt para guardar password.
+ * - Devuelve: UserResponse (entity -> DTO via UserResponse.from()).
+ *
+ * Cross-tenant: TODOS los lookups por id usan findByIdAndBusinessId
+ * (helper findOrThrow), asi un ADMIN del negocio 5 nunca puede leer
+ * o tocar usuarios del negocio 7 aunque conozca el id.
  */
 @Service
 @Transactional
@@ -37,6 +50,14 @@ public class UserService {
     /**
      * Crea un usuario dentro del negocio dado. El email es único por negocio.
      * La contraseña llega en texto plano y se persiste hasheada con BCrypt.
+     *
+     * Pasos:
+     *   1. Verifica que el negocio existe (404 si no).
+     *   2. Verifica que el rol existe (404 si no).
+     *   3. Verifica unicidad del email DENTRO del negocio (409 si ya existe).
+     *   4. Hashea password con BCrypt: passwordEncoder.encode(req.password()).
+     *   5. INSERT en `users` via userRepository.save().
+     *   6. Devuelve UserResponse.
      */
     public UserResponse create(Long businessId, CreateUserRequest req) {
         Business business = businessRepository.findById(businessId)
@@ -88,6 +109,13 @@ public class UserService {
      * Actualiza los campos editables de un usuario: rol, nombre, email y
      * teléfono. La contraseña se cambia desde otro endpoint (futuro).
      * No permite operar sobre un usuario desactivado.
+     *
+     * Pasos:
+     *   1. findOrThrow tenant-safe (404 si no existe).
+     *   2. Verifica isActive (400 si esta desactivado).
+     *   3. Verifica que el nuevo rol existe (404 si no).
+     *   4. Si email cambia, comprueba unicidad por negocio (409 si choca).
+     *   5. Aplica los nuevos valores y persiste.
      */
     public UserResponse update(Long businessId, Long id, UpdateUserRequest req) {
         User u = findOrThrow(businessId, id);

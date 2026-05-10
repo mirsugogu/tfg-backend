@@ -11,6 +11,15 @@ import jakarta.validation.constraints.Size;
  * mover el usuario entre negocios.
  * Tampoco incluye {@code password}: el cambio de contraseña se gestiona en
  * un endpoint aparte (futuro).
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson desde el body JSON de PUT .../users/{id}.
+ * - Lo valida @Valid en UserController.update.
+ * - Lo consume UserService.update.
+ *
+ * Decision: el password NO se cambia aqui para evitar reset accidental
+ * en cada PUT. Cambio de password debe ser un endpoint dedicado con
+ * verificacion del password actual.
  */
 public record UpdateUserRequest(
 

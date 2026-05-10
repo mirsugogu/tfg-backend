@@ -12,6 +12,25 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * BusinessServiceController - CRUD de servicios comerciales del catalogo.
+ * Recurso anidado bajo /api/businesses/{businessId}/services.
+ *
+ * "BusinessService" es el SERVICIO COMERCIAL (corte de pelo, manicura...),
+ * NO confundir con la capa @Service de Spring. Vive en el paquete
+ * `catalog` para subrayar la diferencia.
+ *
+ * COMUNICACION:
+ * - Recibe: CRUD HTTP bajo /api/businesses/{businessId}/services.
+ * - Le precede: JwtAuthFilter + TenantGuardFilter (cross-tenant via path).
+ * - Llama a: BusinessServiceService.
+ * - Devuelve: ServiceResponse(s) en JSON.
+ *
+ * Permisos:
+ *   POST/PUT/DELETE -> @PreAuthorize("hasRole('ADMIN')") - solo el admin
+ *                      configura el catalogo de servicios.
+ *   GET (list, byId) -> sin @PreAuthorize - cualquier autenticado lee.
+ */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/services")
 @RequiredArgsConstructor

@@ -16,6 +16,20 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * ServiceCategoryService - Logica de categorias de servicios.
+ *
+ * COMUNICACION:
+ * - Lo invoca: ServiceCategoryController.
+ * - Llama a:
+ *     ServiceCategoryRepository    CRUD + existsByName tenant-safe.
+ *     BusinessRepository           verifica que el negocio existe.
+ * - Devuelve: CategoryResponse.
+ *
+ * Cross-tenant: usa findByIdAndBusinessId en TODOS los lookups por id.
+ * Soft delete: las categorias se desactivan, no se borran (preserva
+ * referencias desde servicios historicos).
+ */
 @Service
 @Transactional
 @RequiredArgsConstructor

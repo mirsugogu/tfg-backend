@@ -16,6 +16,16 @@ import lombok.Setter;
  *   COMPLETED    → cita finalizada correctamente.
  *   CANCELLED    → cita cancelada antes de su inicio.
  *   NO_SHOW      → el cliente no se presentó.
+ *
+ * COMUNICACION:
+ * - La instancia: Hibernate al hidratar.
+ * - La consume: AppointmentStatusResponse.from(), AppointmentService
+ *   (lookup por nombre al crear/transicionar), AppointmentValidator
+ *   (mapa de transiciones validas usa los nombres como string).
+ *
+ * Las transiciones validas estan codificadas en
+ * AppointmentValidator.VALID_TRANSITIONS (mapa estatico). NO se modela
+ * en BD porque el set es pequeno y estable.
  */
 @Entity
 @Table(name = "appointment_statuses")

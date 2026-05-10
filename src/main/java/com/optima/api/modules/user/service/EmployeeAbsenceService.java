@@ -22,6 +22,17 @@ import java.util.List;
  *
  * Doble comprobación cross-tenant: cada operación valida que el empleado
  * pertenece al negocio antes de tocar la ausencia.
+ *
+ * COMUNICACION:
+ * - Lo invoca: EmployeeAbsenceController.
+ * - Llama a:
+ *     EmployeeAbsenceRepository     CRUD + findByIdAndEmployeeId,
+ *                                   findAllByEmployeeId (overlap check).
+ *     UserRepository.findByIdAndBusinessId  cross-tenant del empleado.
+ * - Devuelve: AbsenceResponse.
+ *
+ * Validacion de overlap: al crear, comprueba que el rango no se solapa
+ * con otra ausencia ya registrada del mismo empleado (regla A < D AND C < B).
  */
 @Service
 @Transactional

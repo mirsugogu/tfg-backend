@@ -12,6 +12,23 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * ServiceCategoryController - CRUD de categorias de servicios.
+ * Recurso anidado bajo /api/businesses/{businessId}/categories.
+ *
+ * Las categorias agrupan servicios (ej: "Peluqueria", "Estetica", "Barberia").
+ * Cada negocio tiene sus propias categorias.
+ *
+ * COMUNICACION:
+ * - Recibe: CRUD HTTP bajo /api/businesses/{businessId}/categories.
+ * - Le precede: JwtAuthFilter + TenantGuardFilter.
+ * - Llama a: ServiceCategoryService.
+ * - Devuelve: CategoryResponse(s) en JSON.
+ *
+ * Permisos:
+ *   POST/PUT/DELETE -> @PreAuthorize("hasRole('ADMIN')").
+ *   GET             -> sin @PreAuthorize.
+ */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/categories")
 @RequiredArgsConstructor

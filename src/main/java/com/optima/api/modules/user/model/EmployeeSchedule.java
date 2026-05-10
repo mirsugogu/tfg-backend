@@ -13,6 +13,17 @@ import java.time.LocalTime;
  * Cada fila indica un tramo horario de un día concreto (ej: lunes de 09:00 a 14:00).
  * Un empleado puede tener varios horarios (varios tramos en un mismo día o en días distintos).
  * day_of_week: 1 = lunes, 2 = martes, ..., 7 = domingo.
+ *
+ * COMUNICACION:
+ * - La instancia: Hibernate al hidratar, EmployeeScheduleService.create
+ *   manualmente.
+ * - La consume: ScheduleResponse.from(), AppointmentValidator.validateEmployeeSchedule
+ *   (verifica que la cita cae dentro de uno de los tramos).
+ * - Tiene @ManyToOne con: User (el empleado).
+ *
+ * Sin uniqueConstraint en (user, dayOfWeek) porque un empleado puede
+ * tener turno partido (ej: Lunes 09-13 + Lunes 16-20). El service
+ * valida overlap entre tramos del mismo dia.
  */
 @Entity
 @Table(name = "employee_schedules")

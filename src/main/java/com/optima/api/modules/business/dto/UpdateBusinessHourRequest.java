@@ -10,6 +10,10 @@ import java.time.LocalTime;
  * DTO de entrada para actualizar un tramo horario.
  * Mismo contrato que {@link CreateBusinessHourRequest}: si cambias el día
  * de la semana se valida que no choque con otro tramo del mismo negocio.
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson, lo valida @Valid en BusinessHourController.
+ * - Lo consume BusinessHourService.update.
  */
 public record UpdateBusinessHourRequest(
 

@@ -15,6 +15,16 @@ import java.time.LocalDateTime;
  * El nombre es único dentro de cada negocio.
  * Si se deja de usar una categoría, se marca como inactiva en lugar de borrarla,
  * para no romper los servicios que ya pertenecen a ella.
+ *
+ * COMUNICACION:
+ * - La instancia: Hibernate al hidratar, ServiceCategoryService.create
+ *   manualmente.
+ * - La consume: CategoryResponse.from(), BusinessServiceService (al
+ *   crear/editar un servicio).
+ * - Es referenciada por: BusinessService.category (@ManyToOne).
+ *
+ * uniqueConstraints uq_category_business_name (id_business, name): la
+ * BD impide dos categorias con el mismo nombre en el mismo negocio.
  */
 @Entity
 @Table(

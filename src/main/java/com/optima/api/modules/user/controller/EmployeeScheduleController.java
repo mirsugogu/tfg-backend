@@ -12,6 +12,24 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * EmployeeScheduleController - CRUD del horario semanal de un empleado.
+ * Recurso doblemente anidado: /api/businesses/{businessId}/users/{userId}/schedules.
+ *
+ * Cada empleado puede tener varios tramos por dia (turno partido), por
+ * ejemplo "Lunes 09:00-13:00" + "Lunes 16:00-20:00".
+ *
+ * COMUNICACION:
+ * - Recibe: CRUD HTTP. Requiere JWT.
+ * - Le precede: JwtAuthFilter + TenantGuardFilter (cross-tenant via businessId).
+ * - Llama a: EmployeeScheduleService.
+ * - Devuelve: ScheduleResponse(s) en JSON.
+ *
+ * Permisos:
+ *   POST/PUT/DELETE -> @PreAuthorize("hasRole('ADMIN')") - solo admin
+ *                      configura la disponibilidad del personal.
+ *   GET             -> sin @PreAuthorize - cualquier autenticado lee.
+ */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/users/{userId}/schedules")
 @RequiredArgsConstructor

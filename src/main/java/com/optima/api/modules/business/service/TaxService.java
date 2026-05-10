@@ -15,6 +15,24 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * TaxService - Logica de impuestos del negocio.
+ *
+ * Es el patron "modelo" del proyecto: ClientService, UserService y
+ * BusinessServiceService siguen su misma estructura (cross-tenant en
+ * todos los metodos, soft delete con deactivatedAt, helper findOrThrow).
+ *
+ * COMUNICACION:
+ * - Lo invoca: TaxController.
+ * - Llama a:
+ *     TaxRepository                CRUD + existsByName tenant-safe.
+ *     BusinessRepository.findById  verifica que el negocio existe.
+ * - Devuelve: TaxResponse.
+ *
+ * Cross-tenant: TODOS los lookups por id usan findByIdAndBusinessId.
+ * Soft delete: los impuestos se desactivan (preservan referencias desde
+ * services y bookedServices historicos).
+ */
 @Service
 @Transactional
 @RequiredArgsConstructor

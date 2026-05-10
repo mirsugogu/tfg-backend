@@ -12,6 +12,14 @@ import java.math.BigDecimal;
  * DTO de entrada para actualizar un servicio existente.
  * No incluye {@code businessId}: el negocio se toma del path
  * y NO se permite mover el servicio entre negocios.
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson, lo valida @Valid en BusinessServiceController.
+ * - Lo consume BusinessServiceService.updateService.
+ *
+ * Mismas validaciones que CreateServiceRequest. La categoria y el impuesto
+ * SI pueden cambiar (siempre dentro del mismo negocio): el service revalida
+ * cross-tenant en cada update.
  */
 public record UpdateServiceRequest(
 

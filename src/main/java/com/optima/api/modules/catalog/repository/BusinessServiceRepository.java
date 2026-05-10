@@ -7,6 +7,17 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * BusinessServiceRepository - Acceso a la tabla `services` (servicios
+ * comerciales del catalogo).
+ *
+ * COMUNICACION:
+ * - Lo inyectan: BusinessServiceService, AppointmentService (verifica
+ *   cross-tenant que el servicio pertenece al negocio antes de crear cita).
+ * - Habla con: MySQL via Hibernate.
+ *
+ * Multi-tenant: TODOS los lookups por id usan findByIdAndBusinessId.
+ */
 @Repository
 public interface BusinessServiceRepository extends JpaRepository<BusinessService, Long> {
 

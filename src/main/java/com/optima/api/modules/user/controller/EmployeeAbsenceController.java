@@ -12,6 +12,25 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * EmployeeAbsenceController - CRUD de ausencias puntuales de empleados.
+ * Recurso doblemente anidado:
+ * /api/businesses/{businessId}/users/{userId}/absences.
+ *
+ * Las ausencias bloquean tramos del calendario (vacaciones, citas medicas)
+ * que sobrescriben el horario semanal habitual del empleado.
+ *
+ * COMUNICACION:
+ * - Recibe: CRUD HTTP. Requiere JWT.
+ * - Le precede: JwtAuthFilter + TenantGuardFilter.
+ * - Llama a: EmployeeAbsenceService.
+ * - Devuelve: AbsenceResponse(s) en JSON.
+ *
+ * Permisos:
+ *   POST/PUT/DELETE -> @PreAuthorize("hasRole('ADMIN')") - solo admin
+ *                      gestiona ausencias del personal.
+ *   GET             -> sin @PreAuthorize.
+ */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/users/{userId}/absences")
 @RequiredArgsConstructor

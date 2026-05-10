@@ -32,6 +32,15 @@ import java.util.List;
  * <p>Si el header no existe, no es Bearer, o el token es invalido,
  * el filtro NO emite 401 ni rompe la cadena: simplemente no autentica.
  * Quien decide si la ruta requiere autenticacion es {@code SecurityConfig}.</p>
+ *
+ * COMUNICACION:
+ * - Lo registra: SecurityConfig.filterChain con addFilterBefore(...,
+ *   UsernamePasswordAuthenticationFilter.class) - asi corre antes que
+ *   el filter por defecto de Spring Security.
+ * - Llama a: JwtUtil.parseAndValidate() para verificar firma y expiracion.
+ * - Escribe en: SecurityContextHolder (autentica al usuario en el
+ *   contexto del thread actual, con AuthPrincipal como principal).
+ * - Le sigue: TenantGuardFilter, que lee AuthPrincipal del contexto.
  */
 @Component
 @RequiredArgsConstructor

@@ -11,6 +11,17 @@ import java.time.LocalTime;
  * El {@code businessId} y el {@code userId} vienen del path, no del body.
  * Un empleado puede tener varios tramos en un mismo día (turnos partidos),
  * por eso no validamos unicidad por (userId, dayOfWeek).
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson, lo valida @Valid en EmployeeScheduleController.
+ * - Lo consume EmployeeScheduleService.create.
+ *
+ * Validaciones declarativas:
+ *   dayOfWeek    @NotNull, 1..7.
+ *   startTime    @NotNull.
+ *   endTime      @NotNull.
+ * El service valida tambien startTime < endTime y no-overlap con tramos
+ * existentes del mismo (userId, dayOfWeek).
  */
 public record CreateScheduleRequest(
 

@@ -10,6 +10,22 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * AppointmentRepository - Acceso a la tabla `appointments`.
+ *
+ * COMUNICACION:
+ * - Lo inyectan: AppointmentService, AppointmentValidator.
+ * - Habla con: MySQL via Hibernate.
+ *
+ * Spring Data deriva findAllByBusinessId y findByIdAndBusinessId del
+ * nombre. existsOverlappingAppointment lleva @Query JPQL custom porque
+ * la logica de solapamiento (A < D AND C < B) no se expresa limpiamente
+ * con metodos derivados.
+ *
+ * Multi-tenant: NUNCA se hace findById sin businessId; el patron es
+ * findByIdAndBusinessId para evitar que un ADMIN del negocio 5 lea
+ * o modifique citas del negocio 7.
+ */
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 

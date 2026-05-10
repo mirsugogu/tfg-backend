@@ -21,6 +21,15 @@ import java.time.LocalDateTime;
  * de borrarlo, para no romper las citas históricas que ya lo referencian.
  * Se nombra BusinessService (no Service) para evitar confusión con la
  * anotación @Service de Spring, que se usa en la capa de lógica de negocio.
+ *
+ * COMUNICACION:
+ * - La instancia: Hibernate al hidratar, BusinessServiceService.create
+ *   manualmente.
+ * - La consume: ServiceResponse.from(), AppointmentService (verifica
+ *   activo antes de crear cita), BookedService (la referencia via FK).
+ * - Tiene relaciones @ManyToOne con: Business, ServiceCategory, Tax.
+ *
+ * Mapea a la tabla `services` en BD.
  */
 @Entity
 @Table(name = "services")

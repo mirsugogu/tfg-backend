@@ -17,6 +17,16 @@ import java.time.LocalTime;
  * está cerrado ese día). Si es false, {@code startTime} y {@code endTime}
  * deben estar informadas y respetar startTime &lt; endTime (lo asegura el
  * CHECK del schema SQL).
+ *
+ * COMUNICACION:
+ * - La instancia: Hibernate al hidratar, BusinessHourService.create
+ *   manualmente.
+ * - La consume: BusinessHourResponse.from().
+ * - Tiene @ManyToOne con: Business.
+ *
+ * Mapea a `business_hours` (docs/schema_v13.sql). Anteriormente
+ * day_of_week era TINYINT y rompia la validacion de Hibernate
+ * (Integer en JPA); se cambio a INT en el schema para alinear.
  */
 @Entity
 @Table(name = "business_hours")

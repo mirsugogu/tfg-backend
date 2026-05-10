@@ -18,6 +18,23 @@ import java.util.Set;
  * Clase dedicada a las validaciones complejas de citas.
  * Se separa del service para mantener el código organizado
  * y que cada clase tenga una única responsabilidad.
+ *
+ * COMUNICACION:
+ * - Lo invoca: AppointmentService (en createAppointment y
+ *   updateAppointmentStatus).
+ * - Llama a:
+ *     AppointmentRepository.existsOverlappingAppointment (query JPQL custom).
+ *     EmployeeScheduleRepository.findAllByUserIdAndDayOfWeek.
+ * - No devuelve nada: cada metodo lanza ResponseStatusException si una
+ *   regla falla, o no hace nada si todo esta bien (fail-fast).
+ *
+ * 4 validaciones publicas:
+ *   validateNoOverlap           409 si hay solape con otra cita activa.
+ *   validateEmployeeSchedule    400 si la cita cae fuera del horario o
+ *                               cruza medianoche.
+ *   validateAppointmentInterval 400 si la hora no es multiplo del intervalo.
+ *   validateStatusTransition    400 si la transicion de estado es ilegal
+ *                               (ver mapa VALID_TRANSITIONS).
  */
 @Component
 @RequiredArgsConstructor

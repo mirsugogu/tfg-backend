@@ -16,6 +16,16 @@ import java.time.LocalDateTime;
  * tener impuestos con el mismo nombre).
  * Si se deja de usar un impuesto, se marca como inactivo en lugar de borrarlo,
  * para no romper los servicios que ya lo referencian.
+ *
+ * COMUNICACION:
+ * - La instancia: Hibernate al hidratar, TaxService.create manualmente.
+ * - La consume: TaxResponse.from(), BusinessServiceService (cross-tenant
+ *   al crear/editar servicios), BookedService (congela percentage).
+ * - Tiene @ManyToOne con: Business.
+ * - Es referenciada por: BusinessService.tax (@ManyToOne).
+ *
+ * uniqueConstraints uq_tax_business_name (id_business, name): la BD
+ * impide dos impuestos con el mismo nombre en el mismo negocio.
  */
 @Entity
 @Table(

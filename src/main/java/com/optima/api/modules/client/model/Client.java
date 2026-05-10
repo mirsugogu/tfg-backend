@@ -14,6 +14,18 @@ import java.time.LocalDateTime;
  * Cada cliente pertenece a un único negocio (multi-tenant).
  * Si se deja de atender a un cliente, se marca como inactivo en lugar de borrarlo,
  * para no romper el histórico de citas asociadas.
+ *
+ * COMUNICACION:
+ * - La instancia: Hibernate al hidratar, ClientService.create manualmente.
+ * - La consume: ClientResponse.from(), AppointmentService (verifica
+ *   activo + cross-tenant antes de crear cita).
+ * - Tiene @ManyToOne con: Business.
+ * - Es referenciada por: Appointment.client (@ManyToOne) - cada cita
+ *   apunta a un cliente.
+ *
+ * Mapea a la tabla `clients` (docs/schema_v13.sql). Email y telefono
+ * son opcionales: dos clientes del mismo negocio pueden compartir email
+ * (familias, etc.).
  */
 @Entity
 @Table(name = "clients")

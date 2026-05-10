@@ -20,6 +20,28 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * BusinessServiceService - Logica de servicios comerciales.
+ *
+ * Naming: el modulo se llama "catalog", la entidad "BusinessService", el
+ * service "BusinessServiceService" (el doble service es por convencion:
+ * primer Service = entidad, segundo Service = capa). En produccion lo
+ * renombrariamos a "ServiceCatalogService", pero para TFG se mantiene
+ * por consistencia con la entidad.
+ *
+ * COMUNICACION:
+ * - Lo invoca: BusinessServiceController.
+ * - Llama a:
+ *     BusinessServiceRepository    CRUD + existsByName tenant-safe.
+ *     BusinessRepository           verifica negocio.
+ *     ServiceCategoryRepository    cross-tenant de la categoria.
+ *     TaxRepository                cross-tenant del impuesto.
+ * - Devuelve: ServiceResponse.
+ *
+ * Cross-tenant: usa findByIdAndBusinessId en TODAS las relaciones
+ * (categoria, impuesto, propio servicio) para evitar mezclas entre
+ * tenants.
+ */
 @Service
 @Transactional
 @RequiredArgsConstructor

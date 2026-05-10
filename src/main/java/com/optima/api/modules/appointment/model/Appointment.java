@@ -18,6 +18,20 @@ import java.time.LocalDateTime;
  * (PENDING → CONFIRMED → IN_PROGRESS → COMPLETED, o CANCELLED / NO_SHOW).
  * * No utiliza soft delete porque su propio estado (id_status) cumple esa función:
  * las citas no se borran ni se desactivan, se marcan como CANCELLED o NO_SHOW.
+ *
+ * COMUNICACION:
+ * - La instancia: Hibernate al hidratar, AppointmentService.createAppointment
+ *   manualmente.
+ * - La consume: AppointmentResponse.from(), AppointmentService (queries
+ *   y validaciones), AppointmentValidator.
+ * - Tiene relaciones @ManyToOne con: Business, Client, User (employee),
+ *   AppointmentStatus.
+ * - Tiene relacion uno-a-muchos (no @OneToMany declarada explicitamente)
+ *   con BookedService via id_appointment.
+ *
+ * Mapea a la tabla `appointments` (docs/schema_v13.sql) con FKs a
+ * businesses, clients, users y appointment_statuses. Los bookedServices
+ * estan en `appointment_services` con ON DELETE CASCADE.
  */
 @Entity
 @Table(name = "appointments")

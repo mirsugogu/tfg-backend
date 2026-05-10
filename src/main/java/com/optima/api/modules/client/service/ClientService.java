@@ -20,6 +20,20 @@ import java.util.List;
  * Capa de lógica de negocio del módulo client.
  * Sigue el patrón de TaxService: validación cross-tenant explícita en
  * todos los métodos, devolución de DTOs y nunca de la entidad cruda.
+ *
+ * COMUNICACION:
+ * - Lo invoca: ClientController.
+ * - Llama a:
+ *     ClientRepository                CRUD + busquedas tenant-safe.
+ *     BusinessRepository.findById     verifica que el negocio existe.
+ * - Devuelve: ClientResponse (entity -> DTO via ClientResponse.from()).
+ *
+ * Cross-tenant: TODOS los lookups por id usan findByIdAndBusinessId
+ * (helper findOrThrow). Soft delete: clientes nunca se borran fisicamente
+ * (preservan integridad referencial con citas pasadas).
+ *
+ * normalize(): helper privado que convierte cadenas vacias o solo espacios
+ * en null. Asi la BD no se ensucia con strings vacios.
  */
 @Service
 @Transactional

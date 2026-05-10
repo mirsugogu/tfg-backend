@@ -19,6 +19,17 @@ import java.util.List;
 /**
  * Capa de lógica de negocio del módulo BusinessHour.
  * No usa soft delete: un horario se borra (DELETE) o se reemplaza (PUT).
+ *
+ * COMUNICACION:
+ * - Lo invoca: BusinessHourController.
+ * - Llama a:
+ *     BusinessHourRepository       CRUD + existsByBusinessIdAndDayOfWeek.
+ *     BusinessRepository.findById  verifica que el negocio existe.
+ * - Devuelve: BusinessHourResponse.
+ *
+ * Helper applyHours(): centraliza la coherencia entre isClosed y las
+ * horas (si cerrado -> horas null; si abierto -> ambas obligatorias y
+ * start < end). Lo usan create y update.
  */
 @Service
 @Transactional

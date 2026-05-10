@@ -6,6 +6,12 @@ import java.time.LocalTime;
 
 /**
  * DTO de salida para un tramo del horario semanal de un empleado.
+ *
+ * COMUNICACION:
+ * - Lo construye ScheduleResponse.from(EmployeeSchedule) en
+ *   EmployeeScheduleService.
+ * - Lo serializa Jackson a JSON en las respuestas de
+ *   EmployeeScheduleController.
  */
 public record ScheduleResponse(
         Long id,

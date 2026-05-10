@@ -11,6 +11,20 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
+/**
+ * AppointmentStatusService - Logica del catalogo de estados de cita.
+ *
+ * COMUNICACION:
+ * - Lo invoca: AppointmentStatusController (catalogo publico).
+ * - Llama a: AppointmentStatusRepository.
+ * - Devuelve: AppointmentStatusResponse(s).
+ *
+ * @Transactional(readOnly = true) en clase: solo lectura, sin escritura.
+ *
+ * Los estados son un catalogo GLOBAL (compartido por todos los negocios),
+ * sembrado en docs/schema_v13.sql: PENDING, CONFIRMED, IN_PROGRESS,
+ * COMPLETED, CANCELLED, NO_SHOW.
+ */
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor

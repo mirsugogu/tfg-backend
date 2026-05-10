@@ -4,6 +4,18 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+/**
+ * UpdateBusinessRequest - DTO de entrada para PUT /api/businesses/{id}.
+ *
+ * Mismo perfil que CreateBusinessRequest pero SIN slug: el slug es
+ * inmutable una vez creado el negocio (forma parte de URLs publicas
+ * y cambiarlo romperia bookmarks externos).
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson, lo valida @Valid en BusinessController.update.
+ * - Lo consume BusinessService.update (re-geocodifica con la direccion
+ *   nueva y persiste).
+ */
 public record UpdateBusinessRequest(
     @NotBlank @Size(max = 150) String name,
     @NotBlank @Email @Size(max = 150) String email,

@@ -12,6 +12,20 @@ import java.time.LocalDateTime;
  * Entidad que representa una ausencia o bloqueo en el calendario de un empleado.
  * Sobrescribe la disponibilidad habitual del empleado para evitar que
  * se le asignen citas durante este periodo (ej. vacaciones, cita médica).
+ *
+ * COMUNICACION:
+ * - La instancia: Hibernate al hidratar, EmployeeAbsenceService.create
+ *   manualmente.
+ * - La consume: AbsenceResponse.from(), EmployeeAbsenceService.
+ * - Tiene @ManyToOne con: User (el empleado).
+ *
+ * Mapea a `employee_absences` con FK ON DELETE CASCADE: si el empleado
+ * se borra, sus ausencias desaparecen automaticamente. (En la practica
+ * los empleados se desactivan, no se borran, asi que el cascade es solo
+ * defensa en profundidad.)
+ *
+ * NOTA: actualmente AppointmentValidator NO consulta las ausencias al
+ * crear cita. Es una mejora futura prevista.
  */
 @Entity
 @Table(name = "employee_absences")

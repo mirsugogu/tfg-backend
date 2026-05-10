@@ -11,6 +11,14 @@ import java.math.BigDecimal;
 /**
  * DTO de entrada para crear un impuesto.
  * El {@code businessId} viene del path, no del body.
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson, lo valida @Valid en TaxController.create.
+ * - Lo consume TaxService.create.
+ *
+ * Validaciones:
+ *   name        @NotBlank, max 50.
+ *   percentage  @NotNull, 0.00..100.00 (BigDecimal para precision).
  */
 public record CreateTaxRequest(
     @NotBlank @Size(max = 50) String name,
