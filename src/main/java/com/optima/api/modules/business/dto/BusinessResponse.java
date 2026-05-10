@@ -2,6 +2,7 @@ package com.optima.api.modules.business.dto;
 
 import com.optima.api.modules.business.model.Business;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record BusinessResponse(
@@ -11,6 +12,12 @@ public record BusinessResponse(
     String email,
     String phone,
     String address,
+    String city,
+    String state,
+    String country,
+    String postalCode,
+    BigDecimal latitude,
+    BigDecimal longitude,
     Integer appointmentInterval,
     Boolean isActive,
     LocalDateTime createdAt,
@@ -19,6 +26,8 @@ public record BusinessResponse(
     public static BusinessResponse from(Business b) {
         return new BusinessResponse(b.getId(), b.getName(), b.getSlug(),
             b.getEmail(), b.getPhone(), b.getAddress(),
+            b.getCity(), b.getState(), b.getCountry(), b.getPostalCode(),
+            b.getLatitude(), b.getLongitude(),
             b.getAppointmentInterval(), b.getIsActive(), b.getCreatedAt(),
             b.getDeactivatedAt());
     }

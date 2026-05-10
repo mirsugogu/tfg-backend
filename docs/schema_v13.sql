@@ -79,7 +79,7 @@ CREATE TABLE users (
 CREATE TABLE employee_schedules (
                                     id_schedule BIGINT  AUTO_INCREMENT PRIMARY KEY,
                                     id_user     BIGINT  NOT NULL,
-                                    day_of_week TINYINT NOT NULL,
+                                    day_of_week INT     NOT NULL,
                                     start_time  TIME    NOT NULL,
                                     end_time    TIME    NOT NULL,
                                     CONSTRAINT fk_schedule_user
@@ -243,7 +243,7 @@ CREATE TABLE appointment_services (
 CREATE TABLE business_hours (
                                 id_business_hour BIGINT AUTO_INCREMENT PRIMARY KEY,
                                 id_business      BIGINT  NOT NULL,
-                                day_of_week      TINYINT NOT NULL, -- 1=Lunes, 2=Martes, ..., 7=Domingo
+                                day_of_week      INT     NOT NULL, -- 1=Lunes, 2=Martes, ..., 7=Domingo
                                 start_time       TIME    NULL,     -- Puede ser nulo si el local está cerrado
                                 end_time         TIME    NULL,     -- Puede ser nulo si el local está cerrado
                                 is_closed        BOOLEAN NOT NULL DEFAULT FALSE,

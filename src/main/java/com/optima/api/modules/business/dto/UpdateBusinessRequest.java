@@ -9,5 +9,9 @@ public record UpdateBusinessRequest(
     @NotBlank @Email @Size(max = 150) String email,
     @Size(max = 20) String phone,
     @Size(max = 255) String address,
+    @Size(max = 100) String city,
+    @Size(max = 100) String state,
+    @Size(max = 100) String country,
+    @Size(max = 20)  String postalCode,
     Integer appointmentInterval
 ) {}

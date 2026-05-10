@@ -5,6 +5,7 @@ import com.optima.api.modules.business.dto.CreateBusinessRequest;
 import com.optima.api.modules.business.dto.UpdateBusinessRequest;
 import com.optima.api.modules.business.model.Business;
 import com.optima.api.modules.business.repository.BusinessRepository;
+import com.optima.api.common.geocoding.GeocodingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +28,7 @@ import java.util.List;
 public class BusinessService {
 
     private final BusinessRepository businessRepository;
+    private final GeocodingService geocodingService;
 
     public BusinessResponse create(CreateBusinessRequest req) {
         String slug = req.slug().trim().toLowerCase();
@@ -57,8 +59,18 @@ public class BusinessService {
         b.setEmail(email);
         b.setPhone(req.phone());
         b.setAddress(req.address());
+        b.setCity(req.city());
+        b.setState(req.state());
+        b.setCountry(req.country());
+        b.setPostalCode(req.postalCode());
         b.setAppointmentInterval(interval);
         b.setIsActive(true);
+
+        geocodingService.geocode(req.address(), req.city(), req.postalCode(), req.country())
+                .ifPresent(coords -> {
+                    b.setLatitude(coords.latitude());
+                    b.setLongitude(coords.longitude());
+                });
 
         return BusinessResponse.from(businessRepository.save(b));
     }
@@ -103,9 +115,19 @@ public class BusinessService {
         b.setEmail(email);
         b.setPhone(req.phone());
         b.setAddress(req.address());
+        b.setCity(req.city());
+        b.setState(req.state());
+        b.setCountry(req.country());
+        b.setPostalCode(req.postalCode());
         if (req.appointmentInterval() != null) {
             b.setAppointmentInterval(req.appointmentInterval());
         }
+
+        geocodingService.geocode(req.address(), req.city(), req.postalCode(), req.country())
+                .ifPresent(coords -> {
+                    b.setLatitude(coords.latitude());
+                    b.setLongitude(coords.longitude());
+                });
 
         return BusinessResponse.from(businessRepository.save(b));
     }
