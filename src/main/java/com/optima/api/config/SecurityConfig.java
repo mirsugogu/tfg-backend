@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -56,6 +57,12 @@ public class SecurityConfig {
      *
      * Decisiones (de arriba abajo):
      *   csrf().disable()           API REST sin sesiones, no aplica CSRF.
+     *   cors(withDefaults())       delega CORS al CorsConfigurationSource
+     *                              que provee WebConfig. Sin esta linea,
+     *                              los preflight OPTIONS de browsers
+     *                              recibirian 401 antes de llegar a MVC.
+     *                              Imprescindible cuando hay frontend en
+     *                              browser haciendo POST/PUT/DELETE.
      *   STATELESS                  no se crean HttpSession; cada request
      *                              se autentica con su JWT.
      *   authenticationEntryPoint   cuando una ruta autenticada no trae
@@ -77,6 +84,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
+            .cors(Customizer.withDefaults())
             .sessionManagement(sm -> sm
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(eh -> eh
