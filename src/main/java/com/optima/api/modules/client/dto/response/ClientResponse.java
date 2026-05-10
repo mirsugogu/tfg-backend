@@ -6,6 +6,14 @@ import java.time.LocalDateTime;
 
 /**
  * DTO de salida para representar un cliente.
+ *
+ * COMUNICACION:
+ * - Lo construye ClientResponse.from(Client) en ClientService.
+ * - Lo serializa Jackson a JSON en las respuestas de ClientController.
+ *
+ * Expone businessId para que el frontend confirme el tenant. Incluye
+ * notes (texto largo, suele tener informacion sensible: alergias,
+ * preferencias) y los campos de soft delete.
  */
 public record ClientResponse(
         Long id,

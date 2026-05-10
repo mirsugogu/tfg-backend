@@ -8,6 +8,12 @@ import jakarta.validation.constraints.Size;
  * DTO de entrada para actualizar un cliente existente.
  * No incluye {@code businessId}: el negocio se toma del path y no se permite
  * mover el cliente entre negocios.
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson, lo valida @Valid en ClientController.update.
+ * - Lo consume ClientService.update.
+ *
+ * Mismas reglas que CreateClientRequest: solo fullName obligatorio.
  */
 public record UpdateClientRequest(
 

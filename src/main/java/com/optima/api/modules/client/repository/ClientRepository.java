@@ -7,6 +7,16 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * ClientRepository - Acceso a la tabla `clients`.
+ *
+ * COMUNICACION:
+ * - Lo inyectan: ClientService, AppointmentService (verifica cross-tenant
+ *   que el cliente pertenece al negocio antes de crear cita).
+ * - Habla con: MySQL via Hibernate.
+ *
+ * Multi-tenant via findByIdAndBusinessId, igual que el resto del proyecto.
+ */
 @Repository
 public interface ClientRepository extends JpaRepository<Client, Long> {
 

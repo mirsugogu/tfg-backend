@@ -7,6 +7,17 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * BusinessHourRepository - Acceso a la tabla `business_hours`.
+ *
+ * COMUNICACION:
+ * - Lo inyecta: BusinessHourService.
+ * - Habla con: MySQL via Hibernate.
+ *
+ * Multi-tenant via findByIdAndBusinessId. La constraint logica "un solo
+ * tramo por (businessId, dayOfWeek)" se valida en el service via
+ * existsByBusinessIdAndDayOfWeek antes del INSERT.
+ */
 @Repository
 public interface BusinessHourRepository extends JpaRepository<BusinessHour, Long> {
 

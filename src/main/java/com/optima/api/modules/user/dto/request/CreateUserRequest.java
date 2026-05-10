@@ -10,6 +10,18 @@ import jakarta.validation.constraints.Size;
  * El {@code businessId} viene del path, no del body.
  * El {@code password} llega en texto plano y el servicio lo hashea con BCrypt
  * antes de guardarlo en la BD.
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson desde el body JSON de POST .../users.
+ * - Lo valida @Valid en UserController.create (Spring lanza 400 si falla).
+ * - Lo consume UserService.create.
+ *
+ * Validaciones:
+ *   roleId    @NotNull
+ *   fullName  @NotBlank, max 150 chars.
+ *   email     @NotBlank, @Email (formato), max 150 chars.
+ *   password  @NotBlank, longitud 8-100 (forzamos minimo de seguridad).
+ *   phone     opcional, max 20 chars.
  */
 public record CreateUserRequest(
 

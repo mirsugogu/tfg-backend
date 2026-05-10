@@ -9,6 +9,13 @@ import jakarta.validation.constraints.Size;
  * El {@code businessId} viene del path, no del body.
  * Solo {@code fullName} es obligatorio: email, teléfono y notas son opcionales
  * (la BD permite NULL en esos campos).
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson, lo valida @Valid en ClientController.
+ * - Lo consume ClientService.create.
+ *
+ * El service llama a normalize() para guardar null (no "") cuando los
+ * campos opcionales llegan vacios.
  */
 public record CreateClientRequest(
 

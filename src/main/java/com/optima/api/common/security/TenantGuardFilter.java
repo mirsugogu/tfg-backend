@@ -36,6 +36,22 @@ import java.util.regex.Pattern;
  * siquiera llegar al servicio si el usuario intenta acceder a un negocio
  * que no es el suyo. Se ejecuta DESPUES de {@code JwtAuthenticationFilter}
  * para tener el principal disponible.</p>
+ *
+ * COMUNICACION:
+ * - Lo registra: SecurityConfig.filterChain con addFilterAfter(...,
+ *   JwtAuthenticationFilter.class) - corre justo despues de autenticar.
+ * - Lee de: SecurityContextHolder.getContext().getAuthentication() para
+ *   obtener el AuthPrincipal con el businessId del token.
+ * - Escribe: si detecta cross-tenant, escribe directamente en
+ *   HttpServletResponse un JSON ErrorResponse con status 403 y aborta
+ *   la cadena (NO llama a chain.doFilter).
+ *
+ * URLs que matchea (regex ^/api/businesses/(\d+)(/.*)?$):
+ *   /api/businesses/5         -> matchea, valida tenant.
+ *   /api/businesses/5/users   -> matchea, valida tenant.
+ *   /api/businesses           -> NO matchea (catalogo publico).
+ *   /api/businesses/slug/abc  -> NO matchea (busqueda por slug, publica).
+ *   /api/auth/token           -> NO matchea (login).
  */
 @Component
 public class TenantGuardFilter extends OncePerRequestFilter {

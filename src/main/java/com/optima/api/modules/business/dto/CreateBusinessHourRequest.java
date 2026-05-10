@@ -12,6 +12,15 @@ import java.time.LocalTime;
  * Si {@code isClosed} es true, las horas pueden venir nulas.
  * Si es false (o null), {@code startTime} y {@code endTime} son obligatorias
  * y la validación coherente se aplica en el servicio.
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson, lo valida @Valid en BusinessHourController.
+ * - Lo consume BusinessHourService.create (que ademas valida la
+ *   coherencia entre isClosed y las horas via applyHours()).
+ *
+ * Validaciones declarativas:
+ *   dayOfWeek   @NotNull, 1..7 (lunes-domingo ISO).
+ *   startTime, endTime  validacion de obligatoriedad en el service segun isClosed.
  */
 public record CreateBusinessHourRequest(
 

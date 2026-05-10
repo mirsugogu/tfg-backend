@@ -8,6 +8,12 @@ import java.time.LocalDateTime;
 
 /**
  * DTO de entrada para actualizar una ausencia de empleado.
+ *
+ * Mismo contrato que CreateAbsenceRequest.
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson, lo valida @Valid en EmployeeAbsenceController.
+ * - Lo consume EmployeeAbsenceService.update.
  */
 public record UpdateAbsenceRequest(
 

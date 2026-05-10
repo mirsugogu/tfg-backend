@@ -27,6 +27,14 @@ import org.springframework.web.server.ResponseStatusException;
  * </ol>
  * El mismo mensaje 401 en todos los casos de fallo evita filtrar
  * informacion sobre que negocios y emails estan registrados.</p>
+ *
+ * COMUNICACION:
+ * - Lo invoca: AuthController.token().
+ * - Llama a: BusinessRepository.findBySlug(),
+ *            UserRepository.findByBusinessIdAndEmailIgnoreCase(),
+ *            PasswordEncoder.matches() (BCrypt),
+ *            JwtUtil.generateToken().
+ * - Devuelve: TokenResponse con el JWT firmado.
  */
 @Service
 @Transactional(readOnly = true)
@@ -38,6 +46,28 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    /**
+     * Autentica al usuario contra la BD y emite un JWT.
+     *
+     * Pasos:
+     *   1. Busca el negocio por slug (BusinessRepository.findBySlug).
+     *   2. Verifica que el negocio esta activo.
+     *   3. Busca el usuario por (businessId, email) - email es unico
+     *      por negocio, no globalmente, de ahi findByBusinessIdAndEmailIgnoreCase.
+     *   4. Verifica que el usuario esta activo.
+     *   5. Compara request.password con user.passwordHash via BCrypt
+     *      (el algoritmo lleva la sal y el coste embebidos en el hash).
+     *   6. Si todo OK, JwtUtil.generateToken construye un JWT con claims
+     *      sub=email, userId, businessId, role - firmado con HMAC.
+     *
+     * Cualquier fallo lanza ResponseStatusException(401, "Credenciales
+     * incorrectas") - mismo mensaje en todos los casos para no filtrar
+     * que negocios o emails existen.
+     *
+     * @param request payload validado con businessSlug, email, password.
+     * @return TokenResponse con el JWT como string.
+     * @throws ResponseStatusException 401 en cualquier fallo de credenciales.
+     */
     public TokenResponse login(LoginRequest request) {
         Business business = businessRepository.findBySlug(request.businessSlug())
                 .orElseThrow(() -> new ResponseStatusException(

@@ -21,6 +21,17 @@ import java.util.List;
  * Capa de lógica de negocio del módulo business (los tenants).
  * Convive con la entidad {@code com.optima.api.modules.catalog.model.BusinessService}
  * (el servicio comercial del catálogo) sin conflicto: están en paquetes distintos.
+ *
+ * COMUNICACION:
+ * - Lo invoca: BusinessController.
+ * - Llama a:
+ *     BusinessRepository           CRUD basico + existsBySlug/Email + findBySlug.
+ *     GeocodingService.geocode     Nominatim (best-effort, devuelve Optional).
+ * - Devuelve: BusinessResponse (con latitude/longitude si Nominatim respondio).
+ *
+ * @Transactional a nivel de clase: cada metodo publico abre una transaccion
+ * (escritura por defecto). Los metodos de solo lectura sobre-escriben con
+ * @Transactional(readOnly = true) en su firma.
  */
 @Service
 @Transactional
@@ -30,6 +41,18 @@ public class BusinessService {
     private final BusinessRepository businessRepository;
     private final GeocodingService geocodingService;
 
+    /**
+     * Crea un negocio nuevo (tenant). Valida y luego geocodifica.
+     *
+     * Validaciones (todas lanzan 400 o 409):
+     *   - slug: solo [a-z0-9-], unico globalmente.
+     *   - email: unico globalmente.
+     *   - appointmentInterval: debe ser 15/30/45/60.
+     *
+     * Side-effect: llama a Nominatim (red externa, timeout 5s).
+     * Si Nominatim falla, GeocodingService devuelve Optional.empty()
+     * y lat/lng quedan null - la creacion sigue adelante.
+     */
     public BusinessResponse create(CreateBusinessRequest req) {
         String slug = req.slug().trim().toLowerCase();
         String email = req.email().trim().toLowerCase();
@@ -75,16 +98,29 @@ public class BusinessService {
         return BusinessResponse.from(businessRepository.save(b));
     }
 
+    /**
+     * Lista paginada de negocios ACTIVOS (excluye soft-deleted).
+     * Pageable lleva page, size y sort que vienen del query string del HTTP.
+     */
     @Transactional(readOnly = true)
     public Page<BusinessResponse> listActive(Pageable pageable) {
         return businessRepository.findByIsActiveTrue(pageable).map(BusinessResponse::from);
     }
 
+    /**
+     * Detalle de un negocio por id. 404 si no existe.
+     * NO filtra por isActive: util para que el admin pueda ver negocios
+     * desactivados antes de reactivarlos.
+     */
     @Transactional(readOnly = true)
     public BusinessResponse getById(Long id) {
         return BusinessResponse.from(findOrThrow(id));
     }
 
+    /**
+     * Detalle por slug. Util para el cliente final que conoce el slug
+     * (URL bonita) pero no el id. 404 si no existe.
+     */
     @Transactional(readOnly = true)
     public BusinessResponse getBySlug(String slug) {
         return BusinessResponse.from(
@@ -94,6 +130,12 @@ public class BusinessService {
         );
     }
 
+    /**
+     * Actualiza datos editables del negocio. Re-geocodifica siempre
+     * (no solo si address cambio: simple y sin caching).
+     * Bloquea si el negocio esta desactivado (400). Si email choca con
+     * otro negocio -> 409.
+     */
     public BusinessResponse update(Long id, UpdateBusinessRequest req) {
         Business b = findOrThrow(id);
         String email = req.email().trim().toLowerCase();
@@ -132,6 +174,10 @@ public class BusinessService {
         return BusinessResponse.from(businessRepository.save(b));
     }
 
+    /**
+     * Soft delete: isActive=false, deactivatedAt=now. Lanza 400 si ya
+     * estaba desactivado. NO borra fisicamente.
+     */
     public void deactivate(Long id) {
         Business b = findOrThrow(id);
         if (!b.getIsActive()) {
@@ -143,6 +189,10 @@ public class BusinessService {
         businessRepository.save(b);
     }
 
+    /**
+     * Reactiva un negocio soft-deleted. Pone isActive=true y
+     * deactivatedAt=null. Lanza 400 si ya estaba activo.
+     */
     public BusinessResponse reactivate(Long id) {
         Business b = findOrThrow(id);
         if (b.getIsActive()) {
@@ -154,6 +204,10 @@ public class BusinessService {
         return BusinessResponse.from(businessRepository.save(b));
     }
 
+    /**
+     * Helper privado: busca por id o lanza 404. Centraliza el mensaje
+     * de error y evita repetir el orElseThrow en cada metodo.
+     */
     private Business findOrThrow(Long id) {
         return businessRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,

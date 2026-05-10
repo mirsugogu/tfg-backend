@@ -8,6 +8,12 @@ import java.time.LocalTime;
 
 /**
  * DTO de entrada para actualizar un tramo del horario de un empleado.
+ *
+ * Mismo contrato que CreateScheduleRequest.
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson, lo valida @Valid en EmployeeScheduleController.
+ * - Lo consume EmployeeScheduleService.update.
  */
 public record UpdateScheduleRequest(
 

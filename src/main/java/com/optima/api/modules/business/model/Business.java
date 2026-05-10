@@ -13,6 +13,24 @@ import java.time.LocalDateTime;
  * Entidad que representa un negocio (tenant) del SaaS.
  * Cada fila de la tabla "businesses" es un negocio distinto,
  * con sus propios usuarios, clientes, servicios, etc.
+ *
+ * Mapea a la tabla `businesses` (docs/schema_v13.sql):
+ *   id_business (PK)
+ *   name, slug (unique), email (unique)
+ *   phone, address, city, state, country, postal_code
+ *   latitude, longitude (DECIMAL, rellenado por GeocodingService)
+ *   appointment_interval (15/30/45/60 min)
+ *   is_active, created_at, deactivated_at (soft delete)
+ *
+ * COMUNICACION:
+ * - La instancia: Hibernate al hidratar, BusinessService.create manualmente.
+ * - La consume: BusinessService (la convierte en BusinessResponse),
+ *   AuthService (verifica isActive en login), UserService (FK).
+ * - Es referenciada por: User.business, Client.business, BookedService
+ *   (catalogo).business, etc. Es la raiz del multi-tenancy.
+ *
+ * Soft delete: nunca borramos fisicamente un negocio: rompiamos todas
+ * las FK (users, clients, appointments...). Marcamos is_active=false.
  */
 @Entity
 @Table(name = "businesses")

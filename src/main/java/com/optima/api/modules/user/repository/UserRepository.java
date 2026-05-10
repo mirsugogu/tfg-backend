@@ -7,6 +7,22 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * UserRepository - Acceso a la tabla `users`.
+ *
+ * Interfaz de Spring Data JPA: hereda los CRUD basicos (findAll,
+ * findById, save, delete...) de JpaRepository<User, Long>.
+ * Los metodos personalizados de abajo los deriva Spring Data del
+ * propio nombre del metodo (no necesitan implementacion).
+ *
+ * COMUNICACION:
+ * - Lo inyectan: UserService, AuthService.
+ * - Habla con: MySQL via Hibernate.
+ *
+ * Patron multi-tenant: TODOS los lookups por id usan
+ * findByIdAndBusinessId (no findById sin filtro), para que un ADMIN
+ * de un negocio nunca pueda leer usuarios de otro tenant.
+ */
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 

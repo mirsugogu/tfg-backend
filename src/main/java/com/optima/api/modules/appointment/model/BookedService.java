@@ -24,6 +24,15 @@ import java.math.BigDecimal;
 
  * Se nombra BookedService (no AppointmentService) para evitar confusión
  * con la capa de lógica de negocio AppointmentService.
+ *
+ * COMUNICACION:
+ * - La instancia: Hibernate al hidratar, AppointmentService.createAppointment
+ *   en bucle (uno por servicio reservado), persistido via
+ *   bookedServiceRepository.saveAll().
+ * - La consume: BookedServiceResponse.from() para construir el DTO de
+ *   AppointmentResponse.
+ * - Tiene @ManyToOne con: Appointment (cascade ON DELETE en BD),
+ *   BusinessService (catalogo del negocio).
  */
 @Entity
 @Table(name = "appointment_services")

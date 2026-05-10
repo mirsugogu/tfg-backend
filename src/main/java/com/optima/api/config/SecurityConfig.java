@@ -21,6 +21,27 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 import java.time.Instant;
 
+/**
+ * SecurityConfig - Centraliza TODA la configuracion de Spring Security.
+ *
+ * Define:
+ *   - El filter chain HTTP: que filtros corren, en que orden, y que
+ *     rutas son publicas.
+ *   - Los handlers de error de la cadena de filtros (401, 403).
+ *   - El bean PasswordEncoder (BCrypt) para hashear y verificar passwords.
+ *
+ * COMUNICACION:
+ * - Lo carga Spring Boot al arrancar (estereotipo @Configuration).
+ * - Le inyecta: JwtAuthenticationFilter y TenantGuardFilter (ambos beans
+ *   creados con @Component) para encadenarlos en el filter chain.
+ * - Sus beans los inyectan: AuthService (PasswordEncoder).
+ *
+ * Anotaciones:
+ *   @EnableWebSecurity    activa el filter chain de Spring Security.
+ *   @EnableMethodSecurity activa @PreAuthorize / @PostAuthorize en
+ *                         metodos. Sin esto, las anotaciones de los
+ *                         controllers serian ignoradas.
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -30,6 +51,28 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final TenantGuardFilter tenantGuardFilter;
 
+    /**
+     * Configura el filter chain HTTP - el corazon de la seguridad.
+     *
+     * Decisiones (de arriba abajo):
+     *   csrf().disable()           API REST sin sesiones, no aplica CSRF.
+     *   STATELESS                  no se crean HttpSession; cada request
+     *                              se autentica con su JWT.
+     *   authenticationEntryPoint   cuando una ruta autenticada no trae
+     *                              JWT valido -> 401 con cuerpo JSON.
+     *   accessDeniedHandler        cuando la cadena rechaza por falta de
+     *                              permisos -> 403 con cuerpo JSON.
+     *                              (Los AccessDeniedException de
+     *                              @PreAuthorize los captura
+     *                              GlobalExceptionHandler.)
+     *   permitAll endpoints        rutas publicas (sin JWT):
+     *                                POST /api/auth/token (login)
+     *                                GET /api/roles (catalogo)
+     *                                GET /api/appointment-statuses/** (catalogo)
+     *   anyRequest().authenticated todo lo demas requiere JWT valido.
+     *   addFilterBefore JwtAuth    antes de UsernamePasswordAuthFilter.
+     *   addFilterAfter TenantGuard despues de JwtAuth (necesita el principal).
+     */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -68,6 +111,21 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * Bean PasswordEncoder usando BCrypt.
+     *
+     * BCrypt:
+     *   - Algoritmo de hash one-way (no reversible) con sal aleatoria
+     *     embebida en el hash.
+     *   - Coste configurable (default 10): rounds = 2^10 = 1024 iteraciones.
+     *     Lo bastante lento para frenar fuerza bruta.
+     *   - El hash incluye sal y coste, asi que matches(plain, hash)
+     *     no necesita parametros extra.
+     *
+     * Lo inyecta: AuthService.login() para verificar password.
+     * Tambien lo usaria UserService.create() / .update() para hashear
+     * un password nuevo antes de persistirlo.
+     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();

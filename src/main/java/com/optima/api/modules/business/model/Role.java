@@ -10,6 +10,24 @@ import lombok.Setter;
  * Entidad que representa un rol de usuario en el sistema.
  * Catálogo global (compartido por todos los negocios).
  * Valores insertados en el schema SQL: ADMIN, EMPLOYEE.
+ *
+ * Mapea a la tabla `roles` (docs/schema_v13.sql):
+ *   CREATE TABLE roles (
+ *       id_role BIGINT AUTO_INCREMENT PRIMARY KEY,
+ *       name    VARCHAR(30) NOT NULL UNIQUE
+ *   );
+ *
+ * COMUNICACION:
+ * - La instancia: Hibernate, al hidratar filas leidas de MySQL.
+ * - La consume: RoleService (la convierte en RoleResponse).
+ * - Es referenciada por: User.role (@ManyToOne) - cada usuario tiene
+ *   exactamente un rol.
+ *
+ * Anotaciones Lombok:
+ *   @Getter @Setter         getters/setters de los 2 campos.
+ *   @NoArgsConstructor      OBLIGATORIO para JPA (lo usa por reflexion
+ *                           al hidratar entidades).
+ *   @AllArgsConstructor     util para tests y construccion manual.
  */
 @Entity
 @Table(name = "roles")

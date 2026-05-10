@@ -7,6 +7,19 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * EmployeeScheduleRepository - Acceso a la tabla `employee_schedules`.
+ *
+ * COMUNICACION:
+ * - Lo inyectan: EmployeeScheduleService (CRUD), AppointmentValidator
+ *   (verificar que una cita encaja en el horario del empleado).
+ * - Habla con: MySQL via Hibernate.
+ *
+ * Tenant safety a nivel de empleado: findByIdAndUserId asegura que un
+ * tramo solo se gestiona si pertenece al empleado del path. La doble
+ * proteccion cross-tenant (empleado pertenece al negocio del path) la
+ * hace EmployeeScheduleService antes de invocar este repo.
+ */
 @Repository
 public interface EmployeeScheduleRepository extends JpaRepository<EmployeeSchedule, Long> {
 

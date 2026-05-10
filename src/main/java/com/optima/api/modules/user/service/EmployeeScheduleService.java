@@ -22,6 +22,21 @@ import java.util.List;
  *
  * Doble comprobación cross-tenant: cada operación valida que el empleado
  * pertenece al negocio antes de tocar el horario.
+ *
+ * COMUNICACION:
+ * - Lo invoca: EmployeeScheduleController.
+ * - Llama a:
+ *     EmployeeScheduleRepository    CRUD + findByIdAndUserId,
+ *                                   findAllByUserIdAndDayOfWeek (overlap).
+ *     UserRepository.findByIdAndBusinessId  cross-tenant del empleado.
+ * - Devuelve: ScheduleResponse.
+ *
+ * Tambien lo lee indirectamente: AppointmentValidator.validateEmployeeSchedule
+ * usa EmployeeScheduleRepository para verificar que una cita encaja en el
+ * horario del empleado.
+ *
+ * Validacion de overlap dentro del mismo dia: al crear, comprueba que el
+ * nuevo tramo no se solapa con otros del mismo (userId, dayOfWeek).
  */
 @Service
 @Transactional

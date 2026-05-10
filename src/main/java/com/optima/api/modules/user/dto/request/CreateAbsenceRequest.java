@@ -10,6 +10,15 @@ import java.time.LocalDateTime;
  * DTO de entrada para crear una ausencia de empleado (vacaciones, cita
  * médica, etc.). El {@code businessId} y el {@code userId} vienen del path,
  * no del body. La coherencia start &lt; end se valida en el servicio.
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson, lo valida @Valid en EmployeeAbsenceController.
+ * - Lo consume EmployeeAbsenceService.create.
+ *
+ * Validaciones declarativas:
+ *   startDateTime  @NotNull, @FutureOrPresent (no se programa en el pasado).
+ *   endDateTime    @NotNull (el service valida start < end).
+ *   reason         opcional, max 255.
  */
 public record CreateAbsenceRequest(
 

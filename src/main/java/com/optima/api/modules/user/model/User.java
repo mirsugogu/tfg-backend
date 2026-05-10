@@ -15,6 +15,22 @@ import java.time.LocalDateTime;
  * Cada usuario pertenece a un único negocio (multi-tenant) y tiene un único rol.
  * El email es único dentro de cada negocio (dos negocios distintos pueden tener
  * usuarios con el mismo email).
+ *
+ * COMUNICACION:
+ * - La instancia: Hibernate al hidratar filas, o UserService.create()
+ *   manualmente.
+ * - La consume: UserService (la convierte en UserResponse) y AuthService
+ *   (verifica password en login).
+ * - Tiene relaciones @ManyToOne con: Business, Role.
+ *
+ * uniqueConstraints uq_user_business_email (id_business, email): la BD
+ * impide a nivel de schema dos users con el mismo email en el mismo
+ * negocio. UserService.create lo comprueba antes para dar un mensaje 409
+ * limpio en lugar de un error de constraint.
+ *
+ * Soft delete: cuando se "borra" un usuario, NO se hace DELETE FROM users,
+ * solo se pone is_active=false y se rellena deactivated_at. Asi se
+ * preservan citas pasadas que apuntan a este usuario.
  */
 @Entity
 @Table(

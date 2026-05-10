@@ -12,6 +12,27 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * TaxController - CRUD de impuestos del negocio.
+ * Recurso anidado bajo /api/businesses/{businessId}/taxes.
+ *
+ * Cada negocio define sus propios impuestos (IVA general, IVA reducido...).
+ * Los servicios del catalogo apuntan a un impuesto, y los BookedService de
+ * cada cita congelan el porcentaje aplicado en su momento.
+ *
+ * COMUNICACION:
+ * - Recibe: CRUD HTTP bajo /api/businesses/{businessId}/taxes.
+ * - Le precede: JwtAuthFilter + TenantGuardFilter.
+ * - Llama a: TaxService.
+ * - Devuelve: TaxResponse(s) en JSON.
+ *
+ * Permisos:
+ *   POST/PUT/DELETE -> @PreAuthorize("hasRole('ADMIN')").
+ *   GET             -> sin @PreAuthorize.
+ *
+ * Soft delete: los impuestos se desactivan, no se borran (preserva
+ * referencias desde servicios y bookedServices historicos).
+ */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/taxes")
 @RequiredArgsConstructor

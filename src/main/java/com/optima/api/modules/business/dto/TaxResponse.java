@@ -5,6 +5,16 @@ import com.optima.api.modules.business.model.Tax;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * TaxResponse - DTO de salida de un impuesto.
+ *
+ * COMUNICACION:
+ * - Lo construye TaxResponse.from(Tax) en TaxService.
+ * - Lo serializa Jackson a JSON en las respuestas de TaxController.
+ *
+ * percentage es BigDecimal para no perder precision (importante en
+ * calculos monetarios).
+ */
 public record TaxResponse(
     Long id,
     Long businessId,
