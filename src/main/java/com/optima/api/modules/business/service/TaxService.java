@@ -67,12 +67,12 @@ public class TaxService {
     }
 
     @Transactional(readOnly = true)
-    public TaxResponse getById(Long id, Long businessId) {
-        return TaxResponse.from(findOrThrow(id, businessId));
+    public TaxResponse getById(Long businessId, Long id) {
+        return TaxResponse.from(findOrThrow(businessId, id));
     }
 
-    public TaxResponse update(Long id, Long businessId, UpdateTaxRequest req) {
-        Tax t = findOrThrow(id, businessId);
+    public TaxResponse update(Long businessId, Long id, UpdateTaxRequest req) {
+        Tax t = findOrThrow(businessId, id);
 
         if (!t.getIsActive()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -91,8 +91,8 @@ public class TaxService {
         return TaxResponse.from(taxRepository.save(t));
     }
 
-    public void deactivate(Long id, Long businessId) {
-        Tax t = findOrThrow(id, businessId);
+    public void deactivate(Long businessId, Long id) {
+        Tax t = findOrThrow(businessId, id);
         if (!t.getIsActive()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "El impuesto ya está desactivado");
@@ -102,7 +102,7 @@ public class TaxService {
         taxRepository.save(t);
     }
 
-    private Tax findOrThrow(Long id, Long businessId) {
+    private Tax findOrThrow(Long businessId, Long id) {
         return taxRepository.findByIdAndBusinessId(id, businessId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                 "No se encontró el impuesto con ID: " + id

@@ -55,7 +55,7 @@ public class TaxController {
 
     @GetMapping("/{id}")
     public TaxResponse getById(@PathVariable Long businessId, @PathVariable Long id) {
-        return taxService.getById(id, businessId);
+        return taxService.getById(businessId, id);
     }
 
     @PutMapping("/{id}")
@@ -63,13 +63,13 @@ public class TaxController {
     public TaxResponse update(@PathVariable Long businessId,
                               @PathVariable Long id,
                               @Valid @RequestBody UpdateTaxRequest req) {
-        return taxService.update(id, businessId, req);
+        return taxService.update(businessId, id, req);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
     public void deactivate(@PathVariable Long businessId, @PathVariable Long id) {
-        taxService.deactivate(id, businessId);
+        taxService.deactivate(businessId, id);
     }
 }

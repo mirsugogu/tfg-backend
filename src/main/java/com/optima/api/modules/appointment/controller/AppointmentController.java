@@ -80,7 +80,7 @@ public class AppointmentController {
     @GetMapping("/{id}")
     public AppointmentResponse getAppointmentById(@PathVariable Long businessId,
                                                   @PathVariable Long id) {
-        return appointmentService.getAppointmentById(id, businessId);
+        return appointmentService.getAppointmentById(businessId, id);
     }
 
     /**
@@ -99,6 +99,6 @@ public class AppointmentController {
     public AppointmentResponse updateStatus(@PathVariable Long businessId,
                                             @PathVariable Long id,
                                             @Valid @RequestBody UpdateAppointmentStatusRequest request) {
-        return appointmentService.updateAppointmentStatus(id, businessId, request);
+        return appointmentService.updateAppointmentStatus(businessId, id, request);
     }
 }

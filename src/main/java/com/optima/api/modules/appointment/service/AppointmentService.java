@@ -250,7 +250,7 @@ public class AppointmentService {
      * Busca una cita por ID dentro de un negocio (protección cross-tenant).
      */
     @Transactional(readOnly = true)
-    public AppointmentResponse getAppointmentById(Long id, Long businessId) {
+    public AppointmentResponse getAppointmentById(Long businessId, Long id) {
         Appointment appointment = appointmentRepository.findByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
@@ -264,8 +264,8 @@ public class AppointmentService {
     /**
      * Cambia el estado de una cita, validando que la transición sea legal.
      */
-    public AppointmentResponse updateAppointmentStatus(Long appointmentId,
-                                                       Long businessId,
+    public AppointmentResponse updateAppointmentStatus(Long businessId,
+                                                       Long appointmentId,
                                                        UpdateAppointmentStatusRequest request) {
 
         // 1. Buscar la cita (con protección cross-tenant)
