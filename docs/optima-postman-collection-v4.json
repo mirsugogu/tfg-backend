@@ -34,7 +34,7 @@
     }
   ],
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8086", "type": "string" },
+    { "key": "baseUrl", "value": "http://localhost:8091", "type": "string" },
     { "key": "token", "value": "", "type": "string" },
     { "key": "uniqSuffix", "value": "", "type": "string" },
     { "key": "businessId", "value": "1", "type": "string" },
@@ -216,9 +216,9 @@
           "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/hours","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","hours"]},"body":{"mode":"raw","raw":"{\"dayOfWeek\":1,\"startTime\":\"10:00\",\"endTime\":\"14:00\",\"isClosed\":false}"}}
         },
         {
-          "name": "POST start>end -> 400",
+          "name": "PUT start>end -> 400 (validacion de tiempos)",
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/hours","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","hours"]},"body":{"mode":"raw","raw":"{\"dayOfWeek\":3,\"startTime\":\"18:00\",\"endTime\":\"09:00\",\"isClosed\":false}"}}
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/hours/{{hourId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","hours","{{hourId}}"]},"body":{"mode":"raw","raw":"{\"dayOfWeek\":1,\"startTime\":\"18:00\",\"endTime\":\"09:00\",\"isClosed\":false}"}}
         },
         {
           "name": "POST dayOfWeek 8 invalido -> 400",
@@ -226,9 +226,9 @@
           "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/hours","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","hours"]},"body":{"mode":"raw","raw":"{\"dayOfWeek\":8,\"startTime\":\"09:00\",\"endTime\":\"18:00\"}"}}
         },
         {
-          "name": "POST abierto sin horas -> 400",
+          "name": "PUT abierto sin horas -> 400 (validacion de coherencia)",
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/hours","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","hours"]},"body":{"mode":"raw","raw":"{\"dayOfWeek\":2,\"isClosed\":false}"}}
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/hours/{{hourId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","hours","{{hourId}}"]},"body":{"mode":"raw","raw":"{\"dayOfWeek\":1,\"isClosed\":false}"}}
         },
         {
           "name": "GET list",
@@ -865,6 +865,27 @@
             {"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}
           ],
           "request": {"method":"GET","auth":{"type":"noauth"},"header":[],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/users","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","users"]}}
+        }
+      ]
+    },
+    {
+      "name": "15 - maps geocoding [TAREA B]",
+      "item": [
+        {
+          "name": "POST business con direccion completa Madrid -> 201 + coords ~Plaza Mayor",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.collectionVariables.set('mapsSuffix', String(Date.now()).slice(-6));"]}},
+            {"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","const j=pm.response.json();","pm.test('campos de address persistidos',()=>{pm.expect(j.city).to.eql('Madrid');pm.expect(j.country).to.eql('Spain');pm.expect(j.postalCode).to.eql('28012');});","pm.test('latitud y longitud no son null (Nominatim respondio)',()=>{pm.expect(j.latitude,'latitude').to.not.eql(null);pm.expect(j.longitude,'longitude').to.not.eql(null);});","pm.test('coordenadas estan en rango Madrid',()=>{const lat=parseFloat(j.latitude);const lng=parseFloat(j.longitude);pm.expect(lat,'lat').to.be.within(40.0,41.0);pm.expect(lng,'lng').to.be.within(-4.0,-3.0);});"]}}
+          ],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses","host":["{{baseUrl}}"],"path":["api","businesses"]},"body":{"mode":"raw","raw":"{\"name\":\"Salon Madrid {{mapsSuffix}}\",\"slug\":\"salon-madrid-{{mapsSuffix}}\",\"email\":\"madrid{{mapsSuffix}}@salon.com\",\"phone\":\"600999000\",\"address\":\"Plaza Mayor 1\",\"city\":\"Madrid\",\"state\":\"Madrid\",\"country\":\"Spain\",\"postalCode\":\"28012\",\"appointmentInterval\":30}"}}
+        },
+        {
+          "name": "POST business SIN address -> 201 + coords null (gating del service)",
+          "event": [
+            {"listen":"prerequest","script":{"exec":["pm.collectionVariables.set('mapsSuffix2', String(Date.now()).slice(-6));"]}},
+            {"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","const j=pm.response.json();","pm.test('latitud null',()=>pm.expect(j.latitude).to.eql(null));","pm.test('longitud null',()=>pm.expect(j.longitude).to.eql(null));"]}}
+          ],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses","host":["{{baseUrl}}"],"path":["api","businesses"]},"body":{"mode":"raw","raw":"{\"name\":\"Salon Sin Address {{mapsSuffix2}}\",\"slug\":\"sin-address-{{mapsSuffix2}}\",\"email\":\"noaddr{{mapsSuffix2}}@salon.com\",\"appointmentInterval\":30}"}}
         }
       ]
     }
