@@ -2,6 +2,7 @@ package com.optima.api.modules.appointment.service;
 
 import com.optima.api.modules.appointment.dto.request.CreateAppointmentRequest;
 import com.optima.api.modules.appointment.dto.request.UpdateAppointmentStatusRequest;
+import com.optima.api.modules.appointment.dto.request.UpdatePaymentRequest;
 import com.optima.api.modules.appointment.dto.response.AppointmentResponse;
 import com.optima.api.modules.appointment.model.Appointment;
 import com.optima.api.modules.appointment.model.AppointmentStatus;
@@ -9,23 +10,30 @@ import com.optima.api.modules.appointment.model.BookedService;
 import com.optima.api.modules.appointment.repository.AppointmentRepository;
 import com.optima.api.modules.appointment.repository.AppointmentStatusRepository;
 import com.optima.api.modules.appointment.repository.BookedServiceRepository;
+import com.optima.api.modules.business.model.Booth;
 import com.optima.api.modules.business.model.Business;
+import com.optima.api.modules.business.model.Membership;
+import com.optima.api.modules.business.repository.BoothRepository;
 import com.optima.api.modules.business.repository.BusinessRepository;
+import com.optima.api.modules.business.repository.MembershipRepository;
 import com.optima.api.modules.catalog.model.BusinessService;
 import com.optima.api.modules.catalog.repository.BusinessServiceRepository;
 import com.optima.api.modules.client.model.Client;
 import com.optima.api.modules.client.repository.ClientRepository;
-import com.optima.api.modules.user.model.User;
-import com.optima.api.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * AppointmentService - Logica de negocio del modulo appointment.
@@ -60,21 +68,22 @@ public class AppointmentService {
     private final AppointmentRepository appointmentRepository;
     private final AppointmentStatusRepository statusRepository;
     private final BookedServiceRepository bookedServiceRepository;
+    private final BoothRepository boothRepository;
     private final BusinessRepository businessRepository;
     private final BusinessServiceRepository serviceRepository;
     private final ClientRepository clientRepository;
-    private final UserRepository userRepository;
+    private final MembershipRepository membershipRepository;
     private final AppointmentValidator validator;
 
     /**
      * Crea una nueva cita con sus servicios asociados.
      *
      * QUE HACE EN UNA FRASE:
-     * Recibe (clientId, employeeId, serviceIds[], startDateTime), aplica 12
+     * Recibe (clientId, membershipId, serviceIds[], startDateTime), aplica 12
      * validaciones, persiste la cita en estado PENDING y crea un BookedService
      * por cada servicio congelando precio y porcentaje de impuesto.
      *
-     * Pasos (12 validaciones encadenadas):
+     * Pasos (14 validaciones encadenadas):
      *    1. Verifica que el negocio existe (404 si no).
      *    2. Cross-tenant: cliente pertenece a este negocio (404 si no).
      *    3. Cliente debe estar activo (400 si esta desactivado).
@@ -87,14 +96,18 @@ public class AppointmentService {
      *   10. La cita encaja en el horario del empleado (400 si no o
      *       si cruza medianoche).
      *   11. No solapa con otra cita activa del empleado (409 si si).
-     *   12. Existe el estado PENDING en BD (500 si no, error de seed).
+     *   12. Si lleva cabina: cross-tenant + activa + sin solapamiento
+     *       de cabina (404/400/409).
+     *   13. No choca con un bloqueo de agenda (global, por empleado
+     *       o por cabina) (409 si si).
+     *   14. Existe el estado PENDING en BD (500 si no, error de seed).
      *
      * Por que precios CONGELADOS en BookedService: si manana el negocio
      * sube el precio de "Corte de pelo" de 15 a 20 EUR, las citas
      * pasadas DEBEN seguir mostrando 15 EUR (lo acordado en su dia).
      *
      * @param businessId barrera multi-tenant: TODO se valida contra este id.
-     * @param request payload validado: clientId, employeeId, serviceIds, startDateTime, notes.
+     * @param request payload validado: clientId, membershipId, serviceIds, startDateTime, notes.
      * @return AppointmentResponse con la cita creada + bookedServices.
      */
     public AppointmentResponse createAppointment(Long businessId, CreateAppointmentRequest request) {
@@ -115,7 +128,7 @@ public class AppointmentService {
                                 + " en el negocio con ID: " + businessId
                 ));
 
-        // 2b. El cliente debe estar activo (Fix #43)
+        // 2b. El cliente debe estar activo
         if (!client.getIsActive()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -123,20 +136,23 @@ public class AppointmentService {
             );
         }
 
-        // 3. Cross-tenant: el empleado pertenece a este negocio
-        User employee = userRepository.findByIdAndBusinessId(
-                        request.employeeId(), businessId)
+        // 3. Cross-tenant: la membership (empleado en este negocio) existe.
+        //    [v16 membership] El membershipId del request es realmente el id
+        //    de la membership; se mantiene el nombre externo por
+        //    compatibilidad del API.
+        Membership membership = membershipRepository.findByIdAndBusinessId(
+                        request.membershipId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "No se encontró el empleado con ID: " + request.employeeId()
+                        "No se encontró el empleado con ID: " + request.membershipId()
                                 + " en el negocio con ID: " + businessId
                 ));
 
-        // 3b. El empleado debe estar activo (Fix #42)
-        if (!employee.getIsActive()) {
+        // 3b. La membership debe estar activa (equivale al user activo de v15).
+        if (!membership.getIsActive()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "El empleado con ID: " + request.employeeId() + " está desactivado"
+                    "El empleado con ID: " + request.membershipId() + " está desactivado"
             );
         }
 
@@ -169,7 +185,7 @@ public class AppointmentService {
             services.add(service);
         }
 
-        // 6. Calcular endDateTime sumando las duraciones de los servicios (Fix #50)
+        // 6. Calcular endDateTime sumando las duraciones de los servicios
         //    El frontend no manda endDateTime, lo calculamos aquí.
         int totalMinutes = services.stream()
                 .mapToInt(BusinessService::getDurationMinutes)
@@ -180,16 +196,51 @@ public class AppointmentService {
         // 7. Validar que la cita cae dentro del horario del empleado
         //    (ahora sí tenemos endDateTime calculado)
         validator.validateEmployeeSchedule(
-                request.employeeId(),
+                request.membershipId(),
                 request.startDateTime(),
                 endDateTime
         );
 
         // 8. Validar que no hay solapamiento con otra cita del empleado
         validator.validateNoOverlap(
-                request.employeeId(),
+                request.membershipId(),
                 request.startDateTime(),
                 endDateTime
+        );
+
+        // 8b. Si la cita lleva cabina: cross-tenant + activa + overlap.
+        //     Si no lleva (boothId=null), se omite todo este bloque.
+        Booth booth = null;
+        if (request.boothId() != null) {
+            booth = boothRepository
+                    .findByIdAndBusinessId(request.boothId(), businessId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "No se encontró la cabina con ID: " + request.boothId()
+                                    + " en el negocio con ID: " + businessId
+                    ));
+
+            if (!booth.getIsActive()) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "La cabina con ID: " + request.boothId() + " está desactivada"
+                );
+            }
+
+            validator.validateNoBoothOverlap(
+                    request.boothId(),
+                    request.startDateTime(),
+                    endDateTime
+            );
+        }
+
+        // 8c. La fecha de la cita no puede caer en un bloqueo de agenda
+        //     (global / por empleado / por cabina) -> 409 si choca.
+        validator.validateNoScheduleBlock(
+                businessId,
+                request.membershipId(),
+                request.boothId(),
+                request.startDateTime()
         );
 
         // 9. Buscar el estado PENDING. Si no existe es un error de configuración
@@ -205,7 +256,8 @@ public class AppointmentService {
         Appointment appointment = new Appointment();
         appointment.setBusiness(business);
         appointment.setClient(client);
-        appointment.setEmployee(employee);
+        appointment.setMembership(membership);
+        appointment.setBooth(booth);  // null si la cita no usa cabina
         appointment.setStatus(pendingStatus);
         appointment.setStartDateTime(request.startDateTime());
         appointment.setEndDateTime(endDateTime);
@@ -229,21 +281,59 @@ public class AppointmentService {
             bookedServices.add(booked);
         }
 
-        bookedServiceRepository.saveAll(bookedServices);
+        List<BookedService> savedBookedServices =
+                bookedServiceRepository.saveAll(bookedServices);
 
-        // 12. Devolver respuesta
-        return AppointmentResponse.from(saved, bookedServiceRepository);
+        // 12. Devolver respuesta — pasamos la lista que acabamos de persistir
+        //     para que el DTO no tenga que volver a consultar el repositorio.
+        return AppointmentResponse.from(saved, savedBookedServices);
     }
 
     /**
-     * Lista todas las citas de un negocio.
+     * Busqueda paginada de citas con filtros opcionales `from`, `to` y
+     * `membershipId`.
+     *
+     * Semantica de fechas: el caller pasa `from`/`to` como dias completos
+     * (LocalDate). Convertimos `from` a inicio del dia (00:00 inclusive) y
+     * `to` a inicio del dia siguiente (cota superior exclusive), asi
+     * "del 2027-03-15 al 2027-03-15" captura todas las citas del 15.
+     *
+     * El batch loading del N+1 se aplica sobre `page.getContent()`: una sola
+     * query a `appointment_services` con `id_appointment IN (...)` para todas
+     * las citas de la pagina actual.
      */
     @Transactional(readOnly = true)
-    public List<AppointmentResponse> getAppointmentsByBusiness(Long businessId) {
-        return appointmentRepository.findAllByBusinessId(businessId)
-                .stream()
-                .map(a -> AppointmentResponse.from(a, bookedServiceRepository))
+    public Page<AppointmentResponse> searchAppointments(Long businessId,
+                                                       LocalDate from,
+                                                       LocalDate to,
+                                                       Long membershipId,
+                                                       Pageable pageable) {
+        LocalDateTime fromInclusive = from != null ? from.atStartOfDay() : null;
+        LocalDateTime toExclusive = to != null ? to.plusDays(1).atStartOfDay() : null;
+
+        Page<Appointment> appointmentPage = appointmentRepository.searchAppointments(
+                businessId, fromInclusive, toExclusive, membershipId, pageable);
+
+        List<Appointment> appointments = appointmentPage.getContent();
+        if (appointments.isEmpty()) {
+            return appointmentPage.map(a -> AppointmentResponse.from(a, List.of()));
+        }
+
+        List<Long> appointmentIds = appointments.stream()
+                .map(Appointment::getId)
                 .toList();
+
+        Map<Long, List<BookedService>> bookedServicesByAppointmentId =
+                bookedServiceRepository.findAllByAppointmentIdIn(appointmentIds)
+                        .stream()
+                        .collect(Collectors.groupingBy(
+                                bs -> bs.getAppointment().getId()
+                        ));
+
+        return appointmentPage.map(a -> AppointmentResponse.from(
+                a,
+                bookedServicesByAppointmentId.getOrDefault(a.getId(), List.of())
+        ));
     }
 
     /**
@@ -258,7 +348,9 @@ public class AppointmentService {
                                 + " en el negocio con ID: " + businessId
                 ));
 
-        return AppointmentResponse.from(appointment, bookedServiceRepository);
+        List<BookedService> bookedServices =
+                bookedServiceRepository.findAllByAppointmentId(appointment.getId());
+        return AppointmentResponse.from(appointment, bookedServices);
     }
 
     /**
@@ -282,7 +374,7 @@ public class AppointmentService {
                 .findByName(request.statusName())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "No se encontró el estado: " + request.statusName()
+                        "No se encontró el estado con nombre: " + request.statusName()
                 ));
 
         // 3. Validar que la transición es permitida
@@ -294,6 +386,34 @@ public class AppointmentService {
 
         // 5. Guardar y devolver
         Appointment updated = appointmentRepository.save(appointment);
-        return AppointmentResponse.from(updated, bookedServiceRepository);
+        List<BookedService> bookedServices =
+                bookedServiceRepository.findAllByAppointmentId(updated.getId());
+        return AppointmentResponse.from(updated, bookedServices);
+    }
+
+    /**
+     * Marca una cita como pagada o no pagada (operacion de pago independiente
+     * del flujo de estados). Cross-tenant safe; 404 si la cita no esta en
+     * este negocio. Devuelve el AppointmentResponse actualizado con isPaid
+     * reflejado.
+     */
+    public AppointmentResponse markPayment(Long businessId,
+                                           Long appointmentId,
+                                           UpdatePaymentRequest request) {
+
+        Appointment appointment = appointmentRepository
+                .findByIdAndBusinessId(appointmentId, businessId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "No se encontró la cita con ID: " + appointmentId
+                                + " en el negocio con ID: " + businessId
+                ));
+
+        appointment.setIsPaid(request.isPaid());
+        Appointment updated = appointmentRepository.save(appointment);
+
+        List<BookedService> bookedServices =
+                bookedServiceRepository.findAllByAppointmentId(updated.getId());
+        return AppointmentResponse.from(updated, bookedServices);
     }
 }

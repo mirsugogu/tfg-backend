@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
  * - Es referenciada por: Appointment.client (@ManyToOne) - cada cita
  *   apunta a un cliente.
  *
- * Mapea a la tabla `clients` (docs/schema_v13.sql). Email y telefono
+ * Mapea a la tabla `clients` (docs/schema_v18.sql). Email y telefono
  * son opcionales: dos clientes del mismo negocio pueden compartir email
  * (familias, etc.).
  */

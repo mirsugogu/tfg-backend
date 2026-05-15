@@ -4,27 +4,30 @@ import com.optima.api.modules.business.model.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 /**
  * RoleRepository - Acceso a la tabla `roles` de MySQL.
  *
- * Interfaz VACIA: no tiene implementacion escrita por nosotros. Spring
- * Data JPA detecta al arrancar las interfaces que extienden JpaRepository
- * y genera una implementacion dinamica en runtime (proxy).
- *
- * Metodos heredados de JpaRepository<Role, Long> ya disponibles:
- *   findAll()        -> SELECT * FROM roles
- *   findById(id)     -> SELECT * FROM roles WHERE id_role = ?
- *   save(entity)     -> INSERT o UPDATE segun haya id
- *   delete(entity), count(), existsById(id), etc.
- *
- * Generico <Role, Long>: entidad Role, clave primaria de tipo Long.
+ * Interfaz de Spring Data JPA: el grueso de los metodos viene de
+ * JpaRepository<Role, Long>; el unico personalizado es findByName(String)
+ * usado por AuthService.register para resolver el rol ADMIN al crear la
+ * primera membership.
  *
  * COMUNICACION:
- * - Lo inyecta: RoleService (via @RequiredArgsConstructor).
- * - Habla con: MySQL a traves de Hibernate / EntityManager.
+ * - Lo inyectan: RoleService, UserService, AuthService.
+ * - Habla con: MySQL a traves de Hibernate.
  *
- * Si quisieramos un metodo personalizado (p.ej. findByName) bastaria
- * con declararlo aqui: Spring Data deriva la query del nombre del metodo.
+ * Catalogo global (sin id_business): los mismos valores aplican a todos
+ * los negocios. No expone findByIdAndBusinessId porque la entidad no
+ * tiene tenancy — Role es seedeado estaticamente en el schema SQL.
  */
 @Repository
-public interface RoleRepository extends JpaRepository<Role, Long> {}
+public interface RoleRepository extends JpaRepository<Role, Long> {
+
+    /**
+     * Busca un rol por su nombre exacto (ADMIN o EMPLOYEE).
+     * Spring Data deriva la query del nombre del metodo.
+     */
+    Optional<Role> findByName(String name);
+}

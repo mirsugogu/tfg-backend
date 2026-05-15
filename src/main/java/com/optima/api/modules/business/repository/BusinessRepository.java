@@ -1,12 +1,8 @@
 package com.optima.api.modules.business.repository;
 
 import com.optima.api.modules.business.model.Business;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-
-import java.util.Optional;
 
 /**
  * BusinessRepository - Acceso a la tabla `businesses`.
@@ -16,13 +12,18 @@ import java.util.Optional;
  * WHERE slug = ?
  *
  * COMUNICACION:
- * - Lo inyectan: BusinessService, AuthService, UserService (cualquiera
- *   que necesite verificar existencia o cargar un negocio).
+ * - Lo inyectan: BusinessService (CRUD del propio negocio + alta en
+ *   AuthService.register via createEntity).
  * - Habla con: MySQL via Hibernate.
  *
  * Notese que NO hay metodo "porTenant" porque esta entidad ES el tenant:
- * cada Business es un negocio independiente. Las queries se filtran
- * directamente por id o slug.
+ * cada Business es un negocio independiente. El acceso cross-tenant lo
+ * bloquea TenantGuardFilter comparando el id del path con el businessId
+ * del JWT.
+ *
+ * Los antiguos findBySlug y findByIsActiveTrue se eliminaron el 2026-05-14
+ * junto con el catalogo publico (no hay caso de uso en el flujo de login
+ * con identity/tenant tokens).
  */
 @Repository
 public interface BusinessRepository extends JpaRepository<Business, Long> {
@@ -32,10 +33,4 @@ public interface BusinessRepository extends JpaRepository<Business, Long> {
 
     /** Para validar unicidad del email antes de crear/actualizar. */
     boolean existsByEmail(String email);
-
-    /** Login (AuthService) y catalogo publico (BusinessController.getBySlug). */
-    Optional<Business> findBySlug(String slug);
-
-    /** Listado paginado del catalogo publico, excluye soft-deleted. */
-    Page<Business> findByIsActiveTrue(Pageable pageable);
 }

@@ -1,7 +1,5 @@
 package com.optima.api.modules.user.model;
 
-import com.optima.api.modules.business.model.Business;
-import com.optima.api.modules.business.model.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,35 +9,30 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 /**
- * Entidad que representa un usuario del sistema (administrador o empleado de un negocio).
- * Cada usuario pertenece a un único negocio (multi-tenant) y tiene un único rol.
- * El email es único dentro de cada negocio (dos negocios distintos pueden tener
- * usuarios con el mismo email).
+ * Entidad que representa la IDENTIDAD de una persona en el sistema.
+ * Un User no pertenece a un negocio concreto; su pertenencia a uno o
+ * varios negocios (con su rol en cada uno) vive en la tabla
+ * `memberships` (entidad com.optima.api.modules.business.model.Membership).
  *
  * COMUNICACION:
- * - La instancia: Hibernate al hidratar filas, o UserService.create()
- *   manualmente.
- * - La consume: UserService (la convierte en UserResponse) y AuthService
- *   (verifica password en login).
- * - Tiene relaciones @ManyToOne con: Business, Role.
+ * - La instancia: Hibernate al hidratar filas, AuthService.register
+ *   manualmente, UserService.create (cuando da de alta a un empleado
+ *   nuevo cuyo email no existia aun).
+ * - La consume: UserService, AuthService (verifica password en login),
+ *   MeController, Membership (FK id_user), UserResponse / AppointmentResponse
+ *   / ScheduleBlockResponse para mostrar fullName.
  *
- * uniqueConstraints uq_user_business_email (id_business, email): la BD
- * impide a nivel de schema dos users con el mismo email en el mismo
- * negocio. UserService.create lo comprueba antes para dar un mensaje 409
- * limpio en lugar de un error de constraint.
+ * [v16 membership] Antes contenia @ManyToOne business + @ManyToOne role
+ * con UNIQUE(id_business, email). Tras el refactor, el email es UNIQUE
+ * GLOBAL (una persona = una identidad) y la relacion con negocio+rol se
+ * delega a Membership.
  *
  * Soft delete: cuando se "borra" un usuario, NO se hace DELETE FROM users,
  * solo se pone is_active=false y se rellena deactivated_at. Asi se
- * preservan citas pasadas que apuntan a este usuario.
+ * preservan citas pasadas que apuntan a memberships de este usuario.
  */
 @Entity
-@Table(
-        name = "users",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uq_user_business_email",
-                columnNames = {"id_business", "email"}
-        )
-)
+@Table(name = "users")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -51,26 +44,10 @@ public class User {
     @Column(name = "id_user")
     private Long id;
 
-    /**
-     * Negocio al que pertenece este usuario.
-     * Relación muchos-a-uno: muchos usuarios pueden pertenecer al mismo negocio.
-     */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_business", nullable = false)
-    private Business business;
-
-    /**
-     * Rol del usuario dentro del negocio (ADMIN o EMPLOYEE).
-     * Relación muchos-a-uno: muchos usuarios pueden tener el mismo rol.
-     */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_role", nullable = false)
-    private Role role;
-
     @Column(name = "full_name", nullable = false, length = 150)
     private String fullName;
 
-    @Column(name = "email", nullable = false, length = 150)
+    @Column(name = "email", nullable = false, length = 150, unique = true)
     private String email;
 
     /**

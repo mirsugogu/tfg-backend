@@ -11,7 +11,7 @@ import lombok.Setter;
  * Catálogo global (compartido por todos los negocios).
  * Valores insertados en el schema SQL: ADMIN, EMPLOYEE.
  *
- * Mapea a la tabla `roles` (docs/schema_v13.sql):
+ * Mapea a la tabla `roles` (docs/schema_v18.sql):
  *   CREATE TABLE roles (
  *       id_role BIGINT AUTO_INCREMENT PRIMARY KEY,
  *       name    VARCHAR(30) NOT NULL UNIQUE

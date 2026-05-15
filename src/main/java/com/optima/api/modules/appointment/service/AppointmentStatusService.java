@@ -22,7 +22,7 @@ import java.util.List;
  * @Transactional(readOnly = true) en clase: solo lectura, sin escritura.
  *
  * Los estados son un catalogo GLOBAL (compartido por todos los negocios),
- * sembrado en docs/schema_v13.sql: PENDING, CONFIRMED, IN_PROGRESS,
+ * sembrado en docs/schema_v18.sql: PENDING, CONFIRMED, IN_PROGRESS,
  * COMPLETED, CANCELLED, NO_SHOW.
  */
 @Service
@@ -35,7 +35,7 @@ public class AppointmentStatusService {
     /**
      * Devuelve todos los estados de cita disponibles.
      */
-    public List<AppointmentStatusResponse> getAllStatuses() {
+    public List<AppointmentStatusResponse> listAll() {
         return statusRepository.findAll()
                 .stream()
                 .map(AppointmentStatusResponse::from)

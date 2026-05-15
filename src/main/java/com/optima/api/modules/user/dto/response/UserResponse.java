@@ -1,26 +1,33 @@
 package com.optima.api.modules.user.dto.response;
 
+import com.optima.api.modules.business.model.Membership;
 import com.optima.api.modules.user.model.User;
 
 import java.time.LocalDateTime;
 
 /**
- * DTO de salida para representar un usuario.
- * IMPORTANTE: nunca incluye {@code passwordHash}; el hash de la contraseña
+ * DTO de salida para representar un "empleado de un negocio".
+ * IMPORTANTE: nunca incluye passwordHash; el hash de la contraseña
  * jamás debe salir hacia el cliente.
  *
  * COMUNICACION:
- * - Lo construye: UserResponse.from(User) en UserService.
+ * - Lo construye: UserResponse.from(Membership) en UserService.
  * - Lo serializa Jackson a JSON en las respuestas de UserController.
  *
- * Campos expuestos: id, businessId, roleId+roleName (ambos por comodidad
- * del frontend), fullName, email, phone, isActive, createdAt, deactivatedAt.
- *
- * roleName se incluye ademas de roleId para que el frontend no tenga que
- * cruzar con /api/roles cada vez que muestra una lista de usuarios.
+ * [v16 membership] Tras el refactor, "usuario del negocio" es la membership
+ * (relacion user-business-role). El DTO expone:
+ *   - `id` (PK externa) = id de la membership; los paths
+ *     /api/businesses/{businessId}/users/{id} usan este valor.
+ *   - `userId` = id de la identidad subyacente (User), util para enlazar
+ *     varias memberships del mismo email.
+ *   - `businessId`, `roleId`, `roleName` = atributos de la membership.
+ *   - `fullName`, `email`, `phone` = atributos de la identidad.
+ *   - `isActive`, `createdAt` = de la membership (cuando el empleado entro
+ *     en este negocio).
  */
 public record UserResponse(
         Long id,
+        Long userId,
         Long businessId,
         Long roleId,
         String roleName,
@@ -28,21 +35,21 @@ public record UserResponse(
         String email,
         String phone,
         Boolean isActive,
-        LocalDateTime createdAt,
-        LocalDateTime deactivatedAt
+        LocalDateTime createdAt
 ) {
-    public static UserResponse from(User u) {
+    public static UserResponse from(Membership m) {
+        User u = m.getUser();
         return new UserResponse(
+                m.getId(),
                 u.getId(),
-                u.getBusiness().getId(),
-                u.getRole().getId(),
-                u.getRole().getName(),
+                m.getBusiness().getId(),
+                m.getRole().getId(),
+                m.getRole().getName(),
                 u.getFullName(),
                 u.getEmail(),
                 u.getPhone(),
-                u.getIsActive(),
-                u.getCreatedAt(),
-                u.getDeactivatedAt()
+                m.getIsActive(),
+                m.getCreatedAt()
         );
     }
 }

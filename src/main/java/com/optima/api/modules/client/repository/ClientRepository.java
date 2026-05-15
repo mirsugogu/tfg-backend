@@ -1,10 +1,11 @@
 package com.optima.api.modules.client.repository;
 
 import com.optima.api.modules.client.model.Client;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -21,10 +22,10 @@ import java.util.Optional;
 public interface ClientRepository extends JpaRepository<Client, Long> {
 
     /**
-     * Lista los clientes activos de un negocio.
-     * Es la query que usa el listado por defecto del controller.
+     * Lista paginada de clientes activos de un negocio.
+     * Pageable parsea page, size y sort del query string del HTTP.
      */
-    List<Client> findByBusinessIdAndIsActiveTrue(Long businessId);
+    Page<Client> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
     /**
      * Búsqueda tenant-safe: el cliente existe Y pertenece al negocio dado.

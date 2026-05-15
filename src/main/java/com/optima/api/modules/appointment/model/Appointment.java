@@ -1,8 +1,9 @@
 package com.optima.api.modules.appointment.model;
 
+import com.optima.api.modules.business.model.Booth;
 import com.optima.api.modules.business.model.Business;
+import com.optima.api.modules.business.model.Membership;
 import com.optima.api.modules.client.model.Client;
-import com.optima.api.modules.user.model.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -13,10 +14,12 @@ import java.time.LocalDateTime;
 
 /**
  * Entidad que representa una cita (reserva) de un cliente con un empleado de un negocio.
- * * Es la entidad central del sistema: los servicios se reservan a través de citas
+ *
+ * Es la entidad central del sistema: los servicios se reservan a través de citas
  * (ver BookedService) y el flujo de una cita pasa por varios estados
  * (PENDING → CONFIRMED → IN_PROGRESS → COMPLETED, o CANCELLED / NO_SHOW).
- * * No utiliza soft delete porque su propio estado (id_status) cumple esa función:
+ *
+ * No utiliza soft delete porque su propio estado (id_status) cumple esa función:
  * las citas no se borran ni se desactivan, se marcan como CANCELLED o NO_SHOW.
  *
  * COMUNICACION:
@@ -29,7 +32,7 @@ import java.time.LocalDateTime;
  * - Tiene relacion uno-a-muchos (no @OneToMany declarada explicitamente)
  *   con BookedService via id_appointment.
  *
- * Mapea a la tabla `appointments` (docs/schema_v13.sql) con FKs a
+ * Mapea a la tabla `appointments` (docs/schema_v18.sql) con FKs a
  * businesses, clients, users y appointment_statuses. Los bookedServices
  * estan en `appointment_services` con ON DELETE CASCADE.
  */
@@ -61,13 +64,26 @@ public class Appointment {
     private Client client;
 
     /**
-     * Empleado (usuario del negocio) que atiende la cita.
-     * Normalmente será un usuario con rol EMPLOYEE, aunque un ADMIN
-     * también puede atender citas si el negocio lo permite.
+     * Membership (usuario en este negocio con su rol) que atiende la cita.
+     * [v16 membership] Antes apuntaba a User directamente; ahora apunta a
+     * Membership para soportar que un mismo email trabaje en varios
+     * negocios sin mezclar sus citas. El identificador externo se sigue
+     * llamando "membershipId" en la API por compatibilidad, pero
+     * internamente es el membership_id.
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_employee", nullable = false)
-    private User employee;
+    @JoinColumn(name = "id_membership", nullable = false)
+    private Membership membership;
+
+    /**
+     * Cabina (espacio fisico) donde se realiza la cita. Nullable: una
+     * cita puede no tener cabina si el negocio no las usa o si el servicio
+     * no la requiere. Cuando la cita tiene cabina, el service valida que
+     * no esta ocupada en ese tramo (overlap check ortogonal al del empleado).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_booth")
+    private Booth booth;
 
     /**
      * Estado actual de la cita (PENDING, CONFIRMED, IN_PROGRESS,
@@ -102,6 +118,9 @@ public class Appointment {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    /**
+     * Fecha y hora en que se creo la cita (rellenado por @PrePersist).
+     */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -20,18 +20,18 @@ import java.util.List;
 
 /**
  * Filtro que se ejecuta una vez por request y, si trae un header
- * {@code Authorization: Bearer <token>}, valida el JWT con {@link JwtUtil}
- * y autentica al usuario en el {@link SecurityContextHolder}.
+ * Authorization: Bearer <token>, valida el JWT con JwtUtil
+ * y autentica al usuario en el SecurityContextHolder.
  *
- * <p>El principal que se mete en el contexto es un {@link AuthPrincipal}
+ * El principal que se mete en el contexto es un AuthPrincipal
  * con todos los datos del JWT (userId, businessId, email, role) — asi
- * el {@code TenantGuardFilter} y los controladores pueden leerlos sin
- * volver a parsear el token. Tambien se anade {@code ROLE_<role>} como
- * authority para forward-compat con {@code @PreAuthorize}.</p>
+ * el TenantGuardFilter y los controladores pueden leerlos sin
+ * volver a parsear el token. Tambien se anade ROLE_<role> como
+ * authority para forward-compat con @PreAuthorize.
  *
- * <p>Si el header no existe, no es Bearer, o el token es invalido,
+ * Si el header no existe, no es Bearer, o el token es invalido,
  * el filtro NO emite 401 ni rompe la cadena: simplemente no autentica.
- * Quien decide si la ruta requiere autenticacion es {@code SecurityConfig}.</p>
+ * Quien decide si la ruta requiere autenticacion es SecurityConfig.
  *
  * COMUNICACION:
  * - Lo registra: SecurityConfig.filterChain con addFilterBefore(...,
@@ -68,17 +68,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Claims claims = jwtUtil.parseAndValidate(token);
 
             Long userId = ((Number) claims.get("userId")).longValue();
-            Long businessId = ((Number) claims.get("businessId")).longValue();
             String email = claims.getSubject();
+
+            // [v16 membership] El token puede ser:
+            //   - tenant: businessId + role presentes en los claims.
+            //   - identity: ambos ausentes; el cliente aun no ha elegido negocio.
+            Number bidClaim = (Number) claims.get("businessId");
+            Long businessId = bidClaim != null ? bidClaim.longValue() : null;
             String role = (String) claims.get("role");
 
             AuthPrincipal principal = new AuthPrincipal(userId, businessId, email, role);
 
+            // Las authorities solo se anaden cuando hay role: un identity
+            // token no puede pasar @PreAuthorize("hasRole(...)"), lo cual
+            // es lo correcto (solo /select-business y /me/businesses deben
+            // ser accesibles con identity).
+            List<SimpleGrantedAuthority> authorities = role != null
+                    ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                    : List.of();
+
             UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(
-                            principal,
-                            null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                    new UsernamePasswordAuthenticationToken(principal, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(auth);
         } catch (JwtException | ClassCastException | NullPointerException ex) {
             // Token invalido (firma mal, expirado, malformado, claims ausentes):

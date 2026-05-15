@@ -4,8 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * DTO de entrada para crear una categoría.
- * El {@code businessId} viene del path, no del body.
+ * CreateCategoryRequest - DTO de entrada para crear una categoría.
+ * El businessId viene del path, no del body.
  *
  * COMUNICACION:
  * - Lo deserializa Jackson, lo valida @Valid en ServiceCategoryController.
@@ -16,6 +16,6 @@ import jakarta.validation.constraints.Size;
 public record CreateCategoryRequest(
 
         @NotBlank(message = "El nombre es obligatorio")
-        @Size(max = 100, message = "Máximo 100 caracteres")
+        @Size(max = 100, message = "El nombre no puede superar los 100 caracteres")
         String name
 ) {}

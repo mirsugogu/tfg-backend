@@ -2,7 +2,7 @@ package com.optima.api.modules.catalog.service;
 
 import com.optima.api.modules.catalog.dto.request.CreateServiceRequest;
 import com.optima.api.modules.catalog.dto.request.UpdateServiceRequest;
-import com.optima.api.modules.catalog.dto.response.ServiceResponse;
+import com.optima.api.modules.catalog.dto.response.BusinessServiceResponse;
 import com.optima.api.modules.catalog.model.BusinessService;
 import com.optima.api.modules.business.model.Business;
 import com.optima.api.modules.catalog.model.ServiceCategory;
@@ -12,13 +12,14 @@ import com.optima.api.modules.catalog.repository.ServiceCategoryRepository;
 import com.optima.api.modules.business.repository.BusinessRepository;
 import com.optima.api.modules.business.repository.TaxRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * BusinessServiceService - Logica de servicios comerciales.
@@ -36,7 +37,7 @@ import java.util.List;
  *     BusinessRepository           verifica negocio.
  *     ServiceCategoryRepository    cross-tenant de la categoria.
  *     TaxRepository                cross-tenant del impuesto.
- * - Devuelve: ServiceResponse.
+ * - Devuelve: BusinessServiceResponse.
  *
  * Cross-tenant: usa findByIdAndBusinessId en TODAS las relaciones
  * (categoria, impuesto, propio servicio) para evitar mezclas entre
@@ -52,7 +53,23 @@ public class BusinessServiceService {
     private final ServiceCategoryRepository categoryRepository;
     private final TaxRepository taxRepository;
 
-    public ServiceResponse createService(Long businessId, CreateServiceRequest request) {
+    /**
+     * Crea un nuevo servicio en el catalogo del negocio.
+     *
+     * Pasos:
+     *   1. Valida que no exista otro servicio con ese nombre en el negocio (409).
+     *   2. Verifica que el negocio existe (404).
+     *   3. Cross-tenant: la categoria pertenece a este negocio (404).
+     *   4. Cross-tenant: el impuesto pertenece a este negocio (404).
+     *   5. Persiste la entidad con isActive=true por defecto.
+     *
+     * @param businessId barrera multi-tenant: TODO se valida contra este id.
+     * @param request payload validado: name, description, price, durationMinutes,
+     *                categoryId, taxId.
+     * @return BusinessServiceResponse con la entidad creada (incluye
+     *         categoryName y taxName aplanados).
+     */
+    public BusinessServiceResponse createService(Long businessId, CreateServiceRequest request) {
 
         // 1. Validar nombre duplicado en el mismo negocio
         if (serviceRepository.existsByBusinessIdAndNameIgnoreCase(
@@ -99,18 +116,16 @@ public class BusinessServiceService {
         newService.setDurationMinutes(request.durationMinutes());
 
         // 6. Guardar y devolver DTO
-        return ServiceResponse.from(serviceRepository.save(newService));
+        return BusinessServiceResponse.from(serviceRepository.save(newService));
     }
 
     /**
      * Lista los servicios activos de un negocio.
      */
     @Transactional(readOnly = true)
-    public List<ServiceResponse> getActiveServicesByBusiness(Long businessId) {
-        return serviceRepository.findAllByBusinessIdAndIsActiveTrue(businessId)
-                .stream()
-                .map(ServiceResponse::from)
-                .toList();
+    public Page<BusinessServiceResponse> getActiveServicesByBusiness(Long businessId, Pageable pageable) {
+        return serviceRepository.findAllByBusinessIdAndIsActiveTrue(businessId, pageable)
+                .map(BusinessServiceResponse::from);
     }
 
     /**
@@ -118,8 +133,8 @@ public class BusinessServiceService {
      * Si el servicio no existe o pertenece a otro negocio, devuelve 404.
      */
     @Transactional(readOnly = true)
-    public ServiceResponse getServiceById(Long businessId, Long id) {
-        return ServiceResponse.from(findOrThrow(businessId, id));
+    public BusinessServiceResponse getServiceById(Long businessId, Long id) {
+        return BusinessServiceResponse.from(findOrThrow(businessId, id));
     }
 
     /**
@@ -129,7 +144,7 @@ public class BusinessServiceService {
      * cross-tenant idéntica a la del POST). No permite operar sobre un
      * servicio desactivado.
      */
-    public ServiceResponse updateService(Long businessId, Long id, UpdateServiceRequest request) {
+    public BusinessServiceResponse updateService(Long businessId, Long id, UpdateServiceRequest request) {
         BusinessService service = findOrThrow(businessId, id);
 
         if (!service.getIsActive()) {
@@ -168,7 +183,7 @@ public class BusinessServiceService {
         service.setPrice(request.price());
         service.setDurationMinutes(request.durationMinutes());
 
-        return ServiceResponse.from(serviceRepository.save(service));
+        return BusinessServiceResponse.from(serviceRepository.save(service));
     }
 
     /**

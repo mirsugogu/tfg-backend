@@ -1,10 +1,11 @@
 package com.optima.api.modules.catalog.repository;
 
 import com.optima.api.modules.catalog.model.BusinessService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -29,16 +30,13 @@ public interface BusinessServiceRepository extends JpaRepository<BusinessService
     boolean existsByBusinessIdAndNameIgnoreCase(Long businessId, String name);
 
     /**
-     * Lista todos los servicios activos de un negocio.
-     * Añadido el 2026-05-02 al consolidar el módulo paralelo de Persona 2
-     * (entidad duplicada `Service` eliminada porque chocaba con esta `BusinessService`
-     * mapeando a la misma tabla `services`). Reemplaza al `ServiceRepository.findByBusinessId`.
+     * Lista paginada de servicios activos de un negocio.
+     * Pageable parsea page, size y sort del query string.
      */
-    List<BusinessService> findAllByBusinessIdAndIsActiveTrue(Long businessId);
+    Page<BusinessService> findAllByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
     /**
-     * Búsqueda cross-tenant: el servicio existe Y pertenece al negocio dado.
-     * Útil para futuros endpoints GET-by-id, PUT, DELETE.
+     * Búsqueda cross-tenant safe: 404 si el servicio no pertenece al negocio.
      */
     Optional<BusinessService> findByIdAndBusinessId(Long id, Long businessId);
 }

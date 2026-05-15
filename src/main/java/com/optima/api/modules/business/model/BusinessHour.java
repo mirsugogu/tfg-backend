@@ -10,21 +10,27 @@ import java.time.LocalTime;
 
 /**
  * Entidad que representa el horario de apertura semanal de un negocio,
- * con una fila por cada día de la semana.
+ * con una fila por cada dia de la semana.
  *
- * El campo {@code dayOfWeek} sigue la convención ISO: 1 = lunes, 7 = domingo.
- * Si {@code isClosed} es true, las horas pueden ser nulas (el negocio
- * está cerrado ese día). Si es false, {@code startTime} y {@code endTime}
- * deben estar informadas y respetar startTime &lt; endTime (lo asegura el
+ * El campo dayOfWeek sigue la convencion ISO: 1 = lunes, 7 = domingo.
+ * Si isClosed es true, las horas pueden ser nulas (el negocio
+ * esta cerrado ese dia). Si es false, startTime y endTime
+ * deben estar informadas y respetar startTime < endTime (lo asegura el
  * CHECK del schema SQL).
+ *
+ * Sin createdAt: BusinessHour es configuracion estatica del negocio
+ * (un tramo por dia, editable), no un evento que ocurre. Misma decision
+ * que EmployeeSchedule. No utiliza soft delete tampoco (hard delete):
+ * si un tramo deja de aplicar, se borra y se vuelve a crear.
  *
  * COMUNICACION:
  * - La instancia: Hibernate al hidratar, BusinessHourService.create
  *   manualmente.
- * - La consume: BusinessHourResponse.from().
+ * - La consume: BusinessHourResponse.from(), AvailabilityService (resuelve
+ *   las horas validas del dia).
  * - Tiene @ManyToOne con: Business.
  *
- * Mapea a `business_hours` (docs/schema_v13.sql). Anteriormente
+ * Mapea a `business_hours` (docs/schema_v18.sql). Anteriormente
  * day_of_week era TINYINT y rompia la validacion de Hibernate
  * (Integer en JPA); se cambio a INT en el schema para alinear.
  */

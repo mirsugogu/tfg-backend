@@ -4,17 +4,18 @@ import com.optima.api.modules.business.model.Business;
 import com.optima.api.modules.business.repository.BusinessRepository;
 import com.optima.api.modules.catalog.dto.request.CreateCategoryRequest;
 import com.optima.api.modules.catalog.dto.request.UpdateCategoryRequest;
-import com.optima.api.modules.catalog.dto.response.CategoryResponse;
+import com.optima.api.modules.catalog.dto.response.ServiceCategoryResponse;
 import com.optima.api.modules.catalog.model.ServiceCategory;
 import com.optima.api.modules.catalog.repository.ServiceCategoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * ServiceCategoryService - Logica de categorias de servicios.
@@ -24,7 +25,7 @@ import java.util.List;
  * - Llama a:
  *     ServiceCategoryRepository    CRUD + existsByName tenant-safe.
  *     BusinessRepository           verifica que el negocio existe.
- * - Devuelve: CategoryResponse.
+ * - Devuelve: ServiceCategoryResponse.
  *
  * Cross-tenant: usa findByIdAndBusinessId en TODOS los lookups por id.
  * Soft delete: las categorias se desactivan, no se borran (preserva
@@ -38,7 +39,19 @@ public class ServiceCategoryService {
     private final ServiceCategoryRepository categoryRepository;
     private final BusinessRepository businessRepository;
 
-    public CategoryResponse createCategory(Long businessId, CreateCategoryRequest request) {
+    /**
+     * Crea una nueva categoria en el catalogo del negocio.
+     *
+     * Pasos:
+     *   1. Valida que no exista otra categoria con ese nombre en el negocio (409).
+     *   2. Verifica que el negocio existe (404).
+     *   3. Persiste la entidad con isActive=true por defecto.
+     *
+     * @param businessId barrera multi-tenant: TODO se valida contra este id.
+     * @param request payload validado: name.
+     * @return ServiceCategoryResponse con la entidad creada.
+     */
+    public ServiceCategoryResponse createCategory(Long businessId, CreateCategoryRequest request) {
 
         // 1. Validar regla de negocio: No nombres duplicados en el mismo local
         if (categoryRepository.existsByBusinessIdAndNameIgnoreCase(businessId, request.name())) {
@@ -60,15 +73,16 @@ public class ServiceCategoryService {
         category.setIsActive(true);
 
         // 4. Guardar y devolver DTO
-        return CategoryResponse.from(categoryRepository.save(category));
+        return ServiceCategoryResponse.from(categoryRepository.save(category));
     }
 
+    /**
+     * Lista las categorias activas de un negocio.
+     */
     @Transactional(readOnly = true)
-    public List<CategoryResponse> getActiveCategories(Long businessId) {
-        return categoryRepository.findAllByBusinessIdAndIsActiveTrue(businessId)
-                .stream()
-                .map(CategoryResponse::from)
-                .toList();
+    public Page<ServiceCategoryResponse> getActiveCategories(Long businessId, Pageable pageable) {
+        return categoryRepository.findAllByBusinessIdAndIsActiveTrue(businessId, pageable)
+                .map(ServiceCategoryResponse::from);
     }
 
     /**
@@ -76,8 +90,8 @@ public class ServiceCategoryService {
      * Si la categoría no existe o pertenece a otro negocio, devuelve 404.
      */
     @Transactional(readOnly = true)
-    public CategoryResponse getCategoryById(Long businessId, Long id) {
-        return CategoryResponse.from(findOrThrow(businessId, id));
+    public ServiceCategoryResponse getCategoryById(Long businessId, Long id) {
+        return ServiceCategoryResponse.from(findOrThrow(businessId, id));
     }
 
     /**
@@ -85,7 +99,7 @@ public class ServiceCategoryService {
      * del nombre dentro del mismo negocio. No permite operar sobre una
      * categoría desactivada.
      */
-    public CategoryResponse updateCategory(Long businessId, Long id, UpdateCategoryRequest request) {
+    public ServiceCategoryResponse updateCategory(Long businessId, Long id, UpdateCategoryRequest request) {
         ServiceCategory category = findOrThrow(businessId, id);
 
         if (!category.getIsActive()) {
@@ -101,7 +115,7 @@ public class ServiceCategoryService {
         }
 
         category.setName(newName);
-        return CategoryResponse.from(categoryRepository.save(category));
+        return ServiceCategoryResponse.from(categoryRepository.save(category));
     }
 
     /**

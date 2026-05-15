@@ -16,20 +16,20 @@ import java.util.Optional;
  * Servicio que llama a la API de geocoding de Nominatim (OpenStreetMap)
  * para convertir una direccion postal en coordenadas (lat, lng).
  *
- * <p>Es <i>best-effort</i>: si la API falla, no devuelve resultados o
- * la respuesta no se puede parsear, devuelve {@link Optional#empty()}
+ * Es best-effort: si la API falla, no devuelve resultados o
+ * la respuesta no se puede parsear, devuelve Optional#empty()
  * y loguea un warning. Nunca lanza excepcion al llamador, asi que la
  * creacion del negocio nunca queda bloqueada por un fallo de geocoding.
  *
- * <p>Nominatim exige un User-Agent identificable con contacto. Se lee
- * de {@code app.geocoding.user-agent}. El timeout HTTP (connect+read)
- * es {@code app.geocoding.timeout-ms} (default 5 s).
+ * Nominatim exige un User-Agent identificable con contacto. Se lee
+ * de app.geocoding.user-agent. El timeout HTTP (connect+read)
+ * es app.geocoding.timeout-ms (default 5 s).
  *
  * COMUNICACION:
  * - Lo inyecta: BusinessService (en create() y update()).
  * - Llama a (red externa): https://nominatim.openstreetmap.org/search
  *   via RestClient (cliente HTTP de Spring 6, sucesor de RestTemplate).
- * - Devuelve: Optional&lt;Coordinates&gt;.
+ * - Devuelve: Optional<Coordinates>.
  *
  * Lectura de configuracion (application.properties):
  *   app.geocoding.user-agent       identificador requerido por Nominatim
@@ -67,7 +67,7 @@ public class GeocodingService {
     /**
      * Resuelve la direccion via Nominatim. Necesita al menos
      * pais + (ciudad o codigo postal); si no hay datos suficientes
-     * devuelve {@link Optional#empty()} sin llamar a la API.
+     * devuelve Optional#empty() sin llamar a la API.
      */
     public Optional<Coordinates> geocode(String addressLine, String city,
                                           String postalCode, String country) {

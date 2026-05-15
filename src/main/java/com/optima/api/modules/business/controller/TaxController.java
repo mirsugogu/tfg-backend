@@ -1,16 +1,18 @@
 package com.optima.api.modules.business.controller;
 
-import com.optima.api.modules.business.dto.CreateTaxRequest;
-import com.optima.api.modules.business.dto.TaxResponse;
-import com.optima.api.modules.business.dto.UpdateTaxRequest;
+import com.optima.api.modules.business.dto.request.CreateTaxRequest;
+import com.optima.api.modules.business.dto.response.TaxResponse;
+import com.optima.api.modules.business.dto.request.UpdateTaxRequest;
 import com.optima.api.modules.business.service.TaxService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * TaxController - CRUD de impuestos del negocio.
@@ -36,40 +38,80 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/businesses/{businessId}/taxes")
 @RequiredArgsConstructor
+@Validated
 public class TaxController {
 
     private final TaxService taxService;
 
+    /**
+     * POST /api/businesses/{businessId}/taxes - Crea un impuesto nuevo en
+     * el negocio.
+     *
+     * TaxService valida unicidad por (businessId, name) case-insensitive
+     * entre los impuestos activos: 409 si choca. Permiso: solo ADMIN.
+     */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
-    public TaxResponse create(@PathVariable Long businessId,
-                              @Valid @RequestBody CreateTaxRequest req) {
-        return taxService.create(businessId, req);
+    public TaxResponse create(@PathVariable @Positive Long businessId,
+                              @Valid @RequestBody CreateTaxRequest request) {
+        return taxService.create(businessId, request);
     }
 
+    /**
+     * GET /api/businesses/{businessId}/taxes - Lista paginada de impuestos
+     * ACTIVOS del negocio.
+     *
+     * Filtra por is_active=true: los impuestos desactivados no aparecen
+     * aqui, pero siguen existiendo para preservar las referencias
+     * historicas (services del catalogo, bookedServices con
+     * appliedTaxPercentage congelado).
+     * Pageable se rellena con ?page=&size=&sort=field,asc.
+     */
     @GetMapping
-    public List<TaxResponse> listActive(@PathVariable Long businessId) {
-        return taxService.listActive(businessId);
+    public Page<TaxResponse> listActive(@PathVariable @Positive Long businessId,
+                                        Pageable pageable) {
+        return taxService.listActive(businessId, pageable);
     }
 
+    /**
+     * GET /api/businesses/{businessId}/taxes/{id} - Detalle de un
+     * impuesto. Cross-tenant safe: si el id no existe en este businessId
+     * devuelve 404.
+     */
     @GetMapping("/{id}")
-    public TaxResponse getById(@PathVariable Long businessId, @PathVariable Long id) {
+    public TaxResponse getById(@PathVariable @Positive Long businessId,
+                               @PathVariable @Positive Long id) {
         return taxService.getById(businessId, id);
     }
 
+    /**
+     * PUT /api/businesses/{businessId}/taxes/{id} - Actualiza nombre y
+     * porcentaje del impuesto.
+     *
+     * TaxService rechaza el update si el impuesto esta desactivado (400)
+     * y revalida unicidad del nombre case-insensitive si cambia (409).
+     * Permiso: solo ADMIN.
+     */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public TaxResponse update(@PathVariable Long businessId,
-                              @PathVariable Long id,
-                              @Valid @RequestBody UpdateTaxRequest req) {
-        return taxService.update(businessId, id, req);
+    public TaxResponse update(@PathVariable @Positive Long businessId,
+                              @PathVariable @Positive Long id,
+                              @Valid @RequestBody UpdateTaxRequest request) {
+        return taxService.update(businessId, id, request);
     }
 
+    /**
+     * DELETE /api/businesses/{businessId}/taxes/{id} - Soft delete: marca
+     * is_active=false y deactivated_at=now. NO borra fisicamente la fila
+     * (preserva referencias desde servicios y bookedServices historicos).
+     * Devuelve 204 No Content. Permiso: solo ADMIN.
+     */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
-    public void deactivate(@PathVariable Long businessId, @PathVariable Long id) {
+    public void deactivate(@PathVariable @Positive Long businessId,
+                           @PathVariable @Positive Long id) {
         taxService.deactivate(businessId, id);
     }
 }

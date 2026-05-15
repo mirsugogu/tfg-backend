@@ -4,6 +4,7 @@ import com.optima.api.modules.appointment.model.BookedService;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -31,4 +32,15 @@ public interface BookedServiceRepository extends JpaRepository<BookedService, Lo
      * Útil para mostrar el detalle de una cita con sus servicios.
      */
     List<BookedService> findAllByAppointmentId(Long appointmentId);
+
+    /**
+     * Devuelve todos los servicios reservados de un conjunto de citas en una
+     * sola query (cláusula SQL `WHERE appointment_id IN (...)`).
+     *
+     * Sirve para resolver el N+1 cuando se listan varias citas: en lugar de
+     * lanzar una query por cita, el servicio agrupa los IDs y carga todos
+     * los BookedService de golpe, luego los reagrupa en memoria por
+     * appointmentId.
+     */
+    List<BookedService> findAllByAppointmentIdIn(Collection<Long> appointmentIds);
 }

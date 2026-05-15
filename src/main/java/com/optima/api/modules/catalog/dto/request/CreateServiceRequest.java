@@ -4,13 +4,14 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
 /**
- * DTO de entrada para crear un servicio.
- * El {@code businessId} viene del path, no del body.
+ * CreateServiceRequest - DTO de entrada para crear un servicio.
+ * El businessId viene del path, no del body.
  * La categoría y el impuesto se validan cross-tenant en el servicio.
  *
  * COMUNICACION:
@@ -18,27 +19,27 @@ import java.math.BigDecimal;
  * - Lo consume BusinessServiceService.createService.
  *
  * Validaciones:
- *   categoryId        @NotNull (se valida cross-tenant en el service).
- *   taxId             @NotNull (se valida cross-tenant en el service).
+ *   categoryId        @NotNull, @Positive (cross-tenant validado en el service).
+ *   taxId             @NotNull, @Positive (cross-tenant validado en el service).
  *   name              @NotBlank, max 150.
- *   description       opcional.
+ *   description       opcional, sin validación.
  *   price             @NotNull, >= 0 (BigDecimal para precision monetaria).
  *   durationMinutes   @NotNull, >= 1 minuto.
  */
 public record CreateServiceRequest(
 
         @NotNull(message = "El ID de la categoría es obligatorio")
+        @Positive(message = "El ID de la categoría debe ser positivo")
         Long categoryId,
 
         @NotNull(message = "El ID del impuesto es obligatorio")
+        @Positive(message = "El ID del impuesto debe ser positivo")
         Long taxId,
 
         @NotBlank(message = "El nombre del servicio no puede estar vacío")
         @Size(max = 150, message = "El nombre no puede exceder los 150 caracteres")
         String name,
 
-        // La descripción es opcional, por lo que no le ponemos @NotBlank ni @NotNull.
-        // Si el cliente no la envía, simplemente será 'null'.
         String description,
 
         @NotNull(message = "El precio es obligatorio")

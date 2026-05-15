@@ -25,7 +25,7 @@ import java.time.LocalDateTime;
  * COMUNICACION:
  * - La instancia: Hibernate al hidratar, BusinessServiceService.create
  *   manualmente.
- * - La consume: ServiceResponse.from(), AppointmentService (verifica
+ * - La consume: BusinessServiceResponse.from(), AppointmentService (verifica
  *   activo antes de crear cita), BookedService (la referencia via FK).
  * - Tiene relaciones @ManyToOne con: Business, ServiceCategory, Tax.
  *

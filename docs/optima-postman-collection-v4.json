@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "optima-tfg-v4-headers-via-script",
-    "name": "Optima API TFG v4.1 (roles via prerequest)",
-    "description": "Coleccion organizada por entidad/tabla del schema. 13 carpetas (una por tabla) + 1 de Auth como pre-requisito. Cada carpeta contiene CRUD completo, validaciones, audit checks de auditoria, cross-tenant y soft-delete cuando aplican. Variables se persisten entre requests. Para correr todo: Run collection. baseUrl por defecto http://localhost:8084.",
+    "_postman_id": "optima-tfg-v4.2-membership-v16",
+    "name": "Optima API TFG v4.2 (membership v16)",
+    "description": "Coleccion organizada por entidad/tabla del schema. Carpeta 00-Auth ampliada para el flujo membership v16: login email+password (sin businessSlug), register publico de negocio, select-business/{id}, /api/me/* (perfil, password, businesses). El paso de login devuelve tokenType=tenant (1 membership) o identity (>1) con la lista de memberships. baseUrl por defecto http://localhost:8080.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -34,7 +34,7 @@
     }
   ],
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8091", "type": "string" },
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
     { "key": "token", "value": "", "type": "string" },
     { "key": "uniqSuffix", "value": "", "type": "string" },
     { "key": "businessId", "value": "1", "type": "string" },
@@ -59,7 +59,9 @@
     { "key": "serviceId2", "value": "", "type": "string" },
     { "key": "appointmentId", "value": "", "type": "string" },
     { "key": "appointmentId2", "value": "", "type": "string" },
-    { "key": "tokenEmployee", "value": "", "type": "string" }
+    { "key": "tokenEmployee", "value": "", "type": "string" },
+    { "key": "regSuffix", "value": "", "type": "string" },
+    { "key": "tokenRegistered", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -69,19 +71,98 @@
           "name": "Login admin (hardcoded)",
           "auth": { "type": "noauth" },
           "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","const j=pm.response.json();","pm.test('devuelve token',()=>pm.expect(j.token).to.be.a('string').and.not.empty);","pm.collectionVariables.set('token',j.token);"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/token","host":["{{baseUrl}}"],"path":["api","auth","token"]},"body":{"mode":"raw","raw":"{\"businessSlug\":\"demo\",\"email\":\"admin@optima.com\",\"password\":\"123456\"}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/token","host":["{{baseUrl}}"],"path":["api","auth","token"]},"body":{"mode":"raw","raw":"{\"email\":\"admin@optima.com\",\"password\":\"12345678\"}"}}
         },
         {
           "name": "Login bad credentials -> 401",
           "auth": { "type": "noauth" },
           "event": [{"listen":"test","script":{"exec":["pm.test('401',()=>pm.response.to.have.status(401));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/token","host":["{{baseUrl}}"],"path":["api","auth","token"]},"body":{"mode":"raw","raw":"{\"businessSlug\":\"demo\",\"email\":\"x@x.com\",\"password\":\"wrong\"}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/token","host":["{{baseUrl}}"],"path":["api","auth","token"]},"body":{"mode":"raw","raw":"{\"email\":\"x@x.com\",\"password\":\"wrong\"}"}}
         },
         {
           "name": "Login body vacio -> 400",
           "auth": { "type": "noauth" },
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/token","host":["{{baseUrl}}"],"path":["api","auth","token"]},"body":{"mode":"raw","raw":"{\"businessSlug\":\"\",\"email\":\"\",\"password\":\"\"}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/token","host":["{{baseUrl}}"],"path":["api","auth","token"]},"body":{"mode":"raw","raw":"{\"email\":\"\",\"password\":\"\"}"}}
+        },
+        {
+          "name": "Register negocio nuevo -> 201 + tenant token",
+          "auth": { "type": "noauth" },
+          "event": [{"listen":"prerequest","script":{"exec":["pm.collectionVariables.set('regSuffix', Date.now().toString());"]}},{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","const j=pm.response.json();","pm.test('tokenType=tenant',()=>pm.expect(j.tokenType).to.equal('tenant'));","pm.test('businesses=null',()=>pm.expect(j.businesses).to.equal(null));","pm.test('devuelve token',()=>pm.expect(j.token).to.be.a('string').and.not.empty);","pm.collectionVariables.set('tokenRegistered', j.token);"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/register","host":["{{baseUrl}}"],"path":["api","auth","register"]},"body":{"mode":"raw","raw":"{\"business\":{\"name\":\"Negocio Test {{regSuffix}}\",\"slug\":\"negocio-test-{{regSuffix}}\",\"email\":\"info-{{regSuffix}}@test.com\",\"appointmentInterval\":30},\"admin\":{\"fullName\":\"Admin Test\",\"email\":\"admin-{{regSuffix}}@test.com\",\"password\":\"supersecreto123\"}}"}}
+        },
+        {
+          "name": "Register con email admin duplicado -> 409",
+          "auth": { "type": "noauth" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('409',()=>pm.response.to.have.status(409));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/register","host":["{{baseUrl}}"],"path":["api","auth","register"]},"body":{"mode":"raw","raw":"{\"business\":{\"name\":\"Otro\",\"slug\":\"otro-conflicto\",\"email\":\"otro-confl@test.com\",\"appointmentInterval\":30},\"admin\":{\"fullName\":\"X\",\"email\":\"admin@optima.com\",\"password\":\"supersecreto123\"}}"}}
+        },
+        {
+          "name": "Register con slug duplicado -> 409",
+          "auth": { "type": "noauth" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('409',()=>pm.response.to.have.status(409));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/register","host":["{{baseUrl}}"],"path":["api","auth","register"]},"body":{"mode":"raw","raw":"{\"business\":{\"name\":\"Y\",\"slug\":\"demo\",\"email\":\"y-{{$timestamp}}@test.com\",\"appointmentInterval\":30},\"admin\":{\"fullName\":\"Y\",\"email\":\"y-{{$timestamp}}@test.com\",\"password\":\"supersecreto123\"}}"}}
+        },
+        {
+          "name": "Register body invalido -> 400",
+          "auth": { "type": "noauth" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/register","host":["{{baseUrl}}"],"path":["api","auth","register"]},"body":{"mode":"raw","raw":"{\"business\":{},\"admin\":{\"fullName\":\"X\",\"email\":\"z@x.com\",\"password\":\"123\"}}"}}
+        },
+        {
+          "name": "GET /api/me - perfil identidad",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","const j=pm.response.json();","pm.test('expone email del admin',()=>pm.expect(j.email).to.equal('admin@optima.com'));","pm.test('NO expone passwordHash',()=>pm.expect(j).to.not.have.property('passwordHash'));"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/me","host":["{{baseUrl}}"],"path":["api","me"]}}
+        },
+        {
+          "name": "GET /api/me/businesses - memberships activas",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","const list=pm.response.json();","pm.test('es array',()=>pm.expect(list).to.be.an('array'));","pm.test('al menos 1 membership',()=>pm.expect(list.length).to.be.greaterThan(0));","pm.test('campos esperados',()=>{const m=list[0];pm.expect(m).to.have.all.keys('membershipId','businessId','businessName','role');});"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/me/businesses","host":["{{baseUrl}}"],"path":["api","me","businesses"]}}
+        },
+        {
+          "name": "PUT /api/me/password - cambio password (rechazo: misma password)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400 (nueva == actual)',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/me/password","host":["{{baseUrl}}"],"path":["api","me","password"]},"body":{"mode":"raw","raw":"{\"currentPassword\":\"12345678\",\"newPassword\":\"12345678\"}"}}
+        },
+        {
+          "name": "POST /api/auth/select-business/{{businessId}} (con token tenant ya activo)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","const j=pm.response.json();","pm.test('devuelve tenant token nuevo',()=>{pm.expect(j.tokenType).to.equal('tenant');pm.expect(j.token).to.be.a('string').and.not.empty;});"]}}],
+          "request": {"method":"POST","url":{"raw":"{{baseUrl}}/api/auth/select-business/{{businessId}}","host":["{{baseUrl}}"],"path":["api","auth","select-business","{{businessId}}"]}}
+        },
+        {
+          "name": "POST /api/auth/select-business/9999 -> 403 (sin membership)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('403',()=>pm.response.to.have.status(403));"]}}],
+          "request": {"method":"POST","url":{"raw":"{{baseUrl}}/api/auth/select-business/9999","host":["{{baseUrl}}"],"path":["api","auth","select-business","9999"]}}
+        },
+        {
+          "name": "POST /api/auth/forgot-password (email existente) -> 204",
+          "auth": { "type": "noauth" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('204 silent (anti-enumeration)',()=>pm.response.to.have.status(204));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/forgot-password","host":["{{baseUrl}}"],"path":["api","auth","forgot-password"]},"body":{"mode":"raw","raw":"{\"email\":\"admin@optima.com\"}"}}
+        },
+        {
+          "name": "POST /api/auth/forgot-password (email inexistente) -> 204 silent",
+          "auth": { "type": "noauth" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('204 mismo codigo aunque no exista',()=>pm.response.to.have.status(204));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/forgot-password","host":["{{baseUrl}}"],"path":["api","auth","forgot-password"]},"body":{"mode":"raw","raw":"{\"email\":\"no-existe-{{$timestamp}}@nope.com\"}"}}
+        },
+        {
+          "name": "POST /api/auth/forgot-password email malformado -> 400",
+          "auth": { "type": "noauth" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('400 bean validation',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/forgot-password","host":["{{baseUrl}}"],"path":["api","auth","forgot-password"]},"body":{"mode":"raw","raw":"{\"email\":\"sin-arroba\"}"}}
+        },
+        {
+          "name": "POST /api/auth/reset-password token invalido -> 400",
+          "auth": { "type": "noauth" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('400 token invalido',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/reset-password","host":["{{baseUrl}}"],"path":["api","auth","reset-password"]},"body":{"mode":"raw","raw":"{\"token\":\"token-falso-no-existe\",\"newPassword\":\"NuevaPassword123\"}"}}
+        },
+        {
+          "name": "POST /api/auth/reset-password newPassword corta -> 400",
+          "auth": { "type": "noauth" },
+          "event": [{"listen":"test","script":{"exec":["pm.test('400 bean validation Size',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/reset-password","host":["{{baseUrl}}"],"path":["api","auth","reset-password"]},"body":{"mode":"raw","raw":"{\"token\":\"x\",\"newPassword\":\"123\"}"}}
         }
       ]
     },
@@ -151,11 +232,6 @@
           "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses","host":["{{baseUrl}}"],"path":["api","businesses"]},"body":{"mode":"raw","raw":"{\"name\":\"Bad\",\"slug\":\"bad-interval-{{uniqSuffix}}\",\"email\":\"bi{{uniqSuffix}}@x.com\",\"appointmentInterval\":17}"}}
         },
         {
-          "name": "GET list (paginado)",
-          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
-          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses","host":["{{baseUrl}}"],"path":["api","businesses"]}}
-        },
-        {
           "name": "GET by id",
           "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
           "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}"]}}
@@ -164,11 +240,6 @@
           "name": "GET /businesses/9999 (no es tuyo, no se sabe si existe) -> 403",
           "event": [{"listen":"test","script":{"exec":["pm.test('403 cross-tenant',()=>pm.response.to.have.status(403));"]}}],
           "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/9999","host":["{{baseUrl}}"],"path":["api","businesses","9999"]}}
-        },
-        {
-          "name": "GET by slug",
-          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
-          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/slug/salon-test-{{uniqSuffix}}","host":["{{baseUrl}}"],"path":["api","businesses","slug","salon-test-{{uniqSuffix}}"]}}
         },
         {
           "name": "PUT update",
@@ -638,57 +709,57 @@
         {
           "name": "[AUDIT 2.2/2.3/2.4] POST appointment: response incluye bookedServices",
           "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","const j=pm.response.json();","pm.collectionVariables.set('appointmentId',j.id);","pm.test('AUDIT bookedServices array no vacio',()=>pm.expect(j.bookedServices).to.be.an('array').and.not.empty);","pm.test('AUDIT appliedPrice presente',()=>pm.expect(j.bookedServices[0].appliedPrice).to.exist);","pm.test('AUDIT appliedTaxPercentage presente',()=>pm.expect(j.bookedServices[0].appliedTaxPercentage).to.exist);","pm.test('AUDIT serviceName correcto',()=>pm.expect(j.bookedServices[0].serviceName).to.eql('Corte premium'));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1000}}\",\"notes\":\"Cita test\",\"serviceIds\":[{{serviceId}}]}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1000}}\",\"notes\":\"Cita test\",\"serviceIds\":[{{serviceId}}]}"}}
         },
         {
           "name": "POST en pasado -> 400",
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"2024-01-01T10:00:00\",\"serviceIds\":[{{serviceId}}]}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"membershipId\":{{employeeUserId}},\"startDateTime\":\"2024-01-01T10:00:00\",\"serviceIds\":[{{serviceId}}]}"}}
         },
         {
           "name": "POST 10:15 no multiplo de 30 -> 400",
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1015}}\",\"serviceIds\":[{{serviceId}}]}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1015}}\",\"serviceIds\":[{{serviceId}}]}"}}
         },
         {
           "name": "POST Lunes 14:00 fuera horario -> 400",
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1400}}\",\"serviceIds\":[{{serviceId}}]}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1400}}\",\"serviceIds\":[{{serviceId}}]}"}}
         },
         {
           "name": "POST Miercoles sin schedule -> 400",
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextWed1000}}\",\"serviceIds\":[{{serviceId}}]}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextWed1000}}\",\"serviceIds\":[{{serviceId}}]}"}}
         },
         {
           "name": "POST overlap 10:30 -> 409",
           "event": [{"listen":"test","script":{"exec":["pm.test('409',()=>pm.response.to.have.status(409));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1030}}\",\"serviceIds\":[{{serviceId}}]}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1030}}\",\"serviceIds\":[{{serviceId}}]}"}}
         },
         {
           "name": "POST serviceIds vacio -> 400",
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1100}}\",\"serviceIds\":[]}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1100}}\",\"serviceIds\":[]}"}}
         },
         {
           "name": "POST clientId inexistente -> 404",
           "event": [{"listen":"test","script":{"exec":["pm.test('404',()=>pm.response.to.have.status(404));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":9999,\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1100}}\",\"serviceIds\":[{{serviceId}}]}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":9999,\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1100}}\",\"serviceIds\":[{{serviceId}}]}"}}
         },
         {
-          "name": "POST employeeId inexistente -> 404",
+          "name": "POST membershipId inexistente -> 404",
           "event": [{"listen":"test","script":{"exec":["pm.test('404',()=>pm.response.to.have.status(404));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"employeeId\":9999,\"startDateTime\":\"{{nextMon1100}}\",\"serviceIds\":[{{serviceId}}]}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"membershipId\":9999,\"startDateTime\":\"{{nextMon1100}}\",\"serviceIds\":[{{serviceId}}]}"}}
         },
         {
           "name": "POST cross-tenant client -> 404",
           "event": [{"listen":"test","script":{"exec":["pm.test('404 cross-tenant',()=>pm.response.to.have.status(404));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId2}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1100}}\",\"serviceIds\":[{{serviceId}}]}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId2}},\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1100}}\",\"serviceIds\":[{{serviceId}}]}"}}
         },
         {
           "name": "[AUDIT 3.1] cita Vi 23:00 + 60min cruza medianoche -> 400",
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));","pm.test('AUDIT msg medianoche',()=>pm.expect(pm.response.json().message).to.include('medianoche'));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextFri2300}}\",\"serviceIds\":[{{serviceId2}}]}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextFri2300}}\",\"serviceIds\":[{{serviceId2}}]}"}}
         },
         {
           "name": "GET appointment by id (incluye bookedServices)",
@@ -703,7 +774,7 @@
         {
           "name": "POST appointment con 2 servicios (Lunes 11:00)",
           "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","const j=pm.response.json();","pm.collectionVariables.set('appointmentId2',j.id);","pm.test('bookedServices length === 2',()=>pm.expect(j.bookedServices.length).to.eql(2));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1100}}\",\"notes\":\"Doble servicio\",\"serviceIds\":[{{serviceId}},{{serviceId2}}]}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1100}}\",\"notes\":\"Doble servicio\",\"serviceIds\":[{{serviceId}},{{serviceId2}}]}"}}
         },
         {
           "name": "PATCH PENDING -> CONFIRMED",
@@ -743,7 +814,7 @@
         {
           "name": "POST con servicio desactivado -> 400",
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));","pm.test('msg desactivado',()=>pm.expect(pm.response.json().message).to.include('desactivado'));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"employeeId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1030}}\",\"serviceIds\":[{{serviceId2}}]}"}}
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments"]},"body":{"mode":"raw","raw":"{\"clientId\":{{clientId}},\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1030}}\",\"serviceIds\":[{{serviceId2}}]}"}}
         }
       ]
     },
@@ -768,7 +839,7 @@
         {
           "name": "Login EMPLOYEE (empleado@optima.com)",
           "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","const j=pm.response.json();","pm.collectionVariables.set('tokenEmployee', j.token);"]}}],
-          "request": {"method":"POST","auth":{"type":"noauth"},"header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/token","host":["{{baseUrl}}"],"path":["api","auth","token"]},"body":{"mode":"raw","raw":"{\"businessSlug\":\"demo\",\"email\":\"empleado@optima.com\",\"password\":\"123456\"}"}}
+          "request": {"method":"POST","auth":{"type":"noauth"},"header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/token","host":["{{baseUrl}}"],"path":["api","auth","token"]},"body":{"mode":"raw","raw":"{\"email\":\"empleado@optima.com\",\"password\":\"12345678\"}"}}
         },
         {
           "name": "EMPLOYEE POST tax -> 403",

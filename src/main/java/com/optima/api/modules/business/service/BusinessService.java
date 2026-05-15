@@ -1,14 +1,12 @@
 package com.optima.api.modules.business.service;
 
-import com.optima.api.modules.business.dto.BusinessResponse;
-import com.optima.api.modules.business.dto.CreateBusinessRequest;
-import com.optima.api.modules.business.dto.UpdateBusinessRequest;
+import com.optima.api.modules.business.dto.response.BusinessResponse;
+import com.optima.api.modules.business.dto.request.CreateBusinessRequest;
+import com.optima.api.modules.business.dto.request.UpdateBusinessRequest;
 import com.optima.api.modules.business.model.Business;
 import com.optima.api.modules.business.repository.BusinessRepository;
 import com.optima.api.common.geocoding.GeocodingService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,14 +16,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Capa de lógica de negocio del módulo business (los tenants).
- * Convive con la entidad {@code com.optima.api.modules.catalog.model.BusinessService}
- * (el servicio comercial del catálogo) sin conflicto: están en paquetes distintos.
+ * BusinessService - Logica de negocio del modulo business (los tenants).
+ * Convive con la entidad com.optima.api.modules.catalog.model.BusinessService
+ * (el servicio comercial del catalogo) sin conflicto: estan en paquetes distintos.
  *
  * COMUNICACION:
- * - Lo invoca: BusinessController.
+ * - Lo invoca: BusinessController y AuthService.register (via createEntity).
  * - Llama a:
- *     BusinessRepository           CRUD basico + existsBySlug/Email + findBySlug.
+ *     BusinessRepository           CRUD basico + existsBySlug/Email.
  *     GeocodingService.geocode     Nominatim (best-effort, devuelve Optional).
  * - Devuelve: BusinessResponse (con latitude/longitude si Nominatim respondio).
  *
@@ -53,9 +51,19 @@ public class BusinessService {
      * Si Nominatim falla, GeocodingService devuelve Optional.empty()
      * y lat/lng quedan null - la creacion sigue adelante.
      */
-    public BusinessResponse create(CreateBusinessRequest req) {
-        String slug = req.slug().trim().toLowerCase();
-        String email = req.email().trim().toLowerCase();
+    public BusinessResponse create(CreateBusinessRequest request) {
+        return BusinessResponse.from(createEntity(request));
+    }
+
+    /**
+     * Misma logica de create pero devuelve la entidad persistida en lugar
+     * del DTO. Existe para que AuthService.register pueda crear un negocio
+     * dentro de la transaccion del auto-registro y enlazar la Membership
+     * ADMIN sin tener que volver a buscar el Business por id.
+     */
+    public Business createEntity(CreateBusinessRequest request) {
+        String slug = request.slug().trim().toLowerCase();
+        String email = request.email().trim().toLowerCase();
 
         if (!slug.matches("^[a-z0-9-]+$")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -70,41 +78,32 @@ public class BusinessService {
                 "Ya existe un negocio con ese email");
         }
 
-        int interval = req.appointmentInterval() != null ? req.appointmentInterval() : 30;
+        int interval = request.appointmentInterval() != null ? request.appointmentInterval() : 30;
         if (!List.of(15, 30, 45, 60).contains(interval)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "El intervalo de cita debe ser 15, 30, 45 o 60 minutos");
         }
 
         Business b = new Business();
-        b.setName(req.name());
+        b.setName(request.name());
         b.setSlug(slug);
         b.setEmail(email);
-        b.setPhone(req.phone());
-        b.setAddress(req.address());
-        b.setCity(req.city());
-        b.setState(req.state());
-        b.setCountry(req.country());
-        b.setPostalCode(req.postalCode());
+        b.setPhone(request.phone());
+        b.setAddress(request.address());
+        b.setCity(request.city());
+        b.setState(request.state());
+        b.setCountry(request.country());
+        b.setPostalCode(request.postalCode());
         b.setAppointmentInterval(interval);
         b.setIsActive(true);
 
-        geocodingService.geocode(req.address(), req.city(), req.postalCode(), req.country())
+        geocodingService.geocode(request.address(), request.city(), request.postalCode(), request.country())
                 .ifPresent(coords -> {
                     b.setLatitude(coords.latitude());
                     b.setLongitude(coords.longitude());
                 });
 
-        return BusinessResponse.from(businessRepository.save(b));
-    }
-
-    /**
-     * Lista paginada de negocios ACTIVOS (excluye soft-deleted).
-     * Pageable lleva page, size y sort que vienen del query string del HTTP.
-     */
-    @Transactional(readOnly = true)
-    public Page<BusinessResponse> listActive(Pageable pageable) {
-        return businessRepository.findByIsActiveTrue(pageable).map(BusinessResponse::from);
+        return businessRepository.save(b);
     }
 
     /**
@@ -118,27 +117,14 @@ public class BusinessService {
     }
 
     /**
-     * Detalle por slug. Util para el cliente final que conoce el slug
-     * (URL bonita) pero no el id. 404 si no existe.
-     */
-    @Transactional(readOnly = true)
-    public BusinessResponse getBySlug(String slug) {
-        return BusinessResponse.from(
-            businessRepository.findBySlug(slug)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "No se encontró el negocio con slug: " + slug))
-        );
-    }
-
-    /**
      * Actualiza datos editables del negocio. Re-geocodifica siempre
      * (no solo si address cambio: simple y sin caching).
      * Bloquea si el negocio esta desactivado (400). Si email choca con
      * otro negocio -> 409.
      */
-    public BusinessResponse update(Long id, UpdateBusinessRequest req) {
+    public BusinessResponse update(Long id, UpdateBusinessRequest request) {
         Business b = findOrThrow(id);
-        String email = req.email().trim().toLowerCase();
+        String email = request.email().trim().toLowerCase();
 
         if (!b.getIsActive()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -148,24 +134,24 @@ public class BusinessService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                 "Ya existe un negocio con ese email");
         }
-        if (req.appointmentInterval() != null && !List.of(15, 30, 45, 60).contains(req.appointmentInterval())) {
+        if (request.appointmentInterval() != null && !List.of(15, 30, 45, 60).contains(request.appointmentInterval())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "El intervalo de cita debe ser 15, 30, 45 o 60 minutos");
         }
 
-        b.setName(req.name());
+        b.setName(request.name());
         b.setEmail(email);
-        b.setPhone(req.phone());
-        b.setAddress(req.address());
-        b.setCity(req.city());
-        b.setState(req.state());
-        b.setCountry(req.country());
-        b.setPostalCode(req.postalCode());
-        if (req.appointmentInterval() != null) {
-            b.setAppointmentInterval(req.appointmentInterval());
+        b.setPhone(request.phone());
+        b.setAddress(request.address());
+        b.setCity(request.city());
+        b.setState(request.state());
+        b.setCountry(request.country());
+        b.setPostalCode(request.postalCode());
+        if (request.appointmentInterval() != null) {
+            b.setAppointmentInterval(request.appointmentInterval());
         }
 
-        geocodingService.geocode(req.address(), req.city(), req.postalCode(), req.country())
+        geocodingService.geocode(request.address(), request.city(), request.postalCode(), request.country())
                 .ifPresent(coords -> {
                     b.setLatitude(coords.latitude());
                     b.setLongitude(coords.longitude());

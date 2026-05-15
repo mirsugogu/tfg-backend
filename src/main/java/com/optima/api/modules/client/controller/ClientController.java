@@ -5,11 +5,13 @@ import com.optima.api.modules.client.dto.request.UpdateClientRequest;
 import com.optima.api.modules.client.dto.response.ClientResponse;
 import com.optima.api.modules.client.service.ClientService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * ClientController - CRUD de clientes finales (los que reservan citas).
@@ -31,37 +33,44 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/businesses/{businessId}/clients")
 @RequiredArgsConstructor
+@Validated
 public class ClientController {
 
     private final ClientService clientService;
 
+    /** Crea un nuevo cliente final del negocio. */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ClientResponse create(@PathVariable Long businessId,
-                                 @Valid @RequestBody CreateClientRequest req) {
-        return clientService.create(businessId, req);
+    public ClientResponse create(@PathVariable @Positive Long businessId,
+                                 @Valid @RequestBody CreateClientRequest request) {
+        return clientService.create(businessId, request);
     }
 
+    /** Lista paginada de clientes activos del negocio. */
     @GetMapping
-    public List<ClientResponse> listByBusiness(@PathVariable Long businessId) {
-        return clientService.listByBusiness(businessId);
+    public Page<ClientResponse> listByBusiness(@PathVariable @Positive Long businessId,
+                                               Pageable pageable) {
+        return clientService.listByBusiness(businessId, pageable);
     }
 
+    /** Obtiene un cliente por ID dentro del negocio (cross-tenant safe). */
     @GetMapping("/{id}")
-    public ClientResponse getById(@PathVariable Long businessId, @PathVariable Long id) {
+    public ClientResponse getById(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
         return clientService.getById(businessId, id);
     }
 
+    /** Actualiza los datos editables de un cliente. */
     @PutMapping("/{id}")
-    public ClientResponse update(@PathVariable Long businessId,
-                                 @PathVariable Long id,
-                                 @Valid @RequestBody UpdateClientRequest req) {
-        return clientService.update(businessId, id, req);
+    public ClientResponse update(@PathVariable @Positive Long businessId,
+                                 @PathVariable @Positive Long id,
+                                 @Valid @RequestBody UpdateClientRequest request) {
+        return clientService.update(businessId, id, request);
     }
 
+    /** Soft delete: marca el cliente como inactivo. */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deactivate(@PathVariable Long businessId, @PathVariable Long id) {
+    public void deactivate(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
         clientService.deactivate(businessId, id);
     }
 }

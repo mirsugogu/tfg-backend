@@ -1,7 +1,7 @@
 package com.optima.api.modules.appointment.dto.response;
 
 import com.optima.api.modules.appointment.model.Appointment;
-import com.optima.api.modules.appointment.repository.BookedServiceRepository;
+import com.optima.api.modules.appointment.model.BookedService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -9,21 +9,21 @@ import java.util.List;
 /**
  * AppointmentResponse - DTO de salida de una cita.
  *
- * Aplana la entidad Appointment + carga los BookedService asociados.
- * Para cada relacion @ManyToOne (client, employee, status) expone id+name
- * en lugar del objeto entero, asi el frontend evita ir a otros endpoints.
+ * Aplana la entidad Appointment + recibe la lista de BookedService ya
+ * cargada por el service. Para cada relacion @ManyToOne (client, employee,
+ * status) expone id+name en lugar del objeto entero, asi el frontend evita
+ * ir a otros endpoints.
  *
  * COMUNICACION:
- * - Lo construye AppointmentResponse.from(Appointment, BookedServiceRepository)
- *   en AppointmentService (todas las rutas de retorno).
+ * - Lo construye AppointmentResponse.from(Appointment, List<BookedService>)
+ *   en AppointmentService. El service es quien decide como cargar los
+ *   BookedService (por id puntual o en batch para listados).
  * - Lo serializa Jackson a JSON en las respuestas de AppointmentController.
  *
- * SMELL CONSCIENTE: from() recibe un Repository como segundo argumento.
- * Es un compromiso para que la response siempre traiga la lista de
- * bookedServices con applied_price y applied_tax_percentage congelados,
- * sin obligar al service a anadir el bloque de carga en cada metodo.
- * Defendible para un TFG; en una API de produccion lo refactorizariamos
- * para que el service haga la carga y pase la lista ya construida.
+ * Diseno: el DTO no conoce repositorios. Convertir entidad -> record es una
+ * transformacion pura; la carga de los BookedService asociados es
+ * responsabilidad del service, que ademas puede agruparlos en una sola
+ * query cuando se listan varias citas (evita el N+1).
  */
 public record AppointmentResponse(
         Long id,
@@ -34,8 +34,12 @@ public record AppointmentResponse(
         String clientName,
 
         // Del empleado mostramos ID y nombre
-        Long employeeId,
-        String employeeName,
+        Long membershipId,
+        String userFullName,
+
+        // De la cabina (opcional) mostramos ID y nombre; null si la cita no usa cabina
+        Long boothId,
+        String boothName,
 
         // Del estado mostramos ID y nombre
         Long statusId,
@@ -49,20 +53,23 @@ public record AppointmentResponse(
         List<BookedServiceResponse> bookedServices
 ) {
     public static AppointmentResponse from(Appointment a,
-                                           BookedServiceRepository bookedServiceRepository) {
-        List<BookedServiceResponse> bookedServices =
-                bookedServiceRepository
-                        .findAllByAppointmentId(a.getId())
-                        .stream()
-                        .map(BookedServiceResponse::from)
-                        .toList();
+                                           List<BookedService> bookedServices) {
+        List<BookedServiceResponse> mapped = bookedServices.stream()
+                .map(BookedServiceResponse::from)
+                .toList();
+        // [v16 membership] el "empleado" de la cita es ahora una Membership.
+        // membershipId expuesto = id de la membership; userFullName = fullName
+        // del User al que esa membership apunta. Mantenemos los nombres
+        // externos para no romper el contrato del API.
         return new AppointmentResponse(
                 a.getId(),
                 a.getBusiness().getId(),
                 a.getClient().getId(),
                 a.getClient().getFullName(),
-                a.getEmployee().getId(),
-                a.getEmployee().getFullName(),
+                a.getMembership().getId(),
+                a.getMembership().getUser().getFullName(),
+                a.getBooth() != null ? a.getBooth().getId() : null,
+                a.getBooth() != null ? a.getBooth().getName() : null,
                 a.getStatus().getId(),
                 a.getStatus().getName(),
                 a.getIsPaid(),
@@ -70,7 +77,7 @@ public record AppointmentResponse(
                 a.getEndDateTime(),
                 a.getNotes(),
                 a.getCreatedAt(),
-                bookedServices
+                mapped
         );
     }
 }

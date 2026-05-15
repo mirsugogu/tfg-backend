@@ -2,15 +2,17 @@ package com.optima.api.modules.catalog.controller;
 
 import com.optima.api.modules.catalog.dto.request.CreateCategoryRequest;
 import com.optima.api.modules.catalog.dto.request.UpdateCategoryRequest;
-import com.optima.api.modules.catalog.dto.response.CategoryResponse;
+import com.optima.api.modules.catalog.dto.response.ServiceCategoryResponse;
 import com.optima.api.modules.catalog.service.ServiceCategoryService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * ServiceCategoryController - CRUD de categorias de servicios.
@@ -23,7 +25,7 @@ import java.util.List;
  * - Recibe: CRUD HTTP bajo /api/businesses/{businessId}/categories.
  * - Le precede: JwtAuthFilter + TenantGuardFilter.
  * - Llama a: ServiceCategoryService.
- * - Devuelve: CategoryResponse(s) en JSON.
+ * - Devuelve: ServiceCategoryResponse(s) en JSON.
  *
  * Permisos:
  *   POST/PUT/DELETE -> @PreAuthorize("hasRole('ADMIN')").
@@ -32,6 +34,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/businesses/{businessId}/categories")
 @RequiredArgsConstructor
+@Validated
 public class ServiceCategoryController {
 
     private final ServiceCategoryService categoryService;
@@ -43,25 +46,26 @@ public class ServiceCategoryController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
-    public CategoryResponse createCategory(@PathVariable Long businessId,
+    public ServiceCategoryResponse createCategory(@PathVariable @Positive Long businessId,
                                            @Valid @RequestBody CreateCategoryRequest request) {
         return categoryService.createCategory(businessId, request);
     }
 
     /**
-     * Lista todas las categorías activas de un negocio.
+     * Lista paginada de categorías activas de un negocio.
      */
     @GetMapping
-    public List<CategoryResponse> getActiveCategories(@PathVariable Long businessId) {
-        return categoryService.getActiveCategories(businessId);
+    public Page<ServiceCategoryResponse> getActiveCategories(@PathVariable @Positive Long businessId,
+                                                     Pageable pageable) {
+        return categoryService.getActiveCategories(businessId, pageable);
     }
 
     /**
      * Obtiene una categoría por ID dentro del negocio (cross-tenant safe).
      */
     @GetMapping("/{id}")
-    public CategoryResponse getCategoryById(@PathVariable Long businessId,
-                                            @PathVariable Long id) {
+    public ServiceCategoryResponse getCategoryById(@PathVariable @Positive Long businessId,
+                                            @PathVariable @Positive Long id) {
         return categoryService.getCategoryById(businessId, id);
     }
 
@@ -70,8 +74,8 @@ public class ServiceCategoryController {
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public CategoryResponse updateCategory(@PathVariable Long businessId,
-                                           @PathVariable Long id,
+    public ServiceCategoryResponse updateCategory(@PathVariable @Positive Long businessId,
+                                           @PathVariable @Positive Long id,
                                            @Valid @RequestBody UpdateCategoryRequest request) {
         return categoryService.updateCategory(businessId, id, request);
     }
@@ -82,7 +86,7 @@ public class ServiceCategoryController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
-    public void deactivateCategory(@PathVariable Long businessId, @PathVariable Long id) {
+    public void deactivateCategory(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
         categoryService.deactivateCategory(businessId, id);
     }
 }

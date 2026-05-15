@@ -12,16 +12,16 @@ import java.math.BigDecimal;
 /**
  * Entidad puente entre Appointment y BusinessService.
  * Representa un servicio concreto reservado dentro de una cita concreta.
-
+ *
  * Una cita puede incluir varios servicios, y un servicio puede aparecer
  * en muchas citas distintas (relación muchos-a-muchos).
-
+ *
  * Los campos applied_price y applied_tax_percentage se "congelan" en el
  * momento de la reserva: guardan el precio y el porcentaje de impuesto
  * que tenía el servicio cuando se creó la cita. De esta forma, si más
  * adelante se cambia el precio del servicio o el porcentaje del impuesto,
  * las citas históricas siguen mostrando los valores originales.
-
+ *
  * Se nombra BookedService (no AppointmentService) para evitar confusión
  * con la capa de lógica de negocio AppointmentService.
  *

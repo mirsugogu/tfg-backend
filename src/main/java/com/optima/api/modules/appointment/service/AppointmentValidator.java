@@ -1,6 +1,8 @@
 package com.optima.api.modules.appointment.service;
 
 import com.optima.api.modules.appointment.repository.AppointmentRepository;
+import com.optima.api.modules.business.model.ScheduleBlock;
+import com.optima.api.modules.business.repository.ScheduleBlockRepository;
 import com.optima.api.modules.user.model.EmployeeSchedule;
 import com.optima.api.modules.user.repository.EmployeeScheduleRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,15 +26,24 @@ import java.util.Set;
  *   updateAppointmentStatus).
  * - Llama a:
  *     AppointmentRepository.existsOverlappingAppointment (query JPQL custom).
- *     EmployeeScheduleRepository.findAllByUserIdAndDayOfWeek.
+ *     EmployeeScheduleRepository.findAllByMembershipIdAndDayOfWeek.
  * - No devuelve nada: cada metodo lanza ResponseStatusException si una
  *   regla falla, o no hace nada si todo esta bien (fail-fast).
  *
- * 4 validaciones publicas:
- *   validateNoOverlap           409 si hay solape con otra cita activa.
- *   validateEmployeeSchedule    400 si la cita cae fuera del horario o
- *                               cruza medianoche.
+ * [v16 membership] Los parametros llamados `membershipId` son en realidad el
+ * id de la membership (pertenencia usuario-negocio). El nombre externo se
+ * mantiene por compatibilidad con la API; internamente es membershipId.
+ *
+ * 6 validaciones publicas (en orden de invocacion tipica):
  *   validateAppointmentInterval 400 si la hora no es multiplo del intervalo.
+ *   validateEmployeeSchedule    400 si la cita cae fuera del horario del
+ *                               empleado o cruza medianoche.
+ *   validateNoOverlap           409 si solapa con otra cita activa del
+ *                               empleado.
+ *   validateNoBoothOverlap      409 si solapa con otra cita en la misma
+ *                               cabina (solo si la cita lleva cabina).
+ *   validateNoScheduleBlock     409 si la fecha cae en un bloqueo de
+ *                               agenda (global, por empleado o por cabina).
  *   validateStatusTransition    400 si la transicion de estado es ilegal
  *                               (ver mapa VALID_TRANSITIONS).
  */
@@ -42,6 +53,7 @@ public class AppointmentValidator {
 
     private final AppointmentRepository appointmentRepository;
     private final EmployeeScheduleRepository scheduleRepository;
+    private final ScheduleBlockRepository scheduleBlockRepository;
 
     /**
      * Mapa que define las transiciones de estado permitidas.
@@ -56,15 +68,15 @@ public class AppointmentValidator {
     );
 
     /**
-     * Validación 1: Comprobar que no hay otra cita que se solape
+     * Comprobar que no hay otra cita que se solape
      * con el mismo empleado en el rango de tiempo dado.
      */
-    public void validateNoOverlap(Long employeeId,
+    public void validateNoOverlap(Long membershipId,
                                   LocalDateTime startDateTime,
                                   LocalDateTime endDateTime) {
 
         boolean hasOverlap = appointmentRepository.existsOverlappingAppointment(
-                employeeId, startDateTime, endDateTime
+                membershipId, startDateTime, endDateTime
         );
 
         if (hasOverlap) {
@@ -76,13 +88,69 @@ public class AppointmentValidator {
     }
 
     /**
-     * Validación 2: Comprobar que la cita cae dentro del horario
+     * Validacion ortogonal a la del empleado: comprueba que la cabina no
+     * esta ocupada por otra cita activa en el rango. Solo se invoca cuando
+     * la cita lleva boothId (no aplica si el negocio no usa cabinas).
+     */
+    public void validateNoBoothOverlap(Long boothId,
+                                       LocalDateTime startDateTime,
+                                       LocalDateTime endDateTime) {
+
+        boolean hasOverlap = appointmentRepository.existsOverlappingBoothAppointment(
+                boothId, startDateTime, endDateTime
+        );
+
+        if (hasOverlap) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La cabina ya tiene una cita en ese horario"
+            );
+        }
+    }
+
+    /**
+     * Comprueba que la fecha de la cita no caiga en un bloqueo de agenda
+     * (schedule_block) aplicable.
+     *
+     * Un bloqueo aplica a la cita si su rango [startDate, endDate] incluye
+     * la fecha de la cita Y se da alguno de estos casos:
+     *   - global (employee NULL y booth NULL): aplica a todo el negocio.
+     *   - dirigido al empleado de la cita.
+     *   - dirigido a la cabina de la cita (si la cita lleva cabina).
+     *
+     * Si encuentra al menos un bloqueo aplicable, devuelve 409 con el
+     * `reason` del primero para que el frontend muestre la razon ("La
+     * fecha está bloqueada por: San Isidro").
+     */
+    public void validateNoScheduleBlock(Long businessId,
+                                        Long membershipId,
+                                        Long boothId,
+                                        LocalDateTime startDateTime) {
+
+        List<ScheduleBlock> blocks = scheduleBlockRepository.findApplicableBlocks(
+                businessId,
+                startDateTime.toLocalDate(),
+                membershipId,
+                boothId
+        );
+
+        if (!blocks.isEmpty()) {
+            String reason = blocks.get(0).getReason();
+            String msg = reason != null
+                    ? "La fecha está bloqueada por: " + reason
+                    : "La fecha está bloqueada por un bloqueo de agenda";
+            throw new ResponseStatusException(HttpStatus.CONFLICT, msg);
+        }
+    }
+
+    /**
+     * Comprobar que la cita cae dentro del horario
      * de trabajo del empleado para ese día de la semana.
      *
      * Un empleado puede tener varios tramos en un día (ej: mañana y tarde).
      * La cita es válida si encaja completamente dentro de alguno de esos tramos.
      */
-    public void validateEmployeeSchedule(Long employeeId,
+    public void validateEmployeeSchedule(Long membershipId,
                                          LocalDateTime startDateTime,
                                          LocalDateTime endDateTime) {
 
@@ -95,8 +163,8 @@ public class AppointmentValidator {
 
         int dayOfWeek = startDateTime.getDayOfWeek().getValue();
 
-        List<EmployeeSchedule> schedules = scheduleRepository.findAllByUserIdAndDayOfWeek(
-                employeeId,
+        List<EmployeeSchedule> schedules = scheduleRepository.findAllByMembershipIdAndDayOfWeek(
+                membershipId,
                 dayOfWeek
         );
 
@@ -125,7 +193,7 @@ public class AppointmentValidator {
     }
 
     /**
-     * Validación 3: Comprobar que la hora de inicio de la cita
+     * Comprobar que la hora de inicio de la cita
      * respeta el intervalo configurado del negocio.
      *
      * Si el negocio tiene appointment_interval = 30, las citas
@@ -146,7 +214,7 @@ public class AppointmentValidator {
     }
 
     /**
-     * Validación 4: Comprobar que la transición de estado es válida.
+     * Comprobar que la transición de estado es válida.
      * Ejemplo: PENDING → CONFIRMED es válido,
      * pero PENDING → COMPLETED no lo es.
      * Los estados COMPLETED, CANCELLED y NO_SHOW son finales

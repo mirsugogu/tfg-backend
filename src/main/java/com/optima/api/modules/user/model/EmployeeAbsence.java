@@ -1,5 +1,6 @@
 package com.optima.api.modules.user.model;
 
+import com.optima.api.modules.business.model.Membership;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -16,16 +17,23 @@ import java.time.LocalDateTime;
  * COMUNICACION:
  * - La instancia: Hibernate al hidratar, EmployeeAbsenceService.create
  *   manualmente.
- * - La consume: AbsenceResponse.from(), EmployeeAbsenceService.
- * - Tiene @ManyToOne con: User (el empleado).
+ * - La consume: EmployeeAbsenceResponse.from(), EmployeeAbsenceService,
+ *   AvailabilityService (restar ausencias a los tramos libres del dia).
+ * - Tiene @ManyToOne con: Membership (pertenencia usuario-negocio).
  *
- * Mapea a `employee_absences` con FK ON DELETE CASCADE: si el empleado
+ * [v16 membership] Antes apuntaba a User directamente con FK
+ * `id_employee`; ahora apunta a Membership via `id_membership` para que
+ * la ausencia sea por (usuario, negocio). Asi un mismo email que trabaja
+ * en dos negocios puede tener ausencias distintas en cada uno.
+ *
+ * Mapea a `employee_absences` con FK ON DELETE CASCADE: si la membership
  * se borra, sus ausencias desaparecen automaticamente. (En la practica
- * los empleados se desactivan, no se borran, asi que el cascade es solo
+ * las memberships se desactivan, no se borran, asi que el cascade es solo
  * defensa en profundidad.)
  *
- * NOTA: actualmente AppointmentValidator NO consulta las ausencias al
- * crear cita. Es una mejora futura prevista.
+ * Hard delete: una ausencia se cancela borrandola; no se conserva
+ * historico de ausencias canceladas porque no aporta valor de auditoria
+ * al negocio.
  */
 @Entity
 @Table(name = "employee_absences")
@@ -41,13 +49,12 @@ public class EmployeeAbsence {
     private Long id;
 
     /**
-     * Empleado (usuario) que se ausenta.
-     * La eliminación en cascada (ON DELETE CASCADE) está definida en BD,
-     * pero aquí mapeamos la relación normalmente.
+     * Membership (usuario en este negocio) a la que pertenece la ausencia.
+     * La eliminación en cascada (ON DELETE CASCADE) está definida en BD.
      */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_employee", nullable = false)
-    private User employee;
+    @JoinColumn(name = "id_membership", nullable = false)
+    private Membership membership;
 
     /**
      * Fecha y hora en la que empieza la ausencia.

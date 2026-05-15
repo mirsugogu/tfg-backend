@@ -8,18 +8,19 @@ import com.optima.api.modules.client.dto.response.ClientResponse;
 import com.optima.api.modules.client.model.Client;
 import com.optima.api.modules.client.repository.ClientRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
- * Capa de lógica de negocio del módulo client.
- * Sigue el patrón de TaxService: validación cross-tenant explícita en
- * todos los métodos, devolución de DTOs y nunca de la entidad cruda.
+ * ClientService - Logica de negocio del modulo client.
+ * Sigue el patron canonico del proyecto: validacion cross-tenant explicita
+ * en todos los metodos, devolucion de DTOs y nunca de la entidad cruda.
  *
  * COMUNICACION:
  * - Lo invoca: ClientController.
@@ -48,7 +49,7 @@ public class ClientService {
      * Email y teléfono son opcionales: la BD los admite NULL y dos clientes
      * del mismo negocio pueden tener el mismo email (familias, etc.).
      */
-    public ClientResponse create(Long businessId, CreateClientRequest req) {
+    public ClientResponse create(Long businessId, CreateClientRequest request) {
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
@@ -56,22 +57,23 @@ public class ClientService {
 
         Client c = new Client();
         c.setBusiness(business);
-        c.setFullName(req.fullName().trim());
-        c.setEmail(normalize(req.email()));
-        c.setPhone(normalize(req.phone()));
-        c.setNotes(req.notes());
+        c.setFullName(request.fullName().trim());
+        c.setEmail(normalize(request.email()));
+        c.setPhone(normalize(request.phone()));
+        c.setNotes(request.notes());
         c.setIsActive(true);
 
         return ClientResponse.from(clientRepository.save(c));
     }
 
     /**
-     * Lista los clientes activos del negocio.
+     * Lista paginada de clientes activos del negocio.
+     * Pageable parsea page, size y sort del query string.
      */
     @Transactional(readOnly = true)
-    public List<ClientResponse> listByBusiness(Long businessId) {
-        return clientRepository.findByBusinessIdAndIsActiveTrue(businessId)
-                .stream().map(ClientResponse::from).toList();
+    public Page<ClientResponse> listByBusiness(Long businessId, Pageable pageable) {
+        return clientRepository.findByBusinessIdAndIsActiveTrue(businessId, pageable)
+                .map(ClientResponse::from);
     }
 
     /**
@@ -86,7 +88,7 @@ public class ClientService {
      * Actualiza los campos editables de un cliente: nombre, email, teléfono,
      * notas. No permite operar sobre un cliente desactivado.
      */
-    public ClientResponse update(Long businessId, Long id, UpdateClientRequest req) {
+    public ClientResponse update(Long businessId, Long id, UpdateClientRequest request) {
         Client c = findOrThrow(businessId, id);
 
         if (!c.getIsActive()) {
@@ -94,10 +96,10 @@ public class ClientService {
                     "El cliente está desactivado");
         }
 
-        c.setFullName(req.fullName().trim());
-        c.setEmail(normalize(req.email()));
-        c.setPhone(normalize(req.phone()));
-        c.setNotes(req.notes());
+        c.setFullName(request.fullName().trim());
+        c.setEmail(normalize(request.email()));
+        c.setPhone(normalize(request.phone()));
+        c.setNotes(request.notes());
 
         return ClientResponse.from(clientRepository.save(c));
     }

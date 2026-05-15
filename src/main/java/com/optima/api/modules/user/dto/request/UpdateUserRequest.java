@@ -3,19 +3,26 @@ package com.optima.api.modules.user.dto.request;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 /**
  * DTO de entrada para actualizar un usuario existente.
- * No incluye {@code businessId}: el negocio se toma del path y no se permite
+ * No incluye businessId: el negocio se toma del path y no se permite
  * mover el usuario entre negocios.
- * Tampoco incluye {@code password}: el cambio de contraseña se gestiona en
+ * Tampoco incluye password: el cambio de contraseña se gestiona en
  * un endpoint aparte (futuro).
  *
  * COMUNICACION:
  * - Lo deserializa Jackson desde el body JSON de PUT .../users/{id}.
  * - Lo valida @Valid en UserController.update.
  * - Lo consume UserService.update.
+ *
+ * Validaciones:
+ *   roleId    @NotNull, @Positive
+ *   fullName  @NotBlank, max 150 chars.
+ *   email     @NotBlank, @Email (formato), max 150 chars.
+ *   phone     opcional, max 20 chars.
  *
  * Decision: el password NO se cambia aqui para evitar reset accidental
  * en cada PUT. Cambio de password debe ser un endpoint dedicado con
@@ -24,6 +31,7 @@ import jakarta.validation.constraints.Size;
 public record UpdateUserRequest(
 
         @NotNull(message = "El ID del rol es obligatorio")
+        @Positive(message = "El ID del rol debe ser positivo")
         Long roleId,
 
         @NotBlank(message = "El nombre completo es obligatorio")

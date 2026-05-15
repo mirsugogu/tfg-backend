@@ -1,6 +1,6 @@
 package com.optima.api.modules.business.service;
 
-import com.optima.api.modules.business.dto.RoleResponse;
+import com.optima.api.modules.business.dto.response.RoleResponse;
 import com.optima.api.modules.business.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 /**
- * Capa de lógica del catálogo global de roles.
+ * RoleService - Logica del catalogo global de roles.
  * No depende de tenant: los roles (ADMIN, EMPLOYEE) son globales.
  *
  * COMUNICACION:

@@ -4,7 +4,6 @@ import com.optima.api.modules.user.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -16,39 +15,33 @@ import java.util.Optional;
  * propio nombre del metodo (no necesitan implementacion).
  *
  * COMUNICACION:
- * - Lo inyectan: UserService, AuthService.
+ * - Lo inyectan: AuthService (login y register), UserService (alta de
+ *   empleados: busca user existente por email para reusarlo en lugar de
+ *   crear duplicado).
  * - Habla con: MySQL via Hibernate.
  *
- * Patron multi-tenant: TODOS los lookups por id usan
- * findByIdAndBusinessId (no findById sin filtro), para que un ADMIN
- * de un negocio nunca pueda leer usuarios de otro tenant.
+ * [v16 membership] El UserRepository ya NO contiene consultas tenant-safe
+ * (findByBusinessIdAndX*). Esas viven ahora en MembershipRepository,
+ * porque la pertenencia (usuario, negocio, rol) se modela alli. Lo que
+ * queda aqui es el acceso por identidad: lookup por email global o por
+ * id.
  */
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
     /**
-     * Busca un usuario por negocio + email (case-insensitive).
-     * Es el metodo que usa el login: respeta multi-tenant porque el email
-     * solo es unico por negocio (UNIQUE id_business, email). El cliente
-     * indica explicitamente el negocio via businessSlug en el body de login.
+     * Busca un usuario por email (case-insensitive). Es el metodo que usa
+     * el login: el email es UNIQUE GLOBAL desde v16, asi que basta con el
+     * email para identificar la persona; luego la membership decide en
+     * que negocio iniciar sesion.
      */
-    Optional<User> findByBusinessIdAndEmailIgnoreCase(Long businessId, String email);
+    Optional<User> findByEmailIgnoreCase(String email);
 
     /**
-     * Búsqueda tenant-safe: el usuario existe Y pertenece al negocio dado.
+     * Comprueba si existe un usuario con ese email a nivel global.
+     * Sirve a la validacion de unicidad y al alta de empleados para
+     * detectar si la persona ya tiene una identidad (en cuyo caso solo
+     * se crea la membership, no un User nuevo).
      */
-    Optional<User> findByIdAndBusinessId(Long id, Long businessId);
-
-    /**
-     * Lista los usuarios activos de un negocio.
-     * Es la query que usa el listado por defecto del controller.
-     */
-    List<User> findByBusinessIdAndIsActiveTrue(Long businessId);
-
-    /**
-     * Comprueba si existe un usuario con ese email dentro del mismo negocio.
-     * Sirve para la validación de unicidad (recordemos que el email es único
-     * por negocio, no globalmente).
-     */
-    boolean existsByBusinessIdAndEmailIgnoreCase(Long businessId, String email);
+    boolean existsByEmailIgnoreCase(String email);
 }

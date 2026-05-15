@@ -5,8 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * DTO de entrada para actualizar un cliente existente.
- * No incluye {@code businessId}: el negocio se toma del path y no se permite
+ * UpdateClientRequest - DTO de entrada para actualizar un cliente existente.
+ * No incluye businessId: el negocio se toma del path y no se permite
  * mover el cliente entre negocios.
  *
  * COMUNICACION:

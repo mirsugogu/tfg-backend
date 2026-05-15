@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
  * COMUNICACION:
  * - La instancia: Hibernate al hidratar, ServiceCategoryService.create
  *   manualmente.
- * - La consume: CategoryResponse.from(), BusinessServiceService (al
+ * - La consume: ServiceCategoryResponse.from(), BusinessServiceService (al
  *   crear/editar un servicio).
  * - Es referenciada por: BusinessService.category (@ManyToOne).
  *

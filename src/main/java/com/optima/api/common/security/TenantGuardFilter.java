@@ -21,21 +21,21 @@ import java.util.regex.Pattern;
 
 /**
  * Guard cross-tenant. Para cualquier request a un recurso anidado bajo
- * {@code /api/businesses/{businessId}/...}, comprueba que el {@code businessId}
- * del path coincide con el {@code businessId} del token (claim del JWT,
- * disponible como {@link AuthPrincipal} en el {@code SecurityContext}).
+ * /api/businesses/{businessId/...}, comprueba que el businessId
+ * del path coincide con el businessId del token (claim del JWT,
+ * disponible como AuthPrincipal en el SecurityContext).
  *
- * <p>Si no coinciden, devuelve <b>403 Forbidden</b> con cuerpo JSON
- * consistente con {@link ErrorResponse}. Si la URL no apunta a un negocio
+ * Si no coinciden, devuelve 403 Forbidden con cuerpo JSON
+ * consistente con ErrorResponse. Si la URL no apunta a un negocio
  * concreto (p.ej. POST /api/businesses, GET /api/roles, login...), o no
  * hay autenticacion en contexto (rutas publicas), el filtro deja pasar
- * la request.</p>
+ * la request.
  *
- * <p>Es la barrera multi-tenant a nivel de URL: aunque la BD ya filtra
- * cross-tenant via {@code findByIdAndBusinessId}, este filtro impide
+ * Es la barrera multi-tenant a nivel de URL: aunque la BD ya filtra
+ * cross-tenant via findByIdAndBusinessId, este filtro impide
  * siquiera llegar al servicio si el usuario intenta acceder a un negocio
- * que no es el suyo. Se ejecuta DESPUES de {@code JwtAuthenticationFilter}
- * para tener el principal disponible.</p>
+ * que no es el suyo. Se ejecuta DESPUES de JwtAuthenticationFilter
+ * para tener el principal disponible.
  *
  * COMUNICACION:
  * - Lo registra: SecurityConfig.filterChain con addFilterAfter(...,
@@ -73,8 +73,20 @@ public class TenantGuardFilter extends OncePerRequestFilter {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null && auth.getPrincipal() instanceof AuthPrincipal principal) {
                 long pathBusinessId = Long.parseLong(m.group(1));
+                // [v16 membership] Distinguimos dos rechazos:
+                //   - identity-only token (businessId==null): el usuario aun
+                //     no ha elegido negocio; el frontend debe redirigirle al
+                //     selector. Mensaje accionable.
+                //   - cross-tenant (businessId!=null y != path): el usuario
+                //     intenta acceder a un negocio que no es el suyo.
+                if (principal.businessId() == null) {
+                    writeForbidden(response,
+                            "Debes seleccionar un negocio antes de acceder a este recurso");
+                    return;
+                }
                 if (pathBusinessId != principal.businessId()) {
-                    writeForbidden(response);
+                    writeForbidden(response,
+                            "No tienes permiso para acceder a recursos de otro negocio");
                     return;
                 }
             }
@@ -86,12 +98,12 @@ public class TenantGuardFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 
-    private void writeForbidden(HttpServletResponse response) throws IOException {
+    private void writeForbidden(HttpServletResponse response, String message) throws IOException {
         response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         ErrorResponse body = new ErrorResponse(
                 403, "403 FORBIDDEN",
-                "No tienes permiso para acceder a recursos de otro negocio",
+                message,
                 Instant.now().toString());
         objectMapper.writeValue(response.getOutputStream(), body);
     }

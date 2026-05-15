@@ -2,12 +2,12 @@ package com.optima.api.common.security;
 
 /**
  * Datos del usuario autenticado que viajan dentro del JWT y se exponen
- * como {@code principal} del {@link org.springframework.security.core.Authentication}
- * que el {@code JwtAuthenticationFilter} pone en el {@code SecurityContext}.
+ * como principal del org.springframework.security.core.Authentication
+ * que el JwtAuthenticationFilter pone en el SecurityContext.
  *
- * <p>Permite que cualquier filtro o controlador posterior obtenga el
+ * Permite que cualquier filtro o controlador posterior obtenga el
  * userId, businessId y rol del request en curso sin volver a parsear
- * el token.</p>
+ * el token.
  *
  * COMUNICACION:
  * - Lo construye: JwtAuthenticationFilter.doFilterInternal() tras

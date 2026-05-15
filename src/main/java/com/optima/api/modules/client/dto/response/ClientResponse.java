@@ -5,7 +5,7 @@ import com.optima.api.modules.client.model.Client;
 import java.time.LocalDateTime;
 
 /**
- * DTO de salida para representar un cliente.
+ * ClientResponse - DTO de salida para representar un cliente.
  *
  * COMUNICACION:
  * - Lo construye ClientResponse.from(Client) en ClientService.

@@ -2,15 +2,17 @@ package com.optima.api.modules.catalog.controller;
 
 import com.optima.api.modules.catalog.dto.request.CreateServiceRequest;
 import com.optima.api.modules.catalog.dto.request.UpdateServiceRequest;
-import com.optima.api.modules.catalog.dto.response.ServiceResponse;
+import com.optima.api.modules.catalog.dto.response.BusinessServiceResponse;
 import com.optima.api.modules.catalog.service.BusinessServiceService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * BusinessServiceController - CRUD de servicios comerciales del catalogo.
@@ -24,7 +26,7 @@ import java.util.List;
  * - Recibe: CRUD HTTP bajo /api/businesses/{businessId}/services.
  * - Le precede: JwtAuthFilter + TenantGuardFilter (cross-tenant via path).
  * - Llama a: BusinessServiceService.
- * - Devuelve: ServiceResponse(s) en JSON.
+ * - Devuelve: BusinessServiceResponse(s) en JSON.
  *
  * Permisos:
  *   POST/PUT/DELETE -> @PreAuthorize("hasRole('ADMIN')") - solo el admin
@@ -34,6 +36,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/businesses/{businessId}/services")
 @RequiredArgsConstructor
+@Validated
 public class BusinessServiceController {
 
     private final BusinessServiceService businessServiceService;
@@ -45,25 +48,27 @@ public class BusinessServiceController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
-    public ServiceResponse createService(@PathVariable Long businessId,
+    public BusinessServiceResponse createService(@PathVariable @Positive Long businessId,
                                          @Valid @RequestBody CreateServiceRequest request) {
         return businessServiceService.createService(businessId, request);
     }
 
     /**
-     * Lista los servicios activos del negocio.
+     * Lista paginada de servicios activos del negocio.
+     * Pageable se rellena con ?page=&size=&sort=field,asc.
      */
     @GetMapping
-    public List<ServiceResponse> getServicesByBusiness(@PathVariable Long businessId) {
-        return businessServiceService.getActiveServicesByBusiness(businessId);
+    public Page<BusinessServiceResponse> getServicesByBusiness(@PathVariable @Positive Long businessId,
+                                                       Pageable pageable) {
+        return businessServiceService.getActiveServicesByBusiness(businessId, pageable);
     }
 
     /**
      * Obtiene un servicio por ID dentro del negocio (cross-tenant safe).
      */
     @GetMapping("/{id}")
-    public ServiceResponse getServiceById(@PathVariable Long businessId,
-                                          @PathVariable Long id) {
+    public BusinessServiceResponse getServiceById(@PathVariable @Positive Long businessId,
+                                          @PathVariable @Positive Long id) {
         return businessServiceService.getServiceById(businessId, id);
     }
 
@@ -72,8 +77,8 @@ public class BusinessServiceController {
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ServiceResponse updateService(@PathVariable Long businessId,
-                                         @PathVariable Long id,
+    public BusinessServiceResponse updateService(@PathVariable @Positive Long businessId,
+                                         @PathVariable @Positive Long id,
                                          @Valid @RequestBody UpdateServiceRequest request) {
         return businessServiceService.updateService(businessId, id, request);
     }
@@ -84,7 +89,7 @@ public class BusinessServiceController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
-    public void deactivateService(@PathVariable Long businessId, @PathVariable Long id) {
+    public void deactivateService(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
         businessServiceService.deactivateService(businessId, id);
     }
 }

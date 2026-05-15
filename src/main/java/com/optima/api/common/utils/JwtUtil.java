@@ -15,9 +15,9 @@ import java.util.Map;
 
 /**
  * Utilidad para generar tokens JWT firmados con HMAC-SHA.
- * Movida desde {@code modules/auth/util/JwUtil} al paquete transversal
- * {@code common/utils} porque la usa la capa de seguridad y no es
- * exclusiva del módulo {@code auth}.
+ * Movida desde modules/auth/util/JwUtil al paquete transversal
+ * common/utils porque la usa la capa de seguridad y no es
+ * exclusiva del módulo auth.
  *
  * COMUNICACION:
  * - Lo inyectan: AuthService (genera tokens en login) y
@@ -61,20 +61,24 @@ public class JwtUtil {
     }
 
     /**
-     * Construye y firma un JWT con los datos del usuario autenticado.
+     * Construye un JWT "tenant-bound" con la membership seleccionada.
      *
      * Claims del payload:
      *   sub        -> email (subject estandar de JWT)
-     *   userId     -> id en BD del usuario
+     *   userId     -> id en BD del usuario (identidad)
      *   businessId -> id del negocio (clave del multi-tenancy)
-     *   role       -> nombre del rol (ADMIN o EMPLOYEE)
+     *   role       -> nombre del rol en ese negocio (ADMIN o EMPLOYEE)
      *   iat        -> issued at, timestamp actual
      *   exp        -> expiracion = ahora + app.jwt.expiration-ms
      *
-     * Lo invoca: AuthService.login() tras validar credenciales.
+     * [v16 membership] Es el token que se emite cuando el usuario ya ha
+     * elegido un negocio (1 sola membership activa o tras invocar
+     * /api/auth/select-business/{id}).
+     *
+     * Lo invoca: AuthService (login con 1 membership y select-business).
      * Lo decodifica: JwtAuthenticationFilter en cada request autenticada.
      */
-    public String generateToken(String email, Long userId, Long businessId, String role) {
+    public String generateTenantToken(String email, Long userId, Long businessId, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("businessId", businessId);
@@ -89,8 +93,36 @@ public class JwtUtil {
     }
 
     /**
+     * Construye un JWT de "identidad" (sin negocio asociado).
+     *
+     * Claims del payload:
+     *   sub    -> email
+     *   userId -> id de la identidad
+     *   iat / exp
+     *
+     * [v16 membership] Se emite cuando el usuario tiene >1 membership
+     * activas: el cliente debe llamar a /api/auth/select-business/{id}
+     * pasando este token para canjearlo por un tenant token.
+     *
+     * Lo invoca: AuthService.login (caso multi-membership).
+     * Lo decodifica: JwtAuthenticationFilter (sin claim businessId el
+     * principal queda con businessId=null y role=null).
+     */
+    public String generateIdentityToken(String email, Long userId) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
+        return Jwts.builder()
+                .claims(claims)
+                .subject(email)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + expirationTime))
+                .signWith(secretKey)
+                .compact();
+    }
+
+    /**
      * Valida firma y expiracion del token entrante. Devuelve los claims si todo
-     * es correcto. Lanza {@link io.jsonwebtoken.JwtException} si el token esta
+     * es correcto. Lanza io.jsonwebtoken.JwtException si el token esta
      * mal firmado, expirado, malformado, etc. — el filtro de seguridad usa esa
      * excepcion como senal de "no autenticar esta request".
      */

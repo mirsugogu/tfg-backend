@@ -3,12 +3,13 @@ package com.optima.api.modules.user.dto.request;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 /**
  * DTO de entrada para crear un usuario.
- * El {@code businessId} viene del path, no del body.
- * El {@code password} llega en texto plano y el servicio lo hashea con BCrypt
+ * El businessId viene del path, no del body.
+ * El password llega en texto plano y el servicio lo hashea con BCrypt
  * antes de guardarlo en la BD.
  *
  * COMUNICACION:
@@ -17,7 +18,7 @@ import jakarta.validation.constraints.Size;
  * - Lo consume UserService.create.
  *
  * Validaciones:
- *   roleId    @NotNull
+ *   roleId    @NotNull, @Positive
  *   fullName  @NotBlank, max 150 chars.
  *   email     @NotBlank, @Email (formato), max 150 chars.
  *   password  @NotBlank, longitud 8-100 (forzamos minimo de seguridad).
@@ -26,6 +27,7 @@ import jakarta.validation.constraints.Size;
 public record CreateUserRequest(
 
         @NotNull(message = "El ID del rol es obligatorio")
+        @Positive(message = "El ID del rol debe ser positivo")
         Long roleId,
 
         @NotBlank(message = "El nombre completo es obligatorio")

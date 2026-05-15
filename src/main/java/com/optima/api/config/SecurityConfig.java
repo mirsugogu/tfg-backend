@@ -3,6 +3,7 @@ package com.optima.api.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.optima.api.common.exception.ErrorResponse;
 import com.optima.api.common.security.JwtAuthenticationFilter;
+import com.optima.api.common.security.RateLimitFilter;
 import com.optima.api.common.security.TenantGuardFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -51,6 +52,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final TenantGuardFilter tenantGuardFilter;
+    private final RateLimitFilter rateLimitFilter;
 
     /**
      * Configura el filter chain HTTP - el corazon de la seguridad.
@@ -109,12 +111,27 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.POST, "/api/auth/token").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/roles").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/appointment-statuses/**").permitAll()
+                // Documentacion publica: la UI de Swagger y el JSON OpenAPI no
+                // requieren JWT. Asi cualquiera puede ver la API sin autenticarse.
+                .requestMatchers(
+                        "/swagger-ui.html",
+                        "/swagger-ui/**",
+                        "/v3/api-docs",
+                        "/v3/api-docs/**"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(jwtAuthenticationFilter,
+            // Orden: RateLimit -> JwtAuth -> TenantGuard.
+            // El rate limit es la PRIMERA barrera para que un atacante no
+            // pueda gastar capacidad de los filtros siguientes.
+            .addFilterBefore(rateLimitFilter,
                              UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(jwtAuthenticationFilter, RateLimitFilter.class)
             .addFilterAfter(tenantGuardFilter, JwtAuthenticationFilter.class);
         return http.build();
     }

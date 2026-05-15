@@ -1,8 +1,8 @@
 package com.optima.api.modules.business.service;
 
-import com.optima.api.modules.business.dto.BusinessHourResponse;
-import com.optima.api.modules.business.dto.CreateBusinessHourRequest;
-import com.optima.api.modules.business.dto.UpdateBusinessHourRequest;
+import com.optima.api.modules.business.dto.response.BusinessHourResponse;
+import com.optima.api.modules.business.dto.request.CreateBusinessHourRequest;
+import com.optima.api.modules.business.dto.request.UpdateBusinessHourRequest;
 import com.optima.api.modules.business.model.Business;
 import com.optima.api.modules.business.model.BusinessHour;
 import com.optima.api.modules.business.repository.BusinessHourRepository;
@@ -17,7 +17,7 @@ import java.time.LocalTime;
 import java.util.List;
 
 /**
- * Capa de lógica de negocio del módulo BusinessHour.
+ * BusinessHourService - Logica del horario semanal de apertura del negocio.
  * No usa soft delete: un horario se borra (DELETE) o se reemplaza (PUT).
  *
  * COMUNICACION:
@@ -40,24 +40,24 @@ public class BusinessHourService {
     private final BusinessRepository businessRepository;
 
     /**
-     * Crea un tramo horario para un día del negocio. Falla si ya existe otro
-     * tramo para el mismo día.
+     * Crea un tramo horario para un dia del negocio. Falla si ya existe otro
+     * tramo para el mismo dia.
      */
-    public BusinessHourResponse create(Long businessId, CreateBusinessHourRequest req) {
+    public BusinessHourResponse create(Long businessId, CreateBusinessHourRequest request) {
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "No se encontró el negocio con ID: " + businessId));
 
-        if (hourRepository.existsByBusinessIdAndDayOfWeek(businessId, req.dayOfWeek())) {
+        if (hourRepository.existsByBusinessIdAndDayOfWeek(businessId, request.dayOfWeek())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Ya existe un horario para ese día en el negocio");
+                    "Ya existe un horario para ese día en este negocio");
         }
 
         BusinessHour bh = new BusinessHour();
         bh.setBusiness(business);
-        bh.setDayOfWeek(req.dayOfWeek());
-        applyHours(bh, req.isClosed(), req.startTime(), req.endTime());
+        bh.setDayOfWeek(request.dayOfWeek());
+        applyHours(bh, request.isClosed(), request.startTime(), request.endTime());
 
         return BusinessHourResponse.from(hourRepository.save(bh));
     }
@@ -80,20 +80,20 @@ public class BusinessHourService {
     }
 
     /**
-     * Actualiza día y horas del tramo. Si se cambia el día, valida que no
+     * Actualiza dia y horas del tramo. Si se cambia el dia, valida que no
      * choque con otro tramo del mismo negocio.
      */
-    public BusinessHourResponse update(Long businessId, Long id, UpdateBusinessHourRequest req) {
+    public BusinessHourResponse update(Long businessId, Long id, UpdateBusinessHourRequest request) {
         BusinessHour bh = findOrThrow(businessId, id);
 
-        if (!bh.getDayOfWeek().equals(req.dayOfWeek()) &&
-                hourRepository.existsByBusinessIdAndDayOfWeek(businessId, req.dayOfWeek())) {
+        if (!bh.getDayOfWeek().equals(request.dayOfWeek()) &&
+                hourRepository.existsByBusinessIdAndDayOfWeek(businessId, request.dayOfWeek())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Ya existe un horario para ese día en el negocio");
+                    "Ya existe un horario para ese día en este negocio");
         }
 
-        bh.setDayOfWeek(req.dayOfWeek());
-        applyHours(bh, req.isClosed(), req.startTime(), req.endTime());
+        bh.setDayOfWeek(request.dayOfWeek());
+        applyHours(bh, request.isClosed(), request.startTime(), request.endTime());
 
         return BusinessHourResponse.from(hourRepository.save(bh));
     }
@@ -107,9 +107,9 @@ public class BusinessHourService {
     }
 
     /**
-     * Aplica la lógica de coherencia entre {@code isClosed} y las horas.
-     * - Si está cerrado: las horas se ponen a null.
-     * - Si está abierto: ambas horas son obligatorias y start &lt; end.
+     * Aplica la logica de coherencia entre isClosed y las horas.
+     * - Si esta cerrado: las horas se ponen a null.
+     * - Si esta abierto: ambas horas son obligatorias y start < end.
      */
     private void applyHours(BusinessHour bh, Boolean isClosed,
                             LocalTime startTime, LocalTime endTime) {

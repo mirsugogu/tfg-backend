@@ -15,30 +15,35 @@ import java.util.Optional;
  *   (verificar que una cita encaja en el horario del empleado).
  * - Habla con: MySQL via Hibernate.
  *
- * Tenant safety a nivel de empleado: findByIdAndUserId asegura que un
- * tramo solo se gestiona si pertenece al empleado del path. La doble
- * proteccion cross-tenant (empleado pertenece al negocio del path) la
- * hace EmployeeScheduleService antes de invocar este repo.
+ * [v16 membership] Las consultas se hacen ahora por membershipId (FK
+ * `id_membership` de la tabla). Externamente, EmployeeScheduleService
+ * y los paths siguen llamando al parametro "userId" por compatibilidad,
+ * pero el valor pasado es el id de la membership.
+ *
+ * Tenant safety a nivel de empleado: findByIdAndMembershipId asegura que
+ * un tramo solo se gestiona si pertenece a la membership del path. La
+ * doble proteccion cross-tenant (membership pertenece al negocio del
+ * path) la hace EmployeeScheduleService antes de invocar este repo.
  */
 @Repository
 public interface EmployeeScheduleRepository extends JpaRepository<EmployeeSchedule, Long> {
 
     /**
      * Lista los tramos de un empleado para un día concreto.
-     * La usa {@code AppointmentValidator} al validar que una cita encaja
+     * La usa AppointmentValidator al validar que una cita encaja
      * en el horario del empleado.
      */
-    List<EmployeeSchedule> findAllByUserIdAndDayOfWeek(Long userId, Integer dayOfWeek);
+    List<EmployeeSchedule> findAllByMembershipIdAndDayOfWeek(Long membershipId, Integer dayOfWeek);
 
     /**
      * Lista todos los tramos del horario de un empleado, ordenados de lunes
      * a domingo y dentro de cada día por hora de inicio.
      */
-    List<EmployeeSchedule> findAllByUserIdOrderByDayOfWeekAscStartTimeAsc(Long userId);
+    List<EmployeeSchedule> findAllByMembershipIdOrderByDayOfWeekAscStartTimeAsc(Long membershipId);
 
     /**
      * Búsqueda tenant-safe a nivel de empleado: el tramo existe Y pertenece
-     * al empleado dado.
+     * a la membership dada.
      */
-    Optional<EmployeeSchedule> findByIdAndUserId(Long id, Long userId);
+    Optional<EmployeeSchedule> findByIdAndMembershipId(Long id, Long membershipId);
 }

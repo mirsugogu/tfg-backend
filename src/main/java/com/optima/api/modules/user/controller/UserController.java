@@ -5,12 +5,14 @@ import com.optima.api.modules.user.dto.request.UpdateUserRequest;
 import com.optima.api.modules.user.dto.response.UserResponse;
 import com.optima.api.modules.user.service.UserService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * UserController - Gestion de usuarios (empleados) de un negocio.
@@ -23,7 +25,7 @@ import java.util.List;
  *   (verifica que businessId del path coincide con businessId del JWT;
  *   si no -> 403).
  * - Llama a: UserService (delega toda la logica).
- * - Devuelve: UserResponse o List<UserResponse> serializado a JSON.
+ * - Devuelve: UserResponse o Page<UserResponse> serializado a JSON.
  *
  * Permisos:
  *   POST/PUT/DELETE -> @PreAuthorize("hasRole('ADMIN')") - solo el admin
@@ -34,35 +36,39 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/businesses/{businessId}/users")
 @RequiredArgsConstructor
+@Validated
 public class UserController {
 
     private final UserService userService;
 
     /**
-     * POST /api/businesses/{businessId}/users - Crea un usuario nuevo (ADMIN).
+     * POST /api/businesses/{businessId}/users - Crea un empleado nuevo.
      *
-     * Solo ADMIN puede crear usuarios. Si un EMPLOYEE lo intenta -> 403
-     * (capturado por GlobalExceptionHandler.handleAccessDenied).
+     * UserService aplica el patron find-or-create por email: si el email
+     * ya existe (la persona trabaja en otro negocio) reusa la identidad
+     * y solo crea la membership; si no existe, crea identidad + membership
+     * en una sola transaccion. Posibles errores: 404 si el negocio o el
+     * rol no existen, 409 si esa persona ya es empleada del negocio.
      *
-     * Flujo: JwtAuthFilter -> TenantGuardFilter -> @PreAuthorize ADMIN
-     *   -> UserService.create(businessId, req)
-     *   -> hashea password con BCrypt -> INSERT en `users`.
+     * Permiso: solo ADMIN.
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
-    public UserResponse create(@PathVariable Long businessId,
-                               @Valid @RequestBody CreateUserRequest req) {
-        return userService.create(businessId, req);
+    public UserResponse create(@PathVariable @Positive Long businessId,
+                               @Valid @RequestBody CreateUserRequest request) {
+        return userService.create(businessId, request);
     }
 
     /**
-     * GET /api/businesses/{businessId}/users - Lista usuarios activos.
+     * GET /api/businesses/{businessId}/users - Lista paginada de usuarios activos.
      * Sin @PreAuthorize: cualquier autenticado del negocio puede consultarlo.
+     * Pageable se rellena con los query params ?page=&size=&sort=field,asc.
      */
     @GetMapping
-    public List<UserResponse> listByBusiness(@PathVariable Long businessId) {
-        return userService.listByBusiness(businessId);
+    public Page<UserResponse> listByBusiness(@PathVariable @Positive Long businessId,
+                                             Pageable pageable) {
+        return userService.listByBusiness(businessId, pageable);
     }
 
     /**
@@ -70,7 +76,7 @@ public class UserController {
      * Si el id no existe en este businessId -> 404 (cross-tenant safe).
      */
     @GetMapping("/{id}")
-    public UserResponse getById(@PathVariable Long businessId, @PathVariable Long id) {
+    public UserResponse getById(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
         return userService.getById(businessId, id);
     }
 
@@ -81,10 +87,10 @@ public class UserController {
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public UserResponse update(@PathVariable Long businessId,
-                               @PathVariable Long id,
-                               @Valid @RequestBody UpdateUserRequest req) {
-        return userService.update(businessId, id, req);
+    public UserResponse update(@PathVariable @Positive Long businessId,
+                               @PathVariable @Positive Long id,
+                               @Valid @RequestBody UpdateUserRequest request) {
+        return userService.update(businessId, id, request);
     }
 
     /**
@@ -96,7 +102,7 @@ public class UserController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
-    public void deactivate(@PathVariable Long businessId, @PathVariable Long id) {
+    public void deactivate(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
         userService.deactivate(businessId, id);
     }
 }

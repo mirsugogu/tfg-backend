@@ -1,0 +1,39 @@
+package com.optima.api.modules.business.dto.request;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+
+import java.time.LocalTime;
+
+/**
+ * CreateBusinessHourRequest - DTO de entrada para crear un tramo horario de un negocio.
+ * El businessId viene del path, no del body.
+ * Si isClosed es true, las horas pueden venir nulas.
+ * Si es false (o null), startTime y endTime son obligatorias
+ * y la validacion coherente se aplica en el servicio.
+ *
+ * COMUNICACION:
+ * - Lo deserializa Jackson, lo valida @Valid en BusinessHourController.
+ * - Lo consume BusinessHourService.create (que ademas valida la
+ *   coherencia entre isClosed y las horas via applyHours()).
+ *
+ * Validaciones declarativas:
+ *   dayOfWeek   @NotNull, 1..7 (lunes-domingo ISO).
+ *   startTime, endTime  validacion de obligatoriedad en el service segun isClosed.
+ *
+ * Nota: los campos LocalTime se serializan como "HH:mm" o "HH:mm:ss" en JSON.
+ */
+public record CreateBusinessHourRequest(
+
+        @NotNull(message = "El día de la semana es obligatorio")
+        @Min(value = 1, message = "El día debe ser entre 1 (lunes) y 7 (domingo)")
+        @Max(value = 7, message = "El día debe ser entre 1 (lunes) y 7 (domingo)")
+        Integer dayOfWeek,
+
+        LocalTime startTime,
+
+        LocalTime endTime,
+
+        Boolean isClosed
+) {}

@@ -3,13 +3,14 @@ package com.optima.api.modules.appointment.dto.request;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 /**
  * DTO de entrada para crear una cita.
- * El {@code businessId} viene del path, no del body.
+ * El businessId viene del path, no del body.
  * El cliente, empleado y servicios se validan cross-tenant en el servicio.
  *
  * COMUNICACION:
@@ -18,8 +19,9 @@ import java.util.List;
  * - Lo consume AppointmentService.createAppointment.
  *
  * Validaciones:
- *   clientId         @NotNull
- *   employeeId       @NotNull
+ *   clientId         @NotNull, @Positive.
+ *   membershipId     @NotNull, @Positive.
+ *   boothId          opcional; @Positive si viene (sin cabina si null).
  *   startDateTime    @NotNull, @FutureOrPresent (no puede ser pasado).
  *   serviceIds       @NotEmpty (al menos un servicio).
  *   notes            opcional, sin validacion.
@@ -31,10 +33,15 @@ import java.util.List;
 public record CreateAppointmentRequest(
 
         @NotNull(message = "El ID del cliente es obligatorio")
+        @Positive(message = "El ID del cliente debe ser positivo")
         Long clientId,
 
         @NotNull(message = "El ID del empleado es obligatorio")
-        Long employeeId,
+        @Positive(message = "El ID del empleado debe ser positivo")
+        Long membershipId,
+
+        @Positive(message = "El ID de la cabina debe ser positivo")
+        Long boothId,
 
         @NotNull(message = "La fecha/hora de inicio es obligatoria")
         @FutureOrPresent(message = "La cita no puede ser en el pasado")

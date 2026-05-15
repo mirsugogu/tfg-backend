@@ -4,13 +4,14 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
 /**
- * DTO de entrada para actualizar un servicio existente.
- * No incluye {@code businessId}: el negocio se toma del path
+ * UpdateServiceRequest - DTO de entrada para actualizar un servicio existente.
+ * No incluye businessId: el negocio se toma del path
  * y NO se permite mover el servicio entre negocios.
  *
  * COMUNICACION:
@@ -24,16 +25,17 @@ import java.math.BigDecimal;
 public record UpdateServiceRequest(
 
         @NotNull(message = "El ID de la categoría es obligatorio")
+        @Positive(message = "El ID de la categoría debe ser positivo")
         Long categoryId,
 
         @NotNull(message = "El ID del impuesto es obligatorio")
+        @Positive(message = "El ID del impuesto debe ser positivo")
         Long taxId,
 
         @NotBlank(message = "El nombre del servicio no puede estar vacío")
         @Size(max = 150, message = "El nombre no puede exceder los 150 caracteres")
         String name,
 
-        // La descripción es opcional; si el cliente no la envía, será null.
         String description,
 
         @NotNull(message = "El precio es obligatorio")
