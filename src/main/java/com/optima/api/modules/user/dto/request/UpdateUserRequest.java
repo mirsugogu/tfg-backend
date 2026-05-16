@@ -1,17 +1,22 @@
 package com.optima.api.modules.user.dto.request;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
 
 /**
- * DTO de entrada para actualizar un usuario existente.
- * No incluye businessId: el negocio se toma del path y no se permite
- * mover el usuario entre negocios.
- * Tampoco incluye password: el cambio de contraseña se gestiona en
- * un endpoint aparte (futuro).
+ * DTO de entrada para PUT /api/businesses/{businessId}/users/{id} - el
+ * admin gestiona la membership de un empleado en SU negocio.
+ *
+ * [v16 membership] Solo lleva roleId. Tras separar identidad (User) de
+ * pertenencia (Membership), este endpoint solo gobierna la pieza local
+ * (el rol que el empleado tiene en ESTE negocio). Los datos globales del
+ * usuario (fullName, email, phone) se actualizan desde PUT /api/me, donde
+ * el dueno de la identidad es quien decide. Antes del refactor el admin
+ * podia mutar la identidad global; era cross-tenant data mutation porque
+ * la persona puede tener memberships en otros negocios.
+ *
+ * No incluye businessId: viene del path.
+ * No incluye isActive: para desactivar existe DELETE /api/businesses/{id}/users/{id}.
  *
  * COMUNICACION:
  * - Lo deserializa Jackson desde el body JSON de PUT .../users/{id}.
@@ -19,30 +24,11 @@ import jakarta.validation.constraints.Size;
  * - Lo consume UserService.update.
  *
  * Validaciones:
- *   roleId    @NotNull, @Positive
- *   fullName  @NotBlank, max 150 chars.
- *   email     @NotBlank, @Email (formato), max 150 chars.
- *   phone     opcional, max 20 chars.
- *
- * Decision: el password NO se cambia aqui para evitar reset accidental
- * en cada PUT. Cambio de password debe ser un endpoint dedicado con
- * verificacion del password actual.
+ *   roleId  @NotNull, @Positive.
  */
 public record UpdateUserRequest(
 
         @NotNull(message = "El ID del rol es obligatorio")
         @Positive(message = "El ID del rol debe ser positivo")
-        Long roleId,
-
-        @NotBlank(message = "El nombre completo es obligatorio")
-        @Size(max = 150, message = "El nombre no puede exceder los 150 caracteres")
-        String fullName,
-
-        @NotBlank(message = "El email es obligatorio")
-        @Email(message = "El email no tiene un formato válido")
-        @Size(max = 150, message = "El email no puede exceder los 150 caracteres")
-        String email,
-
-        @Size(max = 20, message = "El teléfono no puede exceder los 20 caracteres")
-        String phone
+        Long roleId
 ) {}

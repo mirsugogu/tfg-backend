@@ -3,6 +3,7 @@ package com.optima.api.modules.user.controller;
 import com.optima.api.common.security.AuthPrincipal;
 import com.optima.api.modules.auth.dto.response.MembershipSummaryResponse;
 import com.optima.api.modules.user.dto.request.ChangePasswordRequest;
+import com.optima.api.modules.user.dto.request.UpdateMeRequest;
 import com.optima.api.modules.user.dto.response.MeResponse;
 import com.optima.api.modules.user.service.UserService;
 import jakarta.validation.Valid;
@@ -40,6 +41,7 @@ import java.util.List;
  *
  * Endpoints:
  *   GET  /api/me            perfil de la identidad autenticada.
+ *   PUT  /api/me            actualiza fullName, email y phone de la propia identidad.
  *   PUT  /api/me/password   cambia la propia contrasena.
  *   GET  /api/me/businesses lista las memberships activas (selector post-login).
  */
@@ -61,6 +63,20 @@ public class MeController {
     @GetMapping
     public MeResponse getMe(@AuthenticationPrincipal AuthPrincipal principal) {
         return userService.getMyProfile(principal.userId());
+    }
+
+    /**
+     * PUT /api/me - Actualiza los datos globales de la identidad autenticada.
+     *
+     * [v16 membership] Punto unico de mutacion para fullName, email y phone.
+     * El admin del negocio ya no puede tocarlos via /api/businesses/{}/users/{}
+     * (eso solo gestiona el rol de la membership) — la identidad la dueña la
+     * propia persona, que se identifica con su JWT.
+     */
+    @PutMapping
+    public MeResponse updateMe(@AuthenticationPrincipal AuthPrincipal principal,
+                               @Valid @RequestBody UpdateMeRequest request) {
+        return userService.updateMyProfile(principal.userId(), request);
     }
 
     /**

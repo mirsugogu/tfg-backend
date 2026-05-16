@@ -76,7 +76,7 @@ class AppointmentServiceTest {
         Membership employee = new Membership();
         employee.setId(3L);
         employee.setIsActive(true);
-        when(membershipRepository.findByIdAndBusinessId(3L, 1L)).thenReturn(Optional.of(employee));
+        when(membershipRepository.findByIdAndBusinessIdForUpdate(3L, 1L)).thenReturn(Optional.of(employee));
 
         Tax tax = new Tax();
         tax.setPercentage(new BigDecimal("21.00"));
@@ -130,7 +130,7 @@ class AppointmentServiceTest {
         Membership employee = new Membership();
         employee.setId(3L);
         employee.setIsActive(true);
-        when(membershipRepository.findByIdAndBusinessId(3L, 1L)).thenReturn(Optional.of(employee));
+        when(membershipRepository.findByIdAndBusinessIdForUpdate(3L, 1L)).thenReturn(Optional.of(employee));
 
         Tax tax = new Tax();
         tax.setPercentage(new BigDecimal("21.00"));

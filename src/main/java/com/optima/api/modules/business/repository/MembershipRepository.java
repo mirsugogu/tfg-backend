@@ -1,9 +1,13 @@
 package com.optima.api.modules.business.repository;
 
 import com.optima.api.modules.business.model.Membership;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -50,6 +54,23 @@ public interface MembershipRepository extends JpaRepository<Membership, Long> {
      * Es el sustituto del antiguo UserRepository.findByIdAndBusinessId.
      */
     Optional<Membership> findByIdAndBusinessId(Long id, Long businessId);
+
+    /**
+     * Variante de findByIdAndBusinessId con lock pesimista de escritura
+     * (SELECT ... FOR UPDATE). La usa AppointmentService.createAppointment
+     * para serializar la creacion concurrente de citas sobre la misma
+     * membership: dos POST simultaneos al mismo empleado se procesan en
+     * serie hasta el commit, eliminando la race condition entre
+     * validateNoOverlap y el INSERT (problema TOCTOU clasico).
+     *
+     * El lock se libera automaticamente al cerrar la transaccion (@Transactional
+     * de AppointmentService). Solo aplicarlo en operaciones de escritura
+     * cortas; para lectura usar findByIdAndBusinessId.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT m FROM Membership m WHERE m.id = :id AND m.business.id = :businessId")
+    Optional<Membership> findByIdAndBusinessIdForUpdate(@Param("id") Long id,
+                                                       @Param("businessId") Long businessId);
 
     /**
      * Busca la membership de un usuario en un negocio concreto. Sirve al

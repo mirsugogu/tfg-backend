@@ -8,6 +8,7 @@ import com.optima.api.modules.business.repository.BusinessRepository;
 import com.optima.api.modules.business.repository.MembershipRepository;
 import com.optima.api.modules.business.repository.RoleRepository;
 import com.optima.api.modules.user.dto.request.CreateUserRequest;
+import com.optima.api.modules.user.dto.request.UpdateMeRequest;
 import com.optima.api.modules.user.dto.request.UpdateUserRequest;
 import com.optima.api.modules.user.dto.response.MeResponse;
 import com.optima.api.modules.user.dto.response.UserResponse;
@@ -132,16 +133,19 @@ public class UserService {
     }
 
     /**
-     * Actualiza el empleado: el rol (de la membership) y los datos de la
-     * identidad (fullName, email, phone). El email cambia para TODAS las
-     * memberships de esa persona, porque la identidad es compartida.
+     * Actualiza el rol del empleado dentro de ESTE negocio.
+     *
+     * [v16 membership] Solo toca la membership (rol). Los datos globales
+     * de la identidad (fullName, email, phone) se actualizan desde
+     * PUT /api/me, donde el dueno de la identidad es quien decide; el
+     * admin del negocio no puede mutar campos que tambien se ven en otros
+     * negocios donde la persona trabaja.
      *
      * Pasos:
      *   1. findOrThrow tenant-safe (404 si no existe).
      *   2. La membership debe estar activa (400 si esta desactivada).
      *   3. Verifica que el nuevo rol existe (404 si no).
-     *   4. Si email cambia: comprueba unicidad global (409 si choca).
-     *   5. Aplica cambios al User y a la Membership.
+     *   4. Aplica el cambio y persiste.
      */
     public UserResponse update(Long businessId, Long id, UpdateUserRequest request) {
         Membership m = findOrThrow(businessId, id);
@@ -157,19 +161,6 @@ public class UserService {
                         "No se encontró el rol con ID: " + request.roleId()));
 
         m.setRole(role);
-
-        User user = m.getUser();
-        String email = request.email().trim().toLowerCase();
-        if (!user.getEmail().equalsIgnoreCase(email)
-                && userRepository.existsByEmailIgnoreCase(email)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Ya existe un usuario con ese email");
-        }
-        user.setFullName(request.fullName().trim());
-        user.setEmail(email);
-        user.setPhone(request.phone());
-        userRepository.save(user);
-
         return UserResponse.from(membershipRepository.save(m));
     }
 
@@ -200,6 +191,44 @@ public class UserService {
                         HttpStatus.NOT_FOUND,
                         "No se encontró el usuario con ID: " + userId));
         return MeResponse.from(u);
+    }
+
+    /**
+     * Actualiza los datos globales del propio usuario autenticado.
+     *
+     * [v16 membership] Punto de entrada unico para mutar fullName, email
+     * y phone. Antes el admin de cada negocio podia tocarlos via
+     * UpdateUserRequest; tras separar identidad de membership ese acceso
+     * desaparecio porque la identidad la dueña la propia persona, no el
+     * negocio. Por eso este metodo vive aqui y solo se invoca desde
+     * MeController, donde el userId viene del JWT (no del path).
+     *
+     * Pasos:
+     *   1. Cargar el User por id (404 si no existe — caso degenerado).
+     *   2. Si el email cambia: chequear unicidad global (409 si choca).
+     *   3. Normalizar email (trim + lower), aplicar y persistir.
+     *   4. Devolver MeResponse actualizado.
+     *
+     * El password NO se cambia aqui; existe PUT /api/me/password con
+     * verificacion del password actual.
+     */
+    public MeResponse updateMyProfile(Long userId, UpdateMeRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "No se encontró el usuario con ID: " + userId));
+
+        String email = request.email().trim().toLowerCase();
+        if (!user.getEmail().equalsIgnoreCase(email)
+                && userRepository.existsByEmailIgnoreCase(email)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Ya existe un usuario con ese email");
+        }
+
+        user.setFullName(request.fullName().trim());
+        user.setEmail(email);
+        user.setPhone(request.phone());
+        return MeResponse.from(userRepository.save(user));
     }
 
     /**

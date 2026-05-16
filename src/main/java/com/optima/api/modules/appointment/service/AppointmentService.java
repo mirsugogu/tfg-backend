@@ -140,7 +140,13 @@ public class AppointmentService {
         //    [v16 membership] El membershipId del request es realmente el id
         //    de la membership; se mantiene el nombre externo por
         //    compatibilidad del API.
-        Membership membership = membershipRepository.findByIdAndBusinessId(
+        //
+        //    Lock pesimista (SELECT ... FOR UPDATE) sobre la membership: dos
+        //    POST concurrentes al mismo empleado se serializan hasta el commit,
+        //    impidiendo el TOCTOU entre validateNoOverlap (paso 8) y el INSERT
+        //    del paso 10 (double-booking). Aceptable porque la transaccion es
+        //    corta y no hace llamadas externas.
+        Membership membership = membershipRepository.findByIdAndBusinessIdForUpdate(
                         request.membershipId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
@@ -210,10 +216,15 @@ public class AppointmentService {
 
         // 8b. Si la cita lleva cabina: cross-tenant + activa + overlap.
         //     Si no lleva (boothId=null), se omite todo este bloque.
+        //
+        //     Lock pesimista sobre la cabina (analogo al de Membership en el
+        //     paso 3): dos POST con empleados distintos compartiendo cabina
+        //     se serializan aqui, garantizando la regla "1 empleado por
+        //     cabina y slot" frente al TOCTOU de validateNoBoothOverlap.
         Booth booth = null;
         if (request.boothId() != null) {
             booth = boothRepository
-                    .findByIdAndBusinessId(request.boothId(), businessId)
+                    .findByIdAndBusinessIdForUpdate(request.boothId(), businessId)
                     .orElseThrow(() -> new ResponseStatusException(
                             HttpStatus.NOT_FOUND,
                             "No se encontró la cabina con ID: " + request.boothId()

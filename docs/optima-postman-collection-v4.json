@@ -120,6 +120,11 @@
           "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/me/businesses","host":["{{baseUrl}}"],"path":["api","me","businesses"]}}
         },
         {
+          "name": "PUT /api/me - actualiza identidad propia (phone) [refactor v16]",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","const j=pm.response.json();","pm.test('phone actualizado',()=>pm.expect(j.phone).to.equal('600999999'));","pm.test('email conservado',()=>pm.expect(j.email).to.equal('admin@optima.com'));","pm.test('NO expone passwordHash',()=>pm.expect(j).to.not.have.property('passwordHash'));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/me","host":["{{baseUrl}}"],"path":["api","me"]},"body":{"mode":"raw","raw":"{\"fullName\":\"Admin Demo\",\"email\":\"admin@optima.com\",\"phone\":\"600999999\"}"}}
+        },
+        {
           "name": "PUT /api/me/password - cambio password (rechazo: misma password)",
           "event": [{"listen":"test","script":{"exec":["pm.test('400 (nueva == actual)',()=>pm.response.to.have.status(400));"]}}],
           "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/me/password","host":["{{baseUrl}}"],"path":["api","me","password"]},"body":{"mode":"raw","raw":"{\"currentPassword\":\"12345678\",\"newPassword\":\"12345678\"}"}}
@@ -417,9 +422,9 @@
           "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/users/{{employeeUserId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","users","{{employeeUserId}}"]}}
         },
         {
-          "name": "PUT update",
-          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
-          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/users/{{employeeUserId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","users","{{employeeUserId}}"]},"body":{"mode":"raw","raw":"{\"roleId\":2,\"fullName\":\"Empleado Updated\",\"email\":\"emp{{uniqSuffix}}@salon.com\",\"phone\":\"600000003\"}"}}
+          "name": "PUT update (solo roleId tras refactor membership v16)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","const j=pm.response.json();","pm.test('rol actualizado',()=>pm.expect(j.roleId).to.equal(2));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/users/{{employeeUserId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","users","{{employeeUserId}}"]},"body":{"mode":"raw","raw":"{\"roleId\":2}"}}
         },
         {
           "name": "POST userToDelete",
