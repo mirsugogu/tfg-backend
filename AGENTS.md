@@ -35,7 +35,7 @@ propuestas por valor académico real, no por buenas prácticas abstractas.
 ### Configuración
 
 - `ddl-auto=none` (Hibernate NO modifica tablas; el schema SQL se aplica
-  manualmente vía `docker-compose` con `docs/schema_v18.sql`).
+  manualmente vía `docker-compose` con `docs/schema_v20.sql`).
 - Puerto API: `8080`. Puerto MySQL host: `3307` (`3306` interno).
 
 ---
@@ -55,7 +55,7 @@ no a nivel de SQL.
 ```
 com.optima.api/
 ├── ApiApplication.java
-├── config/                # SecurityConfig, WebConfig, OpenApiConfig
+├── config/                # SecurityConfig (incluye CORS), OpenApiConfig
 ├── common/                # transversal
 │   ├── exception/         # GlobalExceptionHandler, ErrorResponse
 │   ├── security/          # JwtAuthenticationFilter, TenantGuardFilter, AuthPrincipal
@@ -90,8 +90,8 @@ oportunidad de normalización).
 
 ## 4. Base de datos
 
-Schema activo: `docs/schema_v18.sql` — **17 tablas** en inglés.
-Versiones anteriores en `docs/archive/` (v13–v17).
+Schema activo: `docs/schema_v20.sql` — **17 tablas** en inglés.
+Versiones anteriores en `docs/archive/` (v13–v18).
 
 | # | Tabla | Notas |
 |---|---|---|
@@ -145,7 +145,7 @@ Versiones anteriores en `docs/archive/` (v13–v17).
 
 ## 5. Entidades JPA
 
-**16 entidades** (una por tabla):
+**17 entidades** (una por tabla):
 
 - **`business/`**: `Business`, `Role`, `Tax`, `BusinessHour`, `Booth`,
   `ScheduleBlock`, `Membership`.
@@ -155,6 +155,7 @@ Versiones anteriores en `docs/archive/` (v13–v17).
   evitar conflicto con `@Service` de Spring; `appointment_services`
   pasó a `BookedService`).
 - **`appointment/`**: `Appointment`, `AppointmentStatus`, `BookedService`.
+- **`auth/`**: `PasswordResetToken` (tokens efímeros para reset por email).
 
 ### Convenciones
 
@@ -223,8 +224,8 @@ Versiones anteriores en `docs/archive/` (v13–v17).
   intencionalmente (operativa diaria, ambos roles).
 - **`GlobalExceptionHandler`** centraliza traducción a `ErrorResponse`.
 - **Rate limiting** con Bucket4j (token-bucket en memoria, por IP):
-  `/api/auth/token` 5/min, `/api/auth/register` 3/h,
-  `/api/auth/forgot-password` 5/h, `/api/auth/reset-password` 10/h.
+  `/api/auth/token` 20/min, `/api/auth/register` 20/h,
+  `/api/auth/forgot-password` 10/h, `/api/auth/reset-password` 20/h.
   Devuelve **429** + header `Retry-After`.
 - **Password reset por email** (tabla `password_resets`):
   - `POST /api/auth/forgot-password {email}` → SIEMPRE 204 (anti-enumeration).
@@ -240,8 +241,8 @@ Versiones anteriores en `docs/archive/` (v13–v17).
 
 ✅ **Completado**:
 - Setup Spring Boot 3.4.1 + Java 21 + Maven + Docker.
-- Schema v16 con 16 tablas; entidades JPA + repositories + DTOs
-  (records) + services + controllers para los 16 recursos.
+- Schema v20 con 17 tablas; entidades JPA + repositories + DTOs
+  (records) + services + controllers para los 17 recursos.
 - Seguridad real (JWT 2-pasos, filtros, ADMIN/EMPLOYEE).
 - Geocoding (Nominatim) cableado en `Business.create/update`.
 - SMTP Gmail cableado (`MailService` best-effort; usado en
@@ -255,15 +256,13 @@ Versiones anteriores en `docs/archive/` (v13–v17).
   cruzando 6 calendarios: business_hours, employee_schedules,
   employee_absences, schedule_blocks, appointments, booths).
 - `PATCH /api/businesses/{id}/appointments/{id}/payment` (campo `isPaid`).
-- Tests: 14 verdes (`AuthService`, `TenantGuardFilter`,
+- Tests: 16 verdes (`AuthService`, `TenantGuardFilter`,
   `AppointmentService`, `AvailabilityService`, `AppointmentControllerWebMvcTest`).
 - JavaDoc pedagógico en español en todo el código (~130 archivos).
 
 📋 **Pendiente** (orden de prioridad):
-1. Refactor `AppointmentResponse.from(Appointment, repos)` → resolver
-   N+1 cargando `BookedService` en una sola query previa.
-2. Más tests (cobertura de services críticos, ~5–8 unit tests más).
-3. Regenerar Postman collection (login ya no lleva `businessSlug`,
+1. Más tests (cobertura de services críticos, ~5–8 unit tests más).
+2. Regenerar Postman collection (login ya no lleva `businessSlug`,
    nuevos endpoints `/api/me/*` y `/api/auth/select-business/{id}`).
 
 ---
