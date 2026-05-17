@@ -23,7 +23,9 @@ import java.util.List;
  *   membershipId     @NotNull, @Positive.
  *   boothId          opcional; @Positive si viene (sin cabina si null).
  *   startDateTime    @NotNull, @FutureOrPresent (no puede ser pasado).
- *   serviceIds       @NotEmpty (al menos un servicio).
+ *   serviceIds       @NotEmpty (al menos un servicio); cada elemento
+ *                    @NotNull y @Positive (rechaza listas tipo [null]
+ *                    o [-1] antes de llegar al service).
  *   notes            opcional, sin validacion.
  *
  * NO incluye endDateTime: lo calcula AppointmentService sumando las
@@ -50,5 +52,6 @@ public record CreateAppointmentRequest(
         String notes,
 
         @NotEmpty(message = "Debe incluir al menos un servicio")
-        List<Long> serviceIds
+        List<@NotNull(message = "El ID del servicio es obligatorio")
+              @Positive(message = "El ID del servicio debe ser positivo") Long> serviceIds
 ) {}
