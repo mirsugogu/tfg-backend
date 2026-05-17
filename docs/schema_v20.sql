@@ -389,7 +389,10 @@ CREATE TABLE business_hours (
                                     CHECK (
                                         is_closed = TRUE
                                             OR (start_time IS NOT NULL AND end_time IS NOT NULL AND start_time < end_time)
-                                        )
+                                        ),
+
+                                CONSTRAINT uq_business_hours_day
+                                    UNIQUE (id_business, day_of_week)
 ) ENGINE=InnoDB;
 
 
