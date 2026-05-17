@@ -3,7 +3,9 @@ package com.optima.api.modules.appointment.service;
 import com.optima.api.modules.appointment.repository.AppointmentRepository;
 import com.optima.api.modules.business.model.ScheduleBlock;
 import com.optima.api.modules.business.repository.ScheduleBlockRepository;
+import com.optima.api.modules.user.model.EmployeeAbsence;
 import com.optima.api.modules.user.model.EmployeeSchedule;
+import com.optima.api.modules.user.repository.EmployeeAbsenceRepository;
 import com.optima.api.modules.user.repository.EmployeeScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,9 +26,11 @@ import java.util.Set;
  * COMUNICACION:
  * - Lo invoca: AppointmentService (en createAppointment y
  *   updateAppointmentStatus).
- * - Llama a:
- *     AppointmentRepository.existsOverlappingAppointment (query JPQL custom).
- *     EmployeeScheduleRepository.findAllByMembershipIdAndDayOfWeek.
+ * - Llama a (1 query por validacion):
+ *     AppointmentRepository.existsOverlappingAppointment      (validateNoOverlap).
+ *     AppointmentRepository.existsOverlappingBoothAppointment (validateNoBoothOverlap, v14).
+ *     EmployeeScheduleRepository.findAllByMembershipIdAndDayOfWeek (validateEmployeeSchedule).
+ *     ScheduleBlockRepository.findApplicableBlocks            (validateNoScheduleBlock, v15).
  * - No devuelve nada: cada metodo lanza ResponseStatusException si una
  *   regla falla, o no hace nada si todo esta bien (fail-fast).
  *
@@ -34,18 +38,20 @@ import java.util.Set;
  * id de la membership (pertenencia usuario-negocio). El nombre externo se
  * mantiene por compatibilidad con la API; internamente es membershipId.
  *
- * 6 validaciones publicas (en orden de invocacion tipica):
- *   validateAppointmentInterval 400 si la hora no es multiplo del intervalo.
- *   validateEmployeeSchedule    400 si la cita cae fuera del horario del
- *                               empleado o cruza medianoche.
- *   validateNoOverlap           409 si solapa con otra cita activa del
- *                               empleado.
- *   validateNoBoothOverlap      409 si solapa con otra cita en la misma
- *                               cabina (solo si la cita lleva cabina).
- *   validateNoScheduleBlock     409 si la fecha cae en un bloqueo de
- *                               agenda (global, por empleado o por cabina).
- *   validateStatusTransition    400 si la transicion de estado es ilegal
- *                               (ver mapa VALID_TRANSITIONS).
+ * 7 validaciones publicas (en orden de invocacion tipica):
+ *   validateAppointmentInterval  400 si la hora no es multiplo del intervalo.
+ *   validateEmployeeSchedule     400 si la cita cae fuera del horario del
+ *                                empleado o cruza medianoche.
+ *   validateNoOverlap            409 si solapa con otra cita activa del
+ *                                empleado.
+ *   validateNoEmployeeAbsence    409 si solapa con una ausencia (vacaciones,
+ *                                cita medica) registrada del empleado.
+ *   validateNoBoothOverlap       409 si solapa con otra cita en la misma
+ *                                cabina (solo si la cita lleva cabina).
+ *   validateNoScheduleBlock      409 si la fecha cae en un bloqueo de
+ *                                agenda (global, por empleado o por cabina).
+ *   validateStatusTransition     400 si la transicion de estado es ilegal
+ *                                (ver mapa VALID_TRANSITIONS).
  */
 @Component
 @RequiredArgsConstructor
@@ -53,6 +59,7 @@ public class AppointmentValidator {
 
     private final AppointmentRepository appointmentRepository;
     private final EmployeeScheduleRepository scheduleRepository;
+    private final EmployeeAbsenceRepository absenceRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
 
     /**
@@ -84,6 +91,35 @@ public class AppointmentValidator {
                     HttpStatus.CONFLICT,
                     "El empleado ya tiene una cita en ese horario"
             );
+        }
+    }
+
+    /**
+     * Comprueba que la membership (empleado) no tiene una ausencia registrada
+     * (vacaciones, cita medica, etc.) que solape con el rango de la cita.
+     *
+     * Cubre el hueco semantico entre `GET /availability` (que ya excluye
+     * slots dentro de ausencias) y `POST /appointments` (que antes podia
+     * crear citas encima de una ausencia si el cliente saltaba la consulta
+     * previa).
+     *
+     * Si encuentra al menos una ausencia solapada, devuelve 409 con el
+     * `reason` del primero para que el frontend muestre el motivo
+     * ("El empleado tiene una ausencia: Vacaciones").
+     */
+    public void validateNoEmployeeAbsence(Long membershipId,
+                                          LocalDateTime startDateTime,
+                                          LocalDateTime endDateTime) {
+
+        List<EmployeeAbsence> overlapping = absenceRepository
+                .findOverlappingByMembershipAndRange(membershipId, startDateTime, endDateTime);
+
+        if (!overlapping.isEmpty()) {
+            String reason = overlapping.get(0).getReason();
+            String msg = reason != null
+                    ? "El empleado tiene una ausencia: " + reason
+                    : "El empleado tiene una ausencia en ese horario";
+            throw new ResponseStatusException(HttpStatus.CONFLICT, msg);
         }
     }
 

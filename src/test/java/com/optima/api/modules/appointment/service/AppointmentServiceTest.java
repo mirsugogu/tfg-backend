@@ -115,6 +115,61 @@ class AppointmentServiceTest {
     }
 
     @Test
+    void createAppointment_lanza409_cuandoEmpleadoTieneUnaAusenciaSolapada() {
+        // --- Arrange: stubs minimos para superar las primeras validaciones ---
+        Business business = new Business();
+        business.setId(1L);
+        business.setAppointmentInterval(30);
+        when(businessRepository.findById(1L)).thenReturn(Optional.of(business));
+
+        Client client = new Client();
+        client.setId(2L);
+        client.setIsActive(true);
+        when(clientRepository.findByIdAndBusinessId(2L, 1L)).thenReturn(Optional.of(client));
+
+        Membership employee = new Membership();
+        employee.setId(3L);
+        employee.setIsActive(true);
+        when(membershipRepository.findByIdAndBusinessIdForUpdate(3L, 1L)).thenReturn(Optional.of(employee));
+
+        Tax tax = new Tax();
+        tax.setPercentage(new BigDecimal("21.00"));
+
+        BusinessService service = new BusinessService();
+        service.setId(4L);
+        service.setIsActive(true);
+        service.setDurationMinutes(45);
+        service.setPrice(new BigDecimal("25.00"));
+        service.setTax(tax);
+        when(serviceRepository.findByIdAndBusinessId(4L, 1L)).thenReturn(Optional.of(service));
+
+        // validateNoOverlap pasa; validateNoEmployeeAbsence simula que la
+        // membership tiene una ausencia 09:00-13:00 que solapa con la cita
+        // que se intenta crear (10:00) -> 409.
+        doThrow(new ResponseStatusException(
+                HttpStatus.CONFLICT, "El empleado tiene una ausencia: Cita medica"))
+                .when(validator).validateNoEmployeeAbsence(eq(3L), any(), any());
+
+        CreateAppointmentRequest req = new CreateAppointmentRequest(
+                2L, 3L,
+                null,                 // sin cabina
+                LocalDateTime.of(2027, 3, 17, 10, 0),  // dentro de la ausencia
+                "alguna nota",
+                List.of(4L)
+        );
+
+        // --- Act + Assert ---
+        assertThatThrownBy(() -> appointmentService.createAppointment(1L, req))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+
+        // La cita NO se persiste si la ausencia bloquea ese horario.
+        verify(appointmentRepository, never()).save(any());
+        verify(bookedServiceRepository, never()).saveAll(any());
+    }
+
+    @Test
     void createAppointment_lanza409_cuandoLaFechaTieneScheduleBlock() {
         // --- Arrange: stubs minimos para superar las primeras validaciones ---
         Business business = new Business();

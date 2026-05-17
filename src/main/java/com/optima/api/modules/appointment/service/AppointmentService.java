@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 /**
  * AppointmentService - Logica de negocio del modulo appointment.
  *
- * Es el service mas complejo del proyecto: orquesta 7 repositorios y un
+ * Es el service mas complejo del proyecto: orquesta 8 repositorios y un
  * validator dedicado para crear, leer y transicionar citas con todas
  * las reglas de negocio aplicadas.
  *
@@ -48,11 +48,12 @@ import java.util.stream.Collectors;
  *     AppointmentRepository           CRUD + existsOverlapping (query custom).
  *     AppointmentStatusRepository     findByName para resolver "PENDING" etc.
  *     BookedServiceRepository         persiste y consulta servicios reservados.
+ *     BoothRepository                 verifica cabina cross-tenant + activa (con lock pesimista).
  *     BusinessRepository              verifica negocio + lee appointmentInterval.
  *     BusinessServiceRepository       verifica que cada servicio existe en el tenant.
  *     ClientRepository                verifica cliente cross-tenant + activo.
- *     UserRepository                  verifica empleado cross-tenant + activo.
- *     AppointmentValidator            las 4 reglas complejas de negocio.
+ *     MembershipRepository            verifica empleado (membership) cross-tenant + activo.
+ *     AppointmentValidator            las reglas complejas de negocio.
  * - Devuelve: AppointmentResponse (con la lista de bookedServices).
  *
  * Patron BookedService congelado: cuando se crea una cita, se guarda una
@@ -79,11 +80,11 @@ public class AppointmentService {
      * Crea una nueva cita con sus servicios asociados.
      *
      * QUE HACE EN UNA FRASE:
-     * Recibe (clientId, membershipId, serviceIds[], startDateTime), aplica 12
-     * validaciones, persiste la cita en estado PENDING y crea un BookedService
-     * por cada servicio congelando precio y porcentaje de impuesto.
+     * Recibe (clientId, membershipId, serviceIds[], boothId?, startDateTime, notes?),
+     * aplica 14 validaciones, persiste la cita en estado PENDING y crea un
+     * BookedService por cada servicio congelando precio y porcentaje de impuesto.
      *
-     * Pasos (14 validaciones encadenadas):
+     * Pasos (15 validaciones encadenadas):
      *    1. Verifica que el negocio existe (404 si no).
      *    2. Cross-tenant: cliente pertenece a este negocio (404 si no).
      *    3. Cliente debe estar activo (400 si esta desactivado).
@@ -96,18 +97,19 @@ public class AppointmentService {
      *   10. La cita encaja en el horario del empleado (400 si no o
      *       si cruza medianoche).
      *   11. No solapa con otra cita activa del empleado (409 si si).
-     *   12. Si lleva cabina: cross-tenant + activa + sin solapamiento
+     *   12. No solapa con una ausencia registrada del empleado (409 si si).
+     *   13. Si lleva cabina: cross-tenant + activa + sin solapamiento
      *       de cabina (404/400/409).
-     *   13. No choca con un bloqueo de agenda (global, por empleado
+     *   14. No choca con un bloqueo de agenda (global, por empleado
      *       o por cabina) (409 si si).
-     *   14. Existe el estado PENDING en BD (500 si no, error de seed).
+     *   15. Existe el estado PENDING en BD (500 si no, error de seed).
      *
      * Por que precios CONGELADOS en BookedService: si manana el negocio
      * sube el precio de "Corte de pelo" de 15 a 20 EUR, las citas
      * pasadas DEBEN seguir mostrando 15 EUR (lo acordado en su dia).
      *
      * @param businessId barrera multi-tenant: TODO se valida contra este id.
-     * @param request payload validado: clientId, membershipId, serviceIds, startDateTime, notes.
+     * @param request payload validado: clientId, membershipId, serviceIds, boothId (opcional), startDateTime, notes.
      * @return AppointmentResponse con la cita creada + bookedServices.
      */
     public AppointmentResponse createAppointment(Long businessId, CreateAppointmentRequest request) {
@@ -209,6 +211,16 @@ public class AppointmentService {
 
         // 8. Validar que no hay solapamiento con otra cita del empleado
         validator.validateNoOverlap(
+                request.membershipId(),
+                request.startDateTime(),
+                endDateTime
+        );
+
+        // 8a. La cita no puede caer sobre una ausencia registrada del empleado.
+        //     GET /availability ya excluye estos huecos; POST debe rechazar
+        //     el mismo intervalo para que el calendario sea coherente aunque
+        //     el cliente salte la consulta previa.
+        validator.validateNoEmployeeAbsence(
                 request.membershipId(),
                 request.startDateTime(),
                 endDateTime
