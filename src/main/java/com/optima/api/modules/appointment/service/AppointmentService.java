@@ -21,6 +21,7 @@ import com.optima.api.modules.catalog.repository.BusinessServiceRepository;
 import com.optima.api.modules.client.model.Client;
 import com.optima.api.modules.client.repository.ClientRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -286,7 +287,34 @@ public class AppointmentService {
         appointment.setEndDateTime(endDateTime);
         appointment.setNotes(request.notes());
 
-        Appointment saved = appointmentRepository.save(appointment);
+        // saveAndFlush fuerza el INSERT inmediatamente para que cualquier
+        // violacion de los UNIQUE uq_appointment_active_slot /
+        // uq_appointment_active_booth_slot (definidos sobre columnas
+        // virtuales en docs/schema_v20.sql) salte AQUI y no al commit.
+        // Esto cierra la race condition documentada en
+        // docs/audit/03_RESULTADOS_NEGOCIO.md (D.2.001/002/005): los
+        // locks pesimistas sobre Membership/Booth solo serializan la
+        // fila de la entidad, no el predicado "no hay otra cita activa
+        // en este slot"; el UNIQUE a nivel BD si.
+        Appointment saved;
+        try {
+            saved = appointmentRepository.saveAndFlush(appointment);
+        } catch (DataIntegrityViolationException ex) {
+            String msg = ex.getMessage() == null ? "" : ex.getMessage();
+            if (msg.contains("uq_appointment_active_slot")) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "El empleado ya tiene una cita en ese horario"
+                );
+            }
+            if (msg.contains("uq_appointment_active_booth_slot")) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "La cabina ya tiene una cita en ese horario"
+                );
+            }
+            throw ex;
+        }
 
         // 11. Crear los BookedService con precios congelados
         List<BookedService> bookedServices = new ArrayList<>();

@@ -330,6 +330,26 @@ CREATE TABLE appointments (
                               notes          TEXT,
                               created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                               updated_at     DATETIME NULL,                          -- [v19 audit]
+    -- [audit/race-condition] Columnas virtuales que materializan el "slot activo"
+    -- de la cita. Si la cita esta en estado activo (1=PENDING, 2=CONFIRMED,
+    -- 3=IN_PROGRESS) el slot vale (membership + start) y (booth + start);
+    -- si esta en cualquier otro estado (CANCELLED, NO_SHOW, COMPLETED) o no
+    -- usa cabina, vale NULL. El indice UNIQUE permite multiples NULLs, asi
+    -- que las citas no activas o sin cabina conviven sin restriccion.
+    -- Esto bloquea a NIVEL BD que dos transacciones concurrentes inserten
+    -- dos citas activas con el mismo (empleado, slot) o (cabina, slot),
+    -- complementando los locks pesimistas (que solo protegen las filas de
+    -- membership/booth, no el predicado temporal).
+                              active_slot_key       VARCHAR(50) GENERATED ALWAYS AS (
+                                  CASE WHEN id_status IN (1, 2, 3)
+                                       THEN CONCAT(id_membership, '_', start_datetime)
+                                       ELSE NULL END
+                              ) VIRTUAL,
+                              active_booth_slot_key VARCHAR(50) GENERATED ALWAYS AS (
+                                  CASE WHEN id_booth IS NOT NULL AND id_status IN (1, 2, 3)
+                                       THEN CONCAT(id_booth, '_', start_datetime)
+                                       ELSE NULL END
+                              ) VIRTUAL,
                               CONSTRAINT fk_appointment_business
                                   FOREIGN KEY (id_business) REFERENCES businesses(id_business),
                               CONSTRAINT fk_appointment_client
@@ -341,7 +361,11 @@ CREATE TABLE appointments (
                               CONSTRAINT fk_appointment_status
                                   FOREIGN KEY (id_status) REFERENCES appointment_statuses(id_status),
                               CONSTRAINT chk_appointment_times
-                                  CHECK (start_datetime < end_datetime)
+                                  CHECK (start_datetime < end_datetime),
+                              CONSTRAINT uq_appointment_active_slot
+                                  UNIQUE (active_slot_key),
+                              CONSTRAINT uq_appointment_active_booth_slot
+                                  UNIQUE (active_booth_slot_key)
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
