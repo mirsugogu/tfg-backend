@@ -533,18 +533,19 @@ INSERT INTO businesses (name, slug, email, appointment_interval)
 VALUES ('Otro', 'otro', 'otro@optima.com', 30);
 
 -- u1: Admin Demo (identidad)
+-- Password seed: "12345678". Cada usuario lleva su PROPIO hash BCrypt (salt
+-- distinto) para que crackear uno no comprometa los demas.
 INSERT INTO users (full_name, email, password_hash)
 VALUES ('Admin Demo', 'admin@optima.com',
-        '$2a$10$XLihaXA2hZhv9fmi1KkYHewNFyhdnAexajF2fDQS9TZSa3a1gke4q');
+        '$2a$10$PqBj6CFmvPqwYJetBkVQA.w062mh3mrb2DxF78lIQj2dI/XqjptI.');
 -- m1: Admin Demo en business 1 con rol ADMIN
 INSERT INTO memberships (id_user, id_business, id_role) VALUES (1, 1, 1);
 
--- u2: Empleado Demo (mismo password "12345678", mismo hash BCrypt;
--- el salt va embebido en el hash). Sirve para probar el rol EMPLOYEE
--- en la coleccion Postman.
+-- u2: Empleado Demo (mismo password "12345678" pero salt distinto). Sirve
+-- para probar el rol EMPLOYEE en la coleccion Postman.
 INSERT INTO users (full_name, email, password_hash)
 VALUES ('Empleado Demo', 'empleado@optima.com',
-        '$2a$10$XLihaXA2hZhv9fmi1KkYHewNFyhdnAexajF2fDQS9TZSa3a1gke4q');
+        '$2a$10$fCI9ZhcMUj5Z.fmPX2nZ7.SrSn22K42fxU8dvf8GCm8NUDoGud8xq');
 -- m2: Empleado Demo en business 1 con rol EMPLOYEE
 INSERT INTO memberships (id_user, id_business, id_role) VALUES (2, 1, 2);
 
@@ -559,14 +560,14 @@ VALUES (2, 'Cliente Ajeno Seed', TRUE);
 -- ============================================================
 
 -- ------------------------------------------------------------
--- 2 empleados mas (mismo password "12345678", mismo hash BCrypt).
+-- 2 empleados mas (mismo password "12345678" pero hash distinto cada uno).
 -- [v16 membership] Cada user va seguido de su membership con (b1, role
 -- EMPLOYEE) para mantener la coincidencia 1:1 user_id <-> membership_id.
 -- ------------------------------------------------------------
 -- u3: Maria
 INSERT INTO users (full_name, email, password_hash, phone)
 VALUES ('Maria Garcia', 'maria@optima.com',
-        '$2a$10$XLihaXA2hZhv9fmi1KkYHewNFyhdnAexajF2fDQS9TZSa3a1gke4q',
+        '$2a$10$Gs/mSNCqSc5puTJzCA0NIe23YqUEJtCG/YZ4WVep9L9SZZTb.DSy6',
         '600111001');
 -- m3: Maria en business 1 con rol EMPLOYEE
 INSERT INTO memberships (id_user, id_business, id_role) VALUES (3, 1, 2);
@@ -574,7 +575,7 @@ INSERT INTO memberships (id_user, id_business, id_role) VALUES (3, 1, 2);
 -- u4: Carlos
 INSERT INTO users (full_name, email, password_hash, phone)
 VALUES ('Carlos Lopez', 'carlos@optima.com',
-        '$2a$10$XLihaXA2hZhv9fmi1KkYHewNFyhdnAexajF2fDQS9TZSa3a1gke4q',
+        '$2a$10$zBo7AGlqJF08rLwjLaUXV.D4aAFyFjwhutIlrPes6lVaJmbrvSP1u',
         '600111002');
 -- m4: Carlos en business 1 con rol EMPLOYEE
 INSERT INTO memberships (id_user, id_business, id_role) VALUES (4, 1, 2);
