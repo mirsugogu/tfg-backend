@@ -3,6 +3,7 @@ package com.optima.api.common.exception;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -40,6 +41,7 @@ import java.util.stream.Collectors;
  *   ConstraintViolationException           -> 400 (validacion path/query params)
  *   MissingServletRequestParameterException-> 400 (query param obligatorio ausente)
  *   MethodArgumentTypeMismatchException    -> 400 (path/query param con tipo erroneo)
+ *   PropertyReferenceException             -> 400 (sort=campoInexistente)
  *   HttpMessageNotReadableException        -> 400 (JSON malformado en body)
  *   HttpMediaTypeNotSupportedException     -> 415 (Content-Type no soportado)
  *   HttpRequestMethodNotSupportedException -> 405 (metodo HTTP no soportado)
@@ -131,6 +133,21 @@ public class GlobalExceptionHandler {
         return new ErrorResponse(400, "Bad Request",
             "El parámetro '" + ex.getName() + "' tiene un tipo incorrecto. Se esperaba "
                 + expected,
+            Instant.now().toString());
+    }
+
+    /**
+     * Captura ordenacion sobre un campo que no existe en la entidad.
+     * Spring Data lanza PropertyReferenceException al resolver Pageable
+     * con un sort=nombreCampoInvalido. Sin este handler, cae al catch-all
+     * y devuelve 500 — pero es input del cliente, debe ser 400.
+     */
+    @ExceptionHandler(PropertyReferenceException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handlePropertyReference(PropertyReferenceException ex) {
+        log.warn("Campo de ordenacion invalido: {}", ex.getPropertyName());
+        return new ErrorResponse(400, "Bad Request",
+            "El campo de ordenación '" + ex.getPropertyName() + "' no es válido",
             Instant.now().toString());
     }
 
