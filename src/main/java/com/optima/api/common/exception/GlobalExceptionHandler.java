@@ -2,6 +2,7 @@ package com.optima.api.common.exception;
 
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.convert.ConversionFailedException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
@@ -42,6 +43,8 @@ import java.util.stream.Collectors;
  *   MissingServletRequestParameterException-> 400 (query param obligatorio ausente)
  *   MethodArgumentTypeMismatchException    -> 400 (path/query param con tipo erroneo)
  *   PropertyReferenceException             -> 400 (sort=campoInexistente)
+ *   NumberFormatException                  -> 400 (parsing numerico fallido)
+ *   ConversionFailedException              -> 400 (conversion de tipo fallida)
  *   HttpMessageNotReadableException        -> 400 (JSON malformado en body)
  *   HttpMediaTypeNotSupportedException     -> 415 (Content-Type no soportado)
  *   HttpRequestMethodNotSupportedException -> 405 (metodo HTTP no soportado)
@@ -148,6 +151,25 @@ public class GlobalExceptionHandler {
         log.warn("Campo de ordenacion invalido: {}", ex.getPropertyName());
         return new ErrorResponse(400, "Bad Request",
             "El campo de ordenación '" + ex.getPropertyName() + "' no es válido",
+            Instant.now().toString());
+    }
+
+    /**
+     * Captura fallos de parseo numerico en query/path params. El caso
+     * tipico: GET /availability?serviceIds=, manda un elemento vacio que
+     * Spring intenta convertir a Long y NumberFormatException sube sin
+     * traducirse — el catch-all devuelve 500 cuando es un 400 claro.
+     *
+     * ConversionFailedException cubre el mismo escenario cuando el
+     * fallo ocurre en el ConversionService de Spring (envuelve el
+     * NumberFormatException). Ambos -> 400.
+     */
+    @ExceptionHandler({NumberFormatException.class, ConversionFailedException.class})
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleConversion(Exception ex) {
+        log.warn("Conversion de parametro fallida: {}", ex.getMessage());
+        return new ErrorResponse(400, "Bad Request",
+            "Uno o más parámetros tienen un formato incorrecto",
             Instant.now().toString());
     }
 
