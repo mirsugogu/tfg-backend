@@ -141,7 +141,10 @@ class AuthServiceTest {
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
 
-        verify(passwordEncoder, never()).matches(anyString(), anyString());
+        // Defensa contra timing oracle: BCrypt debe ejecutarse aunque el
+        // usuario no exista para igualar latencia con la rama de password
+        // incorrecto y bloquear la enumeracion de emails.
+        verify(passwordEncoder).matches(anyString(), anyString());
         verify(jwtUtil, never()).generateTenantToken(anyString(), anyLong(), anyLong(), anyString());
         verify(jwtUtil, never()).generateIdentityToken(anyString(), anyLong());
     }
