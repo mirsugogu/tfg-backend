@@ -82,10 +82,10 @@ public class AppointmentService {
      *
      * QUE HACE EN UNA FRASE:
      * Recibe (clientId, membershipId, serviceIds[], boothId?, startDateTime, notes?),
-     * aplica 14 validaciones, persiste la cita en estado PENDING y crea un
+     * aplica 16 validaciones, persiste la cita en estado PENDING y crea un
      * BookedService por cada servicio congelando precio y porcentaje de impuesto.
      *
-     * Pasos (15 validaciones encadenadas):
+     * Pasos (16 validaciones encadenadas):
      *    1. Verifica que el negocio existe (404 si no).
      *   1b. Negocio debe estar activo (400 si esta desactivado).
      *    2. Cross-tenant: cliente pertenece a este negocio (404 si no).
@@ -96,6 +96,8 @@ public class AppointmentService {
      *    7. Cross-tenant: cada servicio pertenece al negocio (404 si no).
      *    8. Cada servicio debe estar activo (400 si esta desactivado).
      *    9. Calcula endDateTime sumando duraciones de los servicios.
+     *   9b. La cita cae en el horario de apertura del negocio (400 si el
+     *       negocio esta cerrado ese dia o si la cita no encaja).
      *   10. La cita encaja en el horario del empleado (400 si no o
      *       si cruza medianoche).
      *   11. No solapa con otra cita activa del empleado (409 si si).
@@ -211,6 +213,16 @@ public class AppointmentService {
                 .sum();
 
         LocalDateTime endDateTime = request.startDateTime().plusMinutes(totalMinutes);
+
+        // 6b. Validar que la cita cae dentro del horario de apertura del negocio
+        //     (restriccion mas general: si el negocio esta cerrado, no se acepta
+        //     cita aunque el empleado tenga schedule ese dia). Coherente con
+        //     GET /availability (que devuelve [] cuando el negocio esta cerrado).
+        validator.validateBusinessHours(
+                businessId,
+                request.startDateTime(),
+                endDateTime
+        );
 
         // 7. Validar que la cita cae dentro del horario del empleado
         //    (ahora sí tenemos endDateTime calculado)

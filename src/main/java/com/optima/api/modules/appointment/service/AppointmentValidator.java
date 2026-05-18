@@ -1,7 +1,9 @@
 package com.optima.api.modules.appointment.service;
 
 import com.optima.api.modules.appointment.repository.AppointmentRepository;
+import com.optima.api.modules.business.model.BusinessHour;
 import com.optima.api.modules.business.model.ScheduleBlock;
+import com.optima.api.modules.business.repository.BusinessHourRepository;
 import com.optima.api.modules.business.repository.ScheduleBlockRepository;
 import com.optima.api.modules.user.model.EmployeeAbsence;
 import com.optima.api.modules.user.model.EmployeeSchedule;
@@ -16,6 +18,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -38,8 +41,10 @@ import java.util.Set;
  * id de la membership (pertenencia usuario-negocio). El nombre externo se
  * mantiene por compatibilidad con la API; internamente es membershipId.
  *
- * 7 validaciones publicas (en orden de invocacion tipica):
+ * 8 validaciones publicas (en orden de invocacion tipica):
  *   validateAppointmentInterval  400 si la hora no es multiplo del intervalo.
+ *   validateBusinessHours        400 si el negocio esta cerrado ese dia o
+ *                                la cita no cabe en su horario de apertura.
  *   validateEmployeeSchedule     400 si la cita cae fuera del horario del
  *                                empleado o cruza medianoche.
  *   validateNoOverlap            409 si solapa con otra cita activa del
@@ -61,6 +66,7 @@ public class AppointmentValidator {
     private final EmployeeScheduleRepository scheduleRepository;
     private final EmployeeAbsenceRepository absenceRepository;
     private final ScheduleBlockRepository scheduleBlockRepository;
+    private final BusinessHourRepository businessHourRepository;
 
     /**
      * Mapa que define las transiciones de estado permitidas.
@@ -245,6 +251,50 @@ public class AppointmentValidator {
                     HttpStatus.BAD_REQUEST,
                     "La hora de inicio debe ser múltiplo de "
                             + interval + " minutos"
+            );
+        }
+    }
+
+    /**
+     * Comprueba que la cita cae dentro del horario de apertura del negocio
+     * para ese dia de la semana.
+     *
+     * Politica (misma que AvailabilityService al generar slots, para que
+     * GET /availability y POST /appointments sean coherentes):
+     *   - Si no existe fila business_hours para ese dia -> cerrado implicito.
+     *   - Si is_closed=true -> cerrado.
+     *   - Si abierto -> [startDateTime, endDateTime] debe caber dentro de
+     *     [start_time, end_time].
+     *
+     * En cualquier caso de violacion se devuelve 400 con un mensaje generico
+     * "El negocio está cerrado en ese día y horario" (no se revelan detalles
+     * del horario configurado).
+     */
+    public void validateBusinessHours(Long businessId,
+                                      LocalDateTime startDateTime,
+                                      LocalDateTime endDateTime) {
+        int dayOfWeek = startDateTime.getDayOfWeek().getValue();
+        Optional<BusinessHour> hoursOpt =
+                businessHourRepository.findByBusinessIdAndDayOfWeek(businessId, dayOfWeek);
+
+        if (hoursOpt.isEmpty() || Boolean.TRUE.equals(hoursOpt.get().getIsClosed())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El negocio está cerrado en ese día y horario"
+            );
+        }
+
+        BusinessHour hours = hoursOpt.get();
+        LocalTime appointmentStart = startDateTime.toLocalTime();
+        LocalTime appointmentEnd = endDateTime.toLocalTime();
+
+        boolean fits = !appointmentStart.isBefore(hours.getStartTime())
+                && !appointmentEnd.isAfter(hours.getEndTime());
+
+        if (!fits) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El negocio está cerrado en ese día y horario"
             );
         }
     }
