@@ -392,12 +392,16 @@ public class AppointmentService {
                                 + " en el negocio con ID: " + businessId
                 ));
 
-        // 2. Buscar el nuevo estado por nombre
+        // 2. Buscar el nuevo estado por nombre. Un nombre que no existe es
+        //    input invalido del cliente (no un recurso ausente del catalogo),
+        //    por eso 400 BAD_REQUEST con la lista completa de estados validos.
         AppointmentStatus newStatus = statusRepository
                 .findByName(request.statusName())
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "No se encontró el estado con nombre: " + request.statusName()
+                        HttpStatus.BAD_REQUEST,
+                        "El estado '" + request.statusName() + "' no es válido. "
+                                + "Estados permitidos: PENDING, CONFIRMED, IN_PROGRESS, "
+                                + "COMPLETED, CANCELLED, NO_SHOW"
                 ));
 
         // 3. Validar que la transición es permitida
