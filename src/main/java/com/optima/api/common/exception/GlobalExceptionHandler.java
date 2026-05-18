@@ -1,5 +1,6 @@
 package com.optima.api.common.exception;
 
+import com.optima.api.common.json.StrictLocalDateTimeDeserializer.TimezoneNotAllowedException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.convert.ConversionFailedException;
@@ -177,10 +178,20 @@ public class GlobalExceptionHandler {
      * Captura JSON malformado o body ilegible en @RequestBody. Sin este
      * handler, el catch-all devuelve 500 cuando el cliente manda un JSON
      * incorrecto, que es claramente un error de input del cliente (400).
+     *
+     * Caso especial: si la causa es {@link TimezoneNotAllowedException}
+     * (LocalDateTime con sufijo Z u offset), surface ese mensaje
+     * especifico para que el frontend sepa exactamente como corregir.
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleUnreadableBody(HttpMessageNotReadableException ex) {
+        Throwable cause = ex.getCause();
+        if (cause instanceof TimezoneNotAllowedException tz) {
+            return new ErrorResponse(400, "Bad Request",
+                tz.getOriginalMessage(),
+                Instant.now().toString());
+        }
         return new ErrorResponse(400, "Bad Request",
             "Cuerpo de la petición inválido o malformado (JSON incorrecto o vacío)",
             Instant.now().toString());
