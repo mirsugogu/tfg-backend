@@ -29,7 +29,7 @@ import java.time.LocalDateTime;
  * vuelve a hashear y busca por hash. Si existe, no caduco y no se uso,
  * se permite el cambio de password.
  *
- * Mapea a la tabla password_resets (docs/schema_v18.sql):
+ * Mapea a la tabla password_resets (docs/schema_v20.sql):
  *   id_reset (PK)
  *   id_user (FK -> users, CASCADE)
  *   token_hash (UNIQUE) - SHA-256(rawToken) en hex

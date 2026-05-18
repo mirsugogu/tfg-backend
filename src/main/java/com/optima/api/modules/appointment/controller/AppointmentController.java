@@ -25,21 +25,23 @@ import java.time.LocalDate;
  * - Recibe: CRUD HTTP de citas. Requiere JWT (todos los endpoints).
  * - Le precede: JwtAuthFilter + TenantGuardFilter (cross-tenant via path).
  * - Llama a: AppointmentService (delega TODA la logica, incluidas las
- *   12 validaciones encadenadas en createAppointment).
+ *   14 validaciones encadenadas en createAppointment).
  * - Devuelve: AppointmentResponse (incluye lista de bookedServices con
  *   precios e impuestos congelados).
  *
  * Permisos:
- *   NINGUN endpoint tiene @PreAuthorize. Es INTENCIONAL: en el modelo
- *   "Scenario A", AMBOS roles ADMIN y EMPLOYEE pueden gestionar citas
- *   (es operativa diaria, no configuracion). Si solo el ADMIN pudiera
- *   agendar, los empleados no podrian gestionar a sus clientes.
+ *   NINGUN endpoint tiene @PreAuthorize. Es INTENCIONAL: AMBOS roles
+ *   ADMIN y EMPLOYEE pueden gestionar citas (operativa diaria, no
+ *   configuracion). Si solo el ADMIN pudiera agendar, los empleados
+ *   no podrian gestionar a sus clientes.
  *
  * Endpoints:
  *   POST   .../appointments              crear cita.
- *   GET    .../appointments              listar todas las del negocio.
+ *   GET    .../appointments              busqueda paginada con filtros
+ *                                          (from, to, membershipId).
  *   GET    .../appointments/{id}         detalle.
  *   PATCH  .../appointments/{id}/status  cambiar estado.
+ *   PATCH  .../appointments/{id}/payment marcar pagada / no pagada.
  *
  * NO hay PUT ni DELETE: una cita una vez creada solo cambia de estado
  * (la maquina de estados vive en AppointmentValidator.validateStatusTransition).
@@ -55,12 +57,13 @@ public class AppointmentController {
     /**
      * POST /api/businesses/{businessId}/appointments - Crea una cita.
      * El businessId se toma del path; el body trae cliente, empleado,
-     * servicios y horario.
+     * servicios, cabina opcional y horario.
      *
-     * AppointmentService aplica ~12 validaciones encadenadas: negocio
+     * AppointmentService aplica 14 validaciones encadenadas: negocio
      * existe, cliente/empleado/servicios activos del negocio, intervalo
      * respetado, empleado trabaja ese dia, no cruza medianoche, no
-     * solapa con otra cita activa, estado PENDING existe.
+     * solapa con otra cita activa, cabina (si la lleva) activa y libre,
+     * no choca con bloqueos de agenda, estado PENDING existe.
      * Estado inicial: PENDING. Devuelve la cita creada con bookedServices.
      */
     @PostMapping

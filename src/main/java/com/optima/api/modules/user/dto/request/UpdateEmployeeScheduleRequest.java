@@ -7,7 +7,8 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalTime;
 
 /**
- * DTO de entrada para actualizar un tramo del horario de un empleado.
+ * UpdateEmployeeScheduleRequest - DTO de entrada para actualizar un tramo
+ * del horario de un empleado.
  *
  * Mismo contrato que CreateEmployeeScheduleRequest.
  *

@@ -4,6 +4,7 @@ import com.optima.api.modules.user.model.EmployeeSchedule;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,4 +47,16 @@ public interface EmployeeScheduleRepository extends JpaRepository<EmployeeSchedu
      * a la membership dada.
      */
     Optional<EmployeeSchedule> findByIdAndMembershipId(Long id, Long membershipId);
+
+    /**
+     * Carga en UNA query todos los tramos de la lista de empleados para un
+     * dia de la semana. Sustituye el patron N+1 de
+     * findAllByMembershipIdAndDayOfWeek dentro de un bucle. La usa
+     * AvailabilityService al construir slots para todos los empleados
+     * candidatos del negocio.
+     *
+     * El caller agrupa por membershipId en memoria (Map).
+     */
+    List<EmployeeSchedule> findAllByMembershipIdInAndDayOfWeek(Collection<Long> membershipIds,
+                                                               Integer dayOfWeek);
 }

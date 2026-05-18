@@ -42,14 +42,10 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, Lo
      * Devuelve los bloqueos aplicables a una cita concreta: misma fecha y
      * que afecten al negocio segun los tres tipos de bloqueo:
      *   - global: membership NULL Y booth NULL,
-     *   - por empleado: membership.id = :membershipId (membership id),
+     *   - por empleado: membership.id = :membershipId,
      *   - por cabina: booth.id = :boothId (solo si la cita lleva cabina;
      *     el caller pasa :boothId=null para citas sin cabina y la clausula
      *     se desactiva sola gracias al "b.booth IS NOT NULL AND ...").
-     *
-     * [v16 membership] El parametro externo se sigue llamando `membershipId`
-     * por compatibilidad con la nomenclatura del AppointmentValidator;
-     * el valor pasado es el id de la membership.
      *
      * Devuelve LIST (no boolean) porque queremos el `reason` del primero
      * para mostrarlo en el mensaje del 409.

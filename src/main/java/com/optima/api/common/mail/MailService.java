@@ -9,9 +9,9 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 /**
- * Servicio transversal de envio de correo. Envuelve JavaMailSender
- * (autoconfigurado por Spring Boot leyendo spring.mail.* de
- * application.properties) para que el resto del proyecto pueda
+ * MailService - Servicio transversal de envio de correo. Envuelve
+ * JavaMailSender (autoconfigurado por Spring Boot leyendo spring.mail.*
+ * de application.properties) para que el resto del proyecto pueda
  * mandar emails sin tocar la API de bajo nivel.
  *
  * Es best-effort: si el envio falla (Gmail caido, credenciales

@@ -7,7 +7,8 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalTime;
 
 /**
- * DTO de entrada para crear un tramo del horario semanal de un empleado.
+ * CreateEmployeeScheduleRequest - DTO de entrada para crear un tramo del
+ * horario semanal de un empleado.
  * El businessId y el userId vienen del path, no del body.
  * Un empleado puede tener varios tramos en un mismo día (turnos partidos),
  * por eso no validamos unicidad por (userId, dayOfWeek).

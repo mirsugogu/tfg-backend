@@ -31,7 +31,11 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * AvailabilityService - Calcula los huecos libres del negocio para una
@@ -153,20 +157,41 @@ public class AvailabilityService {
                 appointmentRepository.findActiveByBusinessAndDay(
                         businessId, dayWindowStart, dayWindowEnd);
 
-        // 8) Recorrer memberships (empleados) y construir slots
+        // 8) Recorrer memberships (empleados) y construir slots.
+        //    Precarga batch (anti-N+1): UNA query a employee_schedules y UNA
+        //    a employee_absences para TODOS los empleados candidatos, en vez
+        //    de N+N dentro del bucle. Agrupamos por membershipId con
+        //    Collectors.groupingBy y luego leemos del Map dentro del for.
         int interval = business.getAppointmentInterval();
         List<AvailabilitySlotResponse> slots = new ArrayList<>();
+
+        List<Long> candidateIds = candidates.stream()
+                .map(Membership::getId)
+                .toList();
+
+        Map<Long, List<EmployeeSchedule>> schedulesByEmp = candidateIds.isEmpty()
+                ? Map.of()
+                : scheduleRepository
+                        .findAllByMembershipIdInAndDayOfWeek(candidateIds, dayOfWeek)
+                        .stream()
+                        .collect(Collectors.groupingBy(s -> s.getMembership().getId()));
+
+        Map<Long, List<EmployeeAbsence>> absencesByEmp = candidateIds.isEmpty()
+                ? Map.of()
+                : absenceRepository
+                        .findOverlappingForDayBatch(candidateIds, dayWindowStart, dayWindowEnd)
+                        .stream()
+                        .collect(Collectors.groupingBy(a -> a.getMembership().getId()));
 
         for (Membership emp : candidates) {
             if (blockedEmployeeIds.contains(emp.getId())) continue;
 
             List<EmployeeSchedule> ranges =
-                    scheduleRepository.findAllByMembershipIdAndDayOfWeek(emp.getId(), dayOfWeek);
+                    schedulesByEmp.getOrDefault(emp.getId(), List.of());
             if (ranges.isEmpty()) continue;
 
             List<EmployeeAbsence> absences =
-                    absenceRepository.findOverlappingForDay(
-                            emp.getId(), dayWindowStart, dayWindowEnd);
+                    absencesByEmp.getOrDefault(emp.getId(), List.of());
 
             List<Appointment> empAppts = activeAppointments.stream()
                     .filter(a -> a.getMembership().getId().equals(emp.getId()))
@@ -199,19 +224,33 @@ public class AvailabilityService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Debe indicar al menos un servicio");
         }
-        int total = 0;
-        for (Long sid : serviceIds) {
-            BusinessService s = serviceRepository.findByIdAndBusinessId(sid, businessId)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                            "No se encontró el servicio con ID: " + sid
-                                    + " en el negocio con ID: " + businessId));
+        // Una sola query para todos los servicios del request (anti-N+1).
+        // De-duplicamos por si el caller mando el mismo serviceId repetido:
+        // contaria duracion doble y devolveria size desigual aunque todos
+        // existan.
+        Set<Long> uniqueIds = new HashSet<>(serviceIds);
+        List<BusinessService> services =
+                serviceRepository.findAllByIdInAndBusinessId(uniqueIds, businessId);
+
+        if (services.size() != uniqueIds.size()) {
+            Set<Long> found = services.stream()
+                    .map(BusinessService::getId)
+                    .collect(Collectors.toSet());
+            Long missing = uniqueIds.stream()
+                    .filter(id -> !found.contains(id))
+                    .findFirst()
+                    .orElseThrow();
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "No se encontró el servicio con ID: " + missing
+                            + " en el negocio con ID: " + businessId);
+        }
+        for (BusinessService s : services) {
             if (!s.getIsActive()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "El servicio con ID: " + sid + " está desactivado");
+                        "El servicio con ID: " + s.getId() + " está desactivado");
             }
-            total += s.getDurationMinutes();
         }
-        return total;
+        return services.stream().mapToInt(BusinessService::getDurationMinutes).sum();
     }
 
     private List<Membership> resolveEmployeeCandidates(Long businessId, Long membershipId) {

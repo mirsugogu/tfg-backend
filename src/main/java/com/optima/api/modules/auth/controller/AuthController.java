@@ -24,20 +24,25 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * AuthController - Punto de entrada HTTP del modulo de autenticacion.
  *
- * [v16 membership] Tres endpoints publicos para el ciclo identidad/negocio:
- *   - POST /api/auth/register          auto-registro de negocio (publico).
- *   - POST /api/auth/token             login email+password (publico).
+ * 5 endpoints (3 del ciclo identidad/negocio v16 + 2 del reset de password v17):
+ *   - POST /api/auth/register          auto-registro de negocio.
+ *   - POST /api/auth/token             login email+password.
  *   - POST /api/auth/select-business/{businessId}  con identity JWT.
+ *   - POST /api/auth/forgot-password   inicia reset por email (v17).
+ *   - POST /api/auth/reset-password    aplica nueva password con token (v17).
  *
  * COMUNICACION:
  * - Recibe peticiones desde frontend/Postman.
- * - Llama a: AuthService.register() / login() / selectBusiness().
- * - Devuelve: TokenResponse (tenant o identity).
+ * - Llama a:
+ *     AuthService.register() / login() / selectBusiness().
+ *     PasswordResetService.requestReset() / consumeReset() (v17).
+ * - Devuelve: TokenResponse (tenant o identity) en register/token/select-business;
+ *   204 No Content en forgot/reset-password.
  *
- * SecurityConfig: /register y /token son permitAll;
- * /select-business/** requiere JWT valido (identity o tenant — el endpoint
- * lo acepta para que un usuario ya con tenant token pueda cambiar de
- * negocio sin re-login).
+ * SecurityConfig: /register, /token, /forgot-password y /reset-password son
+ * permitAll. /select-business/** requiere JWT valido (identity o tenant — el
+ * endpoint lo acepta para que un usuario ya con tenant token pueda cambiar
+ * de negocio sin re-login).
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -106,7 +111,7 @@ public class AuthController {
      * en el sistema (anti-enumeration). Si el email existe, el usuario
      * recibe un correo con un token de 1h de validez.
      *
-     * Permisos: publico (sin JWT). RateLimitFilter aplica 3 intentos
+     * Permisos: publico (sin JWT). RateLimitFilter aplica 10 intentos
      * por hora por IP para evitar spam de correos.
      */
     @PostMapping("/forgot-password")

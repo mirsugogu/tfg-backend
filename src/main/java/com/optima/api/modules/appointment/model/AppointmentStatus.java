@@ -26,6 +26,9 @@ import lombok.Setter;
  * Las transiciones validas estan codificadas en
  * AppointmentValidator.VALID_TRANSITIONS (mapa estatico). NO se modela
  * en BD porque el set es pequeno y estable.
+ *
+ * Mapea a la tabla `appointment_statuses` (docs/schema_v20.sql, catalogo
+ * global seedeado al arrancar). UNIQUE(name) impide duplicados.
  */
 @Entity
 @Table(name = "appointment_statuses")

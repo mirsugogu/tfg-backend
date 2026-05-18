@@ -19,7 +19,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Capa de lógica de negocio para las ausencias puntuales de empleados.
+ * EmployeeAbsenceService - Capa de lógica de negocio para las ausencias
+ * puntuales de empleados.
  * No usa soft delete: una ausencia se cancela borrándola.
  *
  * Doble comprobación cross-tenant: cada operación valida que la membership

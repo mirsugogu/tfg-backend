@@ -20,8 +20,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * SecurityConfig - Centraliza TODA la configuracion de Spring Security.
@@ -34,8 +38,8 @@ import java.time.Instant;
  *
  * COMUNICACION:
  * - Lo carga Spring Boot al arrancar (estereotipo @Configuration).
- * - Le inyecta: JwtAuthenticationFilter y TenantGuardFilter (ambos beans
- *   creados con @Component) para encadenarlos en el filter chain.
+ * - Le inyecta: RateLimitFilter, JwtAuthenticationFilter y TenantGuardFilter
+ *   (los tres son beans @Component) para encadenarlos en el filter chain.
  * - Sus beans los inyectan: AuthService (PasswordEncoder).
  *
  * Anotaciones:
@@ -55,16 +59,24 @@ public class SecurityConfig {
     private final RateLimitFilter rateLimitFilter;
 
     /**
+     * ObjectMapper compartido por las lambdas de entryPoint y accessDeniedHandler.
+     * Instanciado UNA vez al construir el bean (singleton), no por request.
+     * Coherente con el patron de TenantGuardFilter y RateLimitFilter, que tambien
+     * declaran el ObjectMapper como field final. Jackson es thread-safe.
+     */
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /**
      * Configura el filter chain HTTP - el corazon de la seguridad.
      *
      * Decisiones (de arriba abajo):
      *   csrf().disable()           API REST sin sesiones, no aplica CSRF.
-     *   cors(withDefaults())       delega CORS al CorsConfigurationSource
-     *                              que provee WebConfig. Sin esta linea,
-     *                              los preflight OPTIONS de browsers
-     *                              recibirian 401 antes de llegar a MVC.
-     *                              Imprescindible cuando hay frontend en
-     *                              browser haciendo POST/PUT/DELETE.
+     *   cors(withDefaults())       delega CORS al bean CorsConfigurationSource
+     *                              definido mas abajo en esta misma clase.
+     *                              Sin esta linea, los preflight OPTIONS de
+     *                              browsers recibirian 401 antes de llegar
+     *                              a MVC. Imprescindible cuando hay frontend
+     *                              en browser haciendo POST/PUT/DELETE.
      *   STATELESS                  no se crean HttpSession; cada request
      *                              se autentica con su JWT.
      *   authenticationEntryPoint   cuando una ruta autenticada no trae
@@ -76,11 +88,20 @@ public class SecurityConfig {
      *                              GlobalExceptionHandler.)
      *   permitAll endpoints        rutas publicas (sin JWT):
      *                                POST /api/auth/token (login)
+     *                                POST /api/auth/register (alta de negocio)
+     *                                POST /api/auth/forgot-password
+     *                                POST /api/auth/reset-password
      *                                GET /api/roles (catalogo)
      *                                GET /api/appointment-statuses/** (catalogo)
+     *                                GET /swagger-ui.html, /swagger-ui/**,
+     *                                    /v3/api-docs(/**) (documentacion)
      *   anyRequest().authenticated todo lo demas requiere JWT valido.
-     *   addFilterBefore JwtAuth    antes de UsernamePasswordAuthFilter.
-     *   addFilterAfter TenantGuard despues de JwtAuth (necesita el principal).
+     *   Orden de filtros            RateLimit -> JwtAuth -> TenantGuard.
+     *                              RateLimit corre el primero (addFilterBefore
+     *                              UsernamePasswordAuthFilter) para frenar
+     *                              fuerza bruta antes de gastar capacidad de
+     *                              parseo JWT. JwtAuth va detras. TenantGuard
+     *                              cierra (necesita el AuthPrincipal del JWT).
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -94,19 +115,19 @@ public class SecurityConfig {
                     res.setStatus(HttpStatus.UNAUTHORIZED.value());
                     res.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     ErrorResponse body = new ErrorResponse(
-                            401, "401 UNAUTHORIZED",
+                            401, HttpStatus.UNAUTHORIZED.getReasonPhrase(),
                             "Token requerido o invalido",
                             Instant.now().toString());
-                    new ObjectMapper().writeValue(res.getOutputStream(), body);
+                    objectMapper.writeValue(res.getOutputStream(), body);
                 })
                 .accessDeniedHandler((req, res, ex) -> {
                     res.setStatus(HttpStatus.FORBIDDEN.value());
                     res.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     ErrorResponse body = new ErrorResponse(
-                            403, "403 FORBIDDEN",
+                            403, HttpStatus.FORBIDDEN.getReasonPhrase(),
                             "No tienes permisos suficientes para esta operacion",
                             Instant.now().toString());
-                    new ObjectMapper().writeValue(res.getOutputStream(), body);
+                    objectMapper.writeValue(res.getOutputStream(), body);
                 })
             )
             .authorizeHttpRequests(auth -> auth
@@ -134,6 +155,43 @@ public class SecurityConfig {
             .addFilterAfter(jwtAuthenticationFilter, RateLimitFilter.class)
             .addFilterAfter(tenantGuardFilter, JwtAuthenticationFilter.class);
         return http.build();
+    }
+
+    /**
+     * Bean CorsConfigurationSource - reglas CORS aplicadas por Spring Security.
+     *
+     * El .cors(Customizer.withDefaults()) del filterChain BUSCA un bean de
+     * este tipo y lo aplica desde dentro de la cadena de filtros. Sin este
+     * bean, los defaults de Spring Security son "no allowedOrigins", asi que
+     * los preflight OPTIONS de browsers se bloquearian antes de llegar a MVC.
+     *
+     * Antes (commit 6afcb91 "cablear CORS al SecurityFilterChain") las reglas
+     * vivian en WebConfig.addCorsMappings, pero esa via solo aplica al
+     * dispatcher MVC, no a la cadena de Security. Ahora SecurityConfig es la
+     * unica fuente de verdad y WebConfig deja de existir.
+     *
+     * Decisiones:
+     *   allowedOrigins("*")       acceso desde cualquier origen; aceptable
+     *                             porque allowCredentials=false (no se envia
+     *                             el JWT ni cookies cross-origin de forma
+     *                             implicita). Si el frontend necesitara
+     *                             cookies, habria que enumerar origenes
+     *                             concretos.
+     *   allowedMethods            verbos REST que el API expone.
+     *   allowedHeaders("*")       el cliente puede mandar cualquier header
+     *                             (Content-Type, Authorization).
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(List.of("*"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(false);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", config);
+        return source;
     }
 
     /**

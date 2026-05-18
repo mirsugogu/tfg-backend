@@ -47,13 +47,14 @@ public class ServiceCategoryService {
      *   2. Verifica que el negocio existe (404).
      *   3. Persiste la entidad con isActive=true por defecto.
      *
-     * @param businessId barrera multi-tenant: TODO se valida contra este id.
+     * @param businessId barrera multi-tenant contra la que se valida la
+     *                   unicidad del nombre.
      * @param request payload validado: name.
      * @return ServiceCategoryResponse con la entidad creada.
      */
     public ServiceCategoryResponse createCategory(Long businessId, CreateCategoryRequest request) {
 
-        // 1. Validar regla de negocio: No nombres duplicados en el mismo local
+        // 1. Validar regla de negocio: no nombres duplicados en el mismo negocio
         if (categoryRepository.existsByBusinessIdAndNameIgnoreCase(businessId, request.name())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Ya existe una categoría con ese nombre en este negocio");

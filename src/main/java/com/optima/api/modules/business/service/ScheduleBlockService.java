@@ -30,9 +30,6 @@ import org.springframework.web.server.ResponseStatusException;
  *     BoothRepository          cross-tenant de la cabina si viene.
  * - Devuelve: ScheduleBlockResponse.
  *
- * [v16 membership] El "empleado" del bloqueo es una Membership; el
- * membershipId del request es realmente el id de la membership.
- *
  * Sin soft delete: los bloqueos son eventos puntuales. Si el ADMIN se
  * equivoca, hard-delete y vuelve a crear.
  */
@@ -60,6 +57,18 @@ public class ScheduleBlockService {
         if (request.startDate().isAfter(request.endDate())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "La fecha de inicio no puede ser posterior a la de fin");
+        }
+
+        // Un bloqueo es global (ambos null), por empleado (solo membershipId)
+        // o por cabina (solo boothId). La combinacion "ambos no null" no
+        // tiene semantica definida en findApplicableBlocks; el schema v19
+        // tambien lo impone con CHECK chk_block_target, esto evita el viaje
+        // a BD con un 400 mas descriptivo.
+        if (request.membershipId() != null && request.boothId() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Un bloqueo no puede dirigirse simultaneamente a un empleado "
+                            + "y a una cabina. Indica solo uno (o ninguno para "
+                            + "bloqueo global del negocio).");
         }
 
         Membership membership = null;

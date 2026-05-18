@@ -60,7 +60,9 @@ import java.util.Optional;
  * - Lo invoca: AuthController (endpoints publicos).
  * - Llama a:
  *     UserRepository.findByEmailIgnoreCase   localizar identidad por email.
- *     PasswordResetRepository.save           persistir el hash + expires.
+ *     UserRepository.save                    persistir el nuevo passwordHash (consumeReset).
+ *     PasswordResetRepository.save           persistir el hash + expires (requestReset)
+ *                                            y marcar used_at (consumeReset).
  *     PasswordResetRepository.findByTokenHash buscar el reset al consumir.
  *     PasswordEncoder.encode                 hashear el nuevo password.
  *     MailService.sendSimpleEmail            best-effort, no bloquea.

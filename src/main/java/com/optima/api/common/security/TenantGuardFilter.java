@@ -102,7 +102,7 @@ public class TenantGuardFilter extends OncePerRequestFilter {
         response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         ErrorResponse body = new ErrorResponse(
-                403, "403 FORBIDDEN",
+                403, HttpStatus.FORBIDDEN.getReasonPhrase(),
                 message,
                 Instant.now().toString());
         objectMapper.writeValue(response.getOutputStream(), body);

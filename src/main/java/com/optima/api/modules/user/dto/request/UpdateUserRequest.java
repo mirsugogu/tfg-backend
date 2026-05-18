@@ -4,8 +4,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 /**
- * DTO de entrada para PUT /api/businesses/{businessId}/users/{id} - el
- * admin gestiona la membership de un empleado en SU negocio.
+ * UpdateUserRequest - DTO de entrada para PUT /api/businesses/{businessId}/users/{id};
+ * el admin gestiona la membership de un empleado en SU negocio.
  *
  * [v16 membership] Solo lleva roleId. Tras separar identidad (User) de
  * pertenencia (Membership), este endpoint solo gobierna la pieza local

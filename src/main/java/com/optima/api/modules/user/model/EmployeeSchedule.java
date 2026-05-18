@@ -58,12 +58,21 @@ public class EmployeeSchedule {
     @JoinColumn(name = "id_membership", nullable = false)
     private Membership membership;
 
+    /**
+     * Dia de la semana (1=lunes, 2=martes, ..., 7=domingo).
+     */
     @Column(name = "day_of_week", nullable = false)
     private Integer dayOfWeek;
 
+    /**
+     * Hora de inicio del tramo (formato HH:mm).
+     */
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;
 
+    /**
+     * Hora de fin del tramo. El service valida startTime < endTime.
+     */
     @Column(name = "end_time", nullable = false)
     private LocalTime endTime;
 }

@@ -33,6 +33,10 @@ import java.math.BigDecimal;
  *   AppointmentResponse.
  * - Tiene @ManyToOne con: Appointment (cascade ON DELETE en BD),
  *   BusinessService (catalogo del negocio).
+ *
+ * Mapea a la tabla `appointment_services` (docs/schema_v20.sql) con ON
+ * DELETE CASCADE desde `appointments`: si se borra la cita, sus
+ * BookedService desaparecen automaticamente.
  */
 @Entity
 @Table(name = "appointment_services")

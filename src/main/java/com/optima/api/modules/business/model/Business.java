@@ -28,7 +28,7 @@ import java.time.LocalDateTime;
  * - Es referenciada por: Membership, Client, Tax, Booth, BusinessHour,
  *   ScheduleBlock, ServiceCategory, BusinessService, Appointment...
  *
- * Mapea a la tabla `businesses` (docs/schema_v18.sql). slug y email
+ * Mapea a la tabla `businesses` (docs/schema_v20.sql). slug y email
  * son UNIQUE global; latitude/longitude pueden ser null si Nominatim no
  * pudo resolver la direccion.
  */

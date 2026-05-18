@@ -5,7 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * DTO de entrada para PUT /api/me - el usuario actualiza su propia identidad.
+ * UpdateMeRequest - DTO de entrada para PUT /api/me; el usuario actualiza
+ * su propia identidad.
  *
  * [v16 membership] Tras desacoplar identidad (User) de pertenencia
  * (Membership), los datos globales del usuario (fullName, email, phone)

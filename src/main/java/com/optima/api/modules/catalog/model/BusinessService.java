@@ -29,7 +29,10 @@ import java.time.LocalDateTime;
  *   activo antes de crear cita), BookedService (la referencia via FK).
  * - Tiene relaciones @ManyToOne con: Business, ServiceCategory, Tax.
  *
- * Mapea a la tabla `services` en BD.
+ * Mapea a la tabla `services` (docs/schema_v20.sql). El campo createdAt
+ * se anadio en v20 para alinear con la regla 7 del patron canonico de
+ * entidad (@PrePersist para createdAt); paralelo a la migracion v18
+ * que lo introdujo en taxes.
  */
 @Entity
 @Table(name = "services")
@@ -65,6 +68,9 @@ public class BusinessService {
     @JoinColumn(name = "id_tax", nullable = false)
     private Tax tax;
 
+    /**
+     * Nombre visible del servicio (ej. "Corte de pelo", "Tinte completo").
+     */
     @Column(name = "name", nullable = false, length = 150)
     private String name;
 
@@ -87,9 +93,32 @@ public class BusinessService {
     @Column(name = "duration_minutes", nullable = false)
     private Integer durationMinutes;
 
+    /**
+     * Flag de soft delete: false oculta el servicio del catalogo activo
+     * y lo excluye de poder reservarse en citas nuevas, pero conserva las
+     * citas historicas (BookedService) que lo referencian.
+     */
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
+    /**
+     * Fecha y hora en que se creo el servicio (rellenado por @PrePersist).
+     */
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    /**
+     * Momento de la desactivacion (null mientras el servicio este activo).
+     */
     @Column(name = "deactivated_at")
     private LocalDateTime deactivatedAt;
+
+    /**
+     * Se ejecuta automaticamente antes de hacer INSERT en la BD.
+     * Rellena la fecha de creacion con el momento actual.
+     */
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
 }

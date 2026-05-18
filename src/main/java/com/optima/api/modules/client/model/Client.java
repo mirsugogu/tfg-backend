@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
  * - Es referenciada por: Appointment.client (@ManyToOne) - cada cita
  *   apunta a un cliente.
  *
- * Mapea a la tabla `clients` (docs/schema_v18.sql). Email y telefono
+ * Mapea a la tabla `clients` (docs/schema_v20.sql). Email y telefono
  * son opcionales: dos clientes del mismo negocio pueden compartir email
  * (familias, etc.).
  */
@@ -48,12 +48,22 @@ public class Client {
     @JoinColumn(name = "id_business", nullable = false)
     private Business business;
 
+    /**
+     * Nombre completo del cliente (obligatorio).
+     */
     @Column(name = "full_name", nullable = false, length = 150)
     private String fullName;
 
+    /**
+     * Email de contacto (opcional). Dos clientes del mismo negocio pueden
+     * compartir email (familias, etc.) — no es UNIQUE.
+     */
     @Column(name = "email", length = 150)
     private String email;
 
+    /**
+     * Teléfono de contacto (opcional).
+     */
     @Column(name = "phone", length = 20)
     private String phone;
 
@@ -64,12 +74,23 @@ public class Client {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    /**
+     * Flag de soft delete: false oculta al cliente del listado activo y lo
+     * excluye de poder reservar citas nuevas, pero conserva las citas
+     * historicas que lo referencian.
+     */
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
+    /**
+     * Fecha y hora en que se creo el cliente (rellenado por @PrePersist).
+     */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /**
+     * Momento de la desactivacion (null mientras el cliente este activo).
+     */
     @Column(name = "deactivated_at")
     private LocalDateTime deactivatedAt;
 

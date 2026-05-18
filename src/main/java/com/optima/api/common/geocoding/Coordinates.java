@@ -26,10 +26,10 @@ import java.math.BigDecimal;
  */
 public record Coordinates(BigDecimal latitude, BigDecimal longitude) {
 
-    private static final BigDecimal MIN_LAT = new BigDecimal("-90");
-    private static final BigDecimal MAX_LAT = new BigDecimal("90");
-    private static final BigDecimal MIN_LON = new BigDecimal("-180");
-    private static final BigDecimal MAX_LON = new BigDecimal("180");
+    private static final BigDecimal MIN_LAT = BigDecimal.valueOf(-90);
+    private static final BigDecimal MAX_LAT = BigDecimal.valueOf(90);
+    private static final BigDecimal MIN_LON = BigDecimal.valueOf(-180);
+    private static final BigDecimal MAX_LON = BigDecimal.valueOf(180);
 
     public Coordinates {
         if (latitude == null || longitude == null) {

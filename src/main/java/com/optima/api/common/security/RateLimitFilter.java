@@ -149,7 +149,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setHeader("Retry-After", String.valueOf(Math.max(1, retryAfterSeconds)));
         ErrorResponse body = new ErrorResponse(
-                429, "429 TOO_MANY_REQUESTS",
+                429, HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(),
                 "Demasiadas peticiones. Reintenta en " + retryAfterSeconds + " segundos.",
                 Instant.now().toString());
         objectMapper.writeValue(response.getOutputStream(), body);

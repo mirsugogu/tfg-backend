@@ -44,9 +44,16 @@ public class User {
     @Column(name = "id_user")
     private Long id;
 
+    /**
+     * Nombre completo de la persona.
+     */
     @Column(name = "full_name", nullable = false, length = 150)
     private String fullName;
 
+    /**
+     * Email de la identidad. UNIQUE GLOBAL desde v16: una persona = una sola
+     * identidad, aunque trabaje en varios negocios via memberships distintas.
+     */
     @Column(name = "email", nullable = false, length = 150, unique = true)
     private String email;
 
@@ -56,15 +63,28 @@ public class User {
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
+    /**
+     * Teléfono de contacto (opcional).
+     */
     @Column(name = "phone", length = 20)
     private String phone;
 
+    /**
+     * Flag de soft delete: false significa que la identidad esta desactivada
+     * (no acepta logins), pero sus memberships y citas historicas se preservan.
+     */
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
+    /**
+     * Fecha y hora en que se creo la identidad (rellenado por @PrePersist).
+     */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /**
+     * Momento de la desactivacion (null mientras la identidad este activa).
+     */
     @Column(name = "deactivated_at")
     private LocalDateTime deactivatedAt;
 

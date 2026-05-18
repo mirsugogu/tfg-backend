@@ -20,8 +20,9 @@ import java.time.LocalDateTime;
 /**
  * BoothService - Logica de cabinas del negocio.
  *
- * Sigue el patron exacto de TaxService: cross-tenant en todos los metodos,
- * soft delete con deactivatedAt, helper findOrThrow.
+ * Patron estandar tenant-scoped: cross-tenant en todos los metodos via
+ * findByIdAndBusinessId, soft delete con isActive + deactivatedAt, helper
+ * findOrThrow centralizando el 404.
  *
  * COMUNICACION:
  * - Lo invoca: BoothController.

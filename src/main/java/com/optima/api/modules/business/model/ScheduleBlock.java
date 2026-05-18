@@ -33,9 +33,10 @@ import java.time.LocalDateTime;
  * via id_membership (no a User directamente). Asi si una persona deja un
  * negocio sus bloqueos de agenda en otros negocios no se ven afectados.
  *
- * Mapea a la tabla `schedule_blocks` (docs/schema_v18.sql, anyadida en v15). Sin soft
- * delete: los bloqueos son eventos puntuales; si el ADMIN se equivoca,
- * borra y vuelve a crear.
+ * Mapea a la tabla `schedule_blocks` (docs/schema_v20.sql, anyadida en v15;
+ * CHECK chk_block_target en v19 impide que un bloqueo apunte a la vez a
+ * empleado y cabina). Sin soft delete: los bloqueos son eventos puntuales;
+ * si el ADMIN se equivoca, borra y vuelve a crear.
  */
 @Entity
 @Table(name = "schedule_blocks")
@@ -66,7 +67,7 @@ public class ScheduleBlock {
     private Membership membership;
 
     /**
-     * Cabina afectada (opcional). Si null + employee null -> bloqueo global.
+     * Cabina afectada (opcional). Si null + membership null -> bloqueo global.
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_booth")
