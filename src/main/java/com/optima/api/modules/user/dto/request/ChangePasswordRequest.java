@@ -4,7 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * DTO de entrada para cambiar la contraseña del propio usuario autenticado.
+ * ChangePasswordRequest - DTO de entrada para cambiar la contraseña del
+ * propio usuario autenticado.
  *
  * Se usa en PUT /api/me/password. El usuario debe demostrar que
  * conoce su contrasena actual antes de poder cambiarla; asi un atacante

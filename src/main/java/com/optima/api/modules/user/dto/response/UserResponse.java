@@ -6,7 +6,7 @@ import com.optima.api.modules.user.model.User;
 import java.time.LocalDateTime;
 
 /**
- * DTO de salida para representar un "empleado de un negocio".
+ * UserResponse - DTO de salida para representar un "empleado de un negocio".
  * IMPORTANTE: nunca incluye passwordHash; el hash de la contraseña
  * jamás debe salir hacia el cliente.
  *

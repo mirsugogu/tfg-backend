@@ -19,9 +19,9 @@ import java.time.LocalDateTime;
 /**
  * TaxService - Logica de impuestos del negocio.
  *
- * Es el patron "modelo" del proyecto: ClientService, UserService y
- * BusinessServiceService siguen su misma estructura (cross-tenant en
- * todos los metodos, soft delete con deactivatedAt, helper findOrThrow).
+ * Patron estandar tenant-scoped: cross-tenant en todos los metodos via
+ * findByIdAndBusinessId, soft delete con isActive + deactivatedAt, helper
+ * findOrThrow centralizando el 404.
  *
  * COMUNICACION:
  * - Lo invoca: TaxController.

@@ -35,6 +35,7 @@ public record BusinessServiceResponse(
         BigDecimal price,
         Integer durationMinutes,
         Boolean isActive,
+        LocalDateTime createdAt,
         LocalDateTime deactivatedAt
 ) {
     public static BusinessServiceResponse from(BusinessService s) {
@@ -50,6 +51,7 @@ public record BusinessServiceResponse(
                 s.getPrice(),
                 s.getDurationMinutes(),
                 s.getIsActive(),
+                s.getCreatedAt(),
                 s.getDeactivatedAt()
         );
     }

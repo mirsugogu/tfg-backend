@@ -22,7 +22,7 @@ import java.util.List;
  * @Transactional(readOnly = true) en clase: solo lectura, sin escritura.
  *
  * Los estados son un catalogo GLOBAL (compartido por todos los negocios),
- * sembrado en docs/schema_v18.sql: PENDING, CONFIRMED, IN_PROGRESS,
+ * sembrado en docs/schema_v20.sql: PENDING, CONFIRMED, IN_PROGRESS,
  * COMPLETED, CANCELLED, NO_SHOW.
  */
 @Service

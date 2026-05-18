@@ -9,18 +9,20 @@ package com.optima.api.common.exception;
  *
  * Campos:
  *   status     codigo HTTP (400, 401, 403, 404, 409, 500...).
- *   error      texto del status ("400 BAD_REQUEST", "404 NOT_FOUND"...).
+ *   error      reason phrase RFC del status ("Bad Request", "Not Found",
+ *              "Unauthorized"...) via HttpStatus.getReasonPhrase().
  *   message    descripcion legible del problema.
  *   timestamp  momento del error en formato ISO-8601 (Instant.now()).
  *
  * COMUNICACION:
  * - Lo construyen: GlobalExceptionHandler (todos los @ExceptionHandler),
  *   SecurityConfig (entryPoint 401 y accessDeniedHandler 403),
- *   TenantGuardFilter (cuando rechaza cross-tenant con 403).
+ *   TenantGuardFilter (cuando rechaza cross-tenant con 403),
+ *   RateLimitFilter (429 cuando el cubo de tokens se vacia).
  * - Lo serializa Jackson a JSON.
  *
  * Ejemplo:
- *   {"status":401,"error":"401 UNAUTHORIZED",
+ *   {"status":401,"error":"Unauthorized",
  *    "message":"Credenciales incorrectas",
  *    "timestamp":"2026-05-10T16:30:00.123Z"}
  */

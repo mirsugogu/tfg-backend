@@ -20,9 +20,8 @@ import java.time.LocalDateTime;
  * COMUNICACION:
  * - La instancia: Hibernate al hidratar, AuthService.register /
  *   UserService.create al crear empleado de negocio.
- * - La consumen: AppointmentService (membershipId del request es realmente
- *   membershipId), EmployeeScheduleService, EmployeeAbsenceService,
- *   ScheduleBlockService, UserResponse.
+ * - La consumen: AppointmentService, EmployeeScheduleService,
+ *   EmployeeAbsenceService, ScheduleBlockService, UserResponse.
  *
  * Es referenciada por:
  *   employee_schedules.id_membership (FK)
@@ -39,7 +38,7 @@ import java.time.LocalDateTime;
  * referenciaban. El User queda intacto y sus otras memberships tampoco
  * se ven afectadas.
  *
- * Mapea a la tabla `memberships` (docs/schema_v18.sql, anyadida en v16).
+ * Mapea a la tabla `memberships` (docs/schema_v20.sql, anyadida en v16).
  * Sin deactivated_at: solo se necesita el flag is_active para excluir las
  * memberships inactivas del login y de los listados activos; la fecha de
  * cese del empleo no es informacion que el sistema necesite conservar.

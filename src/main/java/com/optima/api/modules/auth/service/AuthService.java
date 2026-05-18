@@ -23,39 +23,67 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
- * Capa de logica del modulo auth.
+ * AuthService - Capa de logica del modulo auth.
  *
- * [v16 membership] Login en 2 pasos:
- *   1) POST /api/auth/token (email + password). Caminos posibles:
- *      - 0 memberships activas       -> 401 (sin acceso a ningun negocio).
- *      - 1 membership activa         -> tenant token directamente.
- *      - >1 memberships activas      -> identity token + lista de
- *                                       memberships para que el cliente
- *                                       elija negocio.
- *   2) POST /api/auth/select-business/{businessId} (con identity token).
- *      Verifica que la identidad tiene una membership activa en ese
- *      negocio y devuelve un tenant token con (businessId, role).
+ * 3 endpoints:
+ *   [v16 membership] Login en 2 pasos:
+ *     1) POST /api/auth/token (email + password). Caminos posibles:
+ *        - 0 memberships activas       -> 401 (sin acceso a ningun negocio).
+ *        - 1 membership activa         -> tenant token directamente.
+ *        - >1 memberships activas      -> identity token + lista de
+ *                                         memberships para que el cliente
+ *                                         elija negocio.
+ *     2) POST /api/auth/select-business/{businessId} (con identity token).
+ *        Verifica que la identidad tiene una membership activa en ese
+ *        negocio y devuelve un tenant token con (businessId, role).
+ *   Auto-registro publico:
+ *     3) POST /api/auth/register. Crea en una sola transaccion identidad +
+ *        negocio + primera membership ADMIN, emite tenant token y manda
+ *        email de bienvenida (best-effort).
  *
  * COMUNICACION:
- * - Lo invoca: AuthController.token() y AuthController.selectBusiness().
+ * - Lo invoca: AuthController.token(), AuthController.selectBusiness(),
+ *   AuthController.register().
  * - Llama a:
- *     UserRepository.findByEmailIgnoreCase   busqueda global por email.
- *     MembershipRepository.findAllByUserId   memberships del usuario.
+ *     UserRepository.findByEmailIgnoreCase   busqueda global por email (login).
+ *     UserRepository.existsByEmailIgnoreCase precheck unicidad (register).
+ *     UserRepository.save                    persiste la identidad (register).
+ *     MembershipRepository.findAllByUserId   memberships del usuario (login).
  *     MembershipRepository.findByUserIdAndBusinessId  para select-business.
- *     PasswordEncoder.matches                BCrypt en login.
+ *     MembershipRepository.save              persiste la membership ADMIN (register).
+ *     RoleRepository.findByName              resuelve el rol ADMIN (register).
+ *     BusinessService.createEntity           crea el negocio (register).
+ *     PasswordEncoder.matches / encode       BCrypt en login y register.
  *     JwtUtil.generateTenantToken / generateIdentityToken.
+ *     MailService.sendSimpleEmail            bienvenida best-effort (register).
  * - Devuelve: TokenResponse (tenant o identity).
  *
  * Politica de mensajes: cualquier fallo del paso 1 devuelve un mismo
- * "Credenciales incorrectas" para no filtrar que emails existen.
+ * "Credenciales incorrectas" para no filtrar que emails existen. En
+ * register se usan 409 ("Ya existe un usuario con ese email") y 500
+ * (rol ADMIN no seedeado) — al ser publico no aplica anti-enumeration.
  */
 @Service
 @Slf4j
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class AuthService {
+
+    /**
+     * Hash BCrypt dummy precalculado (cost=10) usado solo para igualar
+     * tiempos de respuesta cuando el email no existe o el usuario esta
+     * inactivo. Sin esto, un atacante puede medir la latencia para
+     * enumerar emails: "no existe" tarda ~10 ms (sin BCrypt) frente a
+     * "password incorrecto" que tarda ~85 ms (con BCrypt). Verificar
+     * contra este hash iguala ambos caminos a la latencia BCrypt y
+     * cierra el timing oracle. El plaintext que lo origina es
+     * irrelevante; nunca se usa para autenticar a nadie.
+     */
+    private static final String DUMMY_BCRYPT_HASH =
+            "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
@@ -72,14 +100,23 @@ public class AuthService {
     public TokenResponse login(LoginRequest request) {
         String email = request.email().trim();
 
-        User user = userRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> {
-                    log.warn("Login fallido: usuario inexistente (email='{}')", email);
-                    return new ResponseStatusException(
-                            HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
-                });
+        Optional<User> userOpt = userRepository.findByEmailIgnoreCase(email);
+        if (userOpt.isEmpty()) {
+            // Ejecutar BCrypt contra un hash dummy aunque el usuario no
+            // exista para igualar tiempos con la rama de password incorrecto
+            // y bloquear la enumeracion de cuentas por timing.
+            passwordEncoder.matches(request.password(), DUMMY_BCRYPT_HASH);
+            log.warn("Login fallido: usuario inexistente (email='{}')", email);
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
+        }
+        User user = userOpt.get();
 
         if (!user.getIsActive()) {
+            // Mismo motivo: si el atacante puede diferenciar "usuario
+            // inactivo" (sin BCrypt) de "password incorrecto" (con BCrypt)
+            // tambien enumera, porque solo se llega aqui si el email existe.
+            passwordEncoder.matches(request.password(), DUMMY_BCRYPT_HASH);
             log.warn("Login fallido: usuario inactivo (userId={}, email='{}')",
                     user.getId(), user.getEmail());
             throw new ResponseStatusException(

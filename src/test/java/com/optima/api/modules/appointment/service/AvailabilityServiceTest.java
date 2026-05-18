@@ -7,12 +7,12 @@ import com.optima.api.modules.business.model.BusinessHour;
 import com.optima.api.modules.business.repository.BoothRepository;
 import com.optima.api.modules.business.repository.BusinessHourRepository;
 import com.optima.api.modules.business.repository.BusinessRepository;
+import com.optima.api.modules.business.repository.MembershipRepository;
 import com.optima.api.modules.business.repository.ScheduleBlockRepository;
 import com.optima.api.modules.catalog.model.BusinessService;
 import com.optima.api.modules.catalog.repository.BusinessServiceRepository;
 import com.optima.api.modules.user.repository.EmployeeAbsenceRepository;
 import com.optima.api.modules.user.repository.EmployeeScheduleRepository;
-import com.optima.api.modules.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -43,7 +43,7 @@ class AvailabilityServiceTest {
     @Mock private BusinessRepository businessRepository;
     @Mock private BusinessHourRepository businessHourRepository;
     @Mock private BusinessServiceRepository serviceRepository;
-    @Mock private UserRepository userRepository;
+    @Mock private MembershipRepository membershipRepository;
     @Mock private EmployeeScheduleRepository scheduleRepository;
     @Mock private EmployeeAbsenceRepository absenceRepository;
     @Mock private BoothRepository boothRepository;
@@ -67,8 +67,8 @@ class AvailabilityServiceTest {
         service.setId(1L);
         service.setIsActive(true);
         service.setDurationMinutes(30);
-        when(serviceRepository.findByIdAndBusinessId(1L, businessId))
-                .thenReturn(Optional.of(service));
+        when(serviceRepository.findAllByIdInAndBusinessId(java.util.Set.of(1L), businessId))
+                .thenReturn(java.util.List.of(service));
 
         // El domingo el negocio esta cerrado: is_closed=true, sin horas.
         BusinessHour sunday = new BusinessHour();

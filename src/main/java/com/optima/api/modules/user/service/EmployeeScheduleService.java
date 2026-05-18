@@ -17,7 +17,8 @@ import java.time.LocalTime;
 import java.util.List;
 
 /**
- * Capa de lógica de negocio para los horarios semanales de empleados.
+ * EmployeeScheduleService - Capa de lógica de negocio para los horarios
+ * semanales de empleados.
  * No usa soft delete: un tramo se borra (DELETE) o se reemplaza (PUT).
  *
  * Doble comprobación cross-tenant: cada operación valida que la membership

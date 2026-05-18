@@ -32,7 +32,7 @@ import java.time.LocalDateTime;
  * - Tiene @ManyToOne con: Business.
  * - Es referenciada por: Appointment.booth (@ManyToOne, nullable).
  *
- * Mapea a la tabla `booths` (docs/schema_v18.sql, anyadida en v14). El
+ * Mapea a la tabla `booths` (docs/schema_v20.sql, anyadida en v14). El
  * uniqueConstraint uq_booth_business_name (id_business, name) impide que
  * dos cabinas del mismo negocio compartan nombre, pero "Sala 1" si puede
  * coexistir en negocios distintos.

@@ -27,14 +27,15 @@ import java.time.LocalDateTime;
  *   manualmente.
  * - La consume: AppointmentResponse.from(), AppointmentService (queries
  *   y validaciones), AppointmentValidator.
- * - Tiene relaciones @ManyToOne con: Business, Client, User (employee),
- *   AppointmentStatus.
+ * - Tiene relaciones @ManyToOne con: Business, Client, Membership
+ *   (empleado en este negocio), Booth (cabina opcional, v14), AppointmentStatus.
  * - Tiene relacion uno-a-muchos (no @OneToMany declarada explicitamente)
  *   con BookedService via id_appointment.
  *
- * Mapea a la tabla `appointments` (docs/schema_v18.sql) con FKs a
- * businesses, clients, users y appointment_statuses. Los bookedServices
- * estan en `appointment_services` con ON DELETE CASCADE.
+ * Mapea a la tabla `appointments` (docs/schema_v20.sql) con FKs a
+ * businesses, clients, memberships, booths y appointment_statuses. Los
+ * bookedServices estan en `appointment_services` con ON DELETE CASCADE.
+ * updatedAt anyadido en v19 para auditar mutaciones (pago, cambio de estado).
  */
 @Entity
 @Table(name = "appointments")
@@ -125,11 +126,32 @@ public class Appointment {
     private LocalDateTime createdAt;
 
     /**
+     * Fecha y hora de la ultima mutacion (rellenado por @PreUpdate).
+     *
+     * Nullable hasta el primer UPDATE: si una cita se crea pero nunca
+     * cambia, vale NULL. Util para responder "cuando se confirmo / pago
+     * / cancelo esta cita" sin tablas de eventos. Patron canonico:
+     * createdAt @PrePersist + updatedAt @PreUpdate cuando la entidad
+     * muta (ver memoria del proyecto: entidad canonica).
+     */
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    /**
      * Se ejecuta automáticamente antes de hacer INSERT en la BD.
      * Rellena la fecha de creación con el momento actual.
      */
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+    }
+
+    /**
+     * Se ejecuta automaticamente antes de cada UPDATE.
+     * Sella el momento de la mutacion en updatedAt.
+     */
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

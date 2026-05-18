@@ -60,6 +60,7 @@ class AppointmentControllerWebMvcTest {
                 LocalDateTime.of(2027, 3, 15, 10, 45),
                 "nota de prueba",
                 LocalDateTime.now(),
+                null,                          // updatedAt: cita recien creada, sin mutaciones
                 List.of()
         );
         Page<AppointmentResponse> page = new PageImpl<>(List.of(cita), PageRequest.of(0, 20), 1);

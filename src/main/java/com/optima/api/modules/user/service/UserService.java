@@ -27,7 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 /**
- * Capa de lógica de negocio del modulo user.
+ * UserService - Capa de lógica de negocio del modulo user.
  *
  * [v16 membership] Tras el refactor, este service trabaja sobre dos
  * tablas: `users` (identidad global) y `memberships` (pertenencia a un
@@ -199,8 +199,8 @@ public class UserService {
      * [v16 membership] Punto de entrada unico para mutar fullName, email
      * y phone. Antes el admin de cada negocio podia tocarlos via
      * UpdateUserRequest; tras separar identidad de membership ese acceso
-     * desaparecio porque la identidad la dueña la propia persona, no el
-     * negocio. Por eso este metodo vive aqui y solo se invoca desde
+     * desaparecio porque la identidad es propiedad de la propia persona,
+     * no del negocio. Por eso este metodo vive aqui y solo se invoca desde
      * MeController, donde el userId viene del JWT (no del path).
      *
      * Pasos:

@@ -63,7 +63,8 @@ public class BusinessServiceService {
      *   4. Cross-tenant: el impuesto pertenece a este negocio (404).
      *   5. Persiste la entidad con isActive=true por defecto.
      *
-     * @param businessId barrera multi-tenant: TODO se valida contra este id.
+     * @param businessId barrera multi-tenant: categoria, impuesto y unicidad
+     *                   del nombre se validan contra este id.
      * @param request payload validado: name, description, price, durationMinutes,
      *                categoryId, taxId.
      * @return BusinessServiceResponse con la entidad creada (incluye

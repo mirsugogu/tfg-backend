@@ -30,7 +30,7 @@ import java.time.LocalTime;
  *   las horas validas del dia).
  * - Tiene @ManyToOne con: Business.
  *
- * Mapea a `business_hours` (docs/schema_v18.sql). Anteriormente
+ * Mapea a `business_hours` (docs/schema_v20.sql). Anteriormente
  * day_of_week era TINYINT y rompia la validacion de Hibernate
  * (Integer en JPA); se cambio a INT en el schema para alinear.
  */

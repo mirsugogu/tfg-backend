@@ -11,9 +11,10 @@ import java.time.LocalDateTime;
  * - Lo construye BoothResponse.from(Booth) en BoothService.
  * - Lo serializa Jackson a JSON en las respuestas de BoothController.
  *
- * Incluye businessId siguiendo el patron de TaxResponse, ClientResponse,
- * UserResponse. deactivatedAt expuesto para auditoria; el frontend puede
- * decidir mostrarlo en una vista de "cabinas archivadas".
+ * Incluye businessId porque la cabina es un recurso tenant-scoped (el
+ * frontend lo necesita para validar contexto). deactivatedAt expuesto
+ * para auditoria; el frontend puede decidir mostrarlo en una vista de
+ * "cabinas archivadas".
  */
 public record BoothResponse(
         Long id,

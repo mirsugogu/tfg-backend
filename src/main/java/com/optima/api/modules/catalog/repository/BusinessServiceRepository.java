@@ -6,6 +6,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -22,11 +24,7 @@ import java.util.Optional;
 @Repository
 public interface BusinessServiceRepository extends JpaRepository<BusinessService, Long> {
 
-    /**
-     * Revisa si ya existe un servicio con exactamente ese nombre dentro de un local específico.
-     * Ignora si está en mayúsculas o minúsculas (IgnoreCase).
-     * Devuelve true o false.
-     */
+    /** Para validar unicidad del nombre dentro del negocio (case-insensitive). */
     boolean existsByBusinessIdAndNameIgnoreCase(Long businessId, String name);
 
     /**
@@ -35,8 +33,17 @@ public interface BusinessServiceRepository extends JpaRepository<BusinessService
      */
     Page<BusinessService> findAllByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
-    /**
-     * Búsqueda cross-tenant safe: 404 si el servicio no pertenece al negocio.
-     */
+    /** Lookup tenant-safe por id+businessId. */
     Optional<BusinessService> findByIdAndBusinessId(Long id, Long businessId);
+
+    /**
+     * Carga en UNA query todos los servicios de un negocio cuya id esta en
+     * la coleccion (cross-tenant safe). Sustituye el patron N+1 de llamar
+     * findByIdAndBusinessId dentro de un bucle. La usan AvailabilityService
+     * y AppointmentService al validar la lista de serviceIds del request.
+     *
+     * El caller debe comparar el size resultante con el size de entrada
+     * para detectar ids inexistentes o de otro tenant.
+     */
+    List<BusinessService> findAllByIdInAndBusinessId(Collection<Long> ids, Long businessId);
 }

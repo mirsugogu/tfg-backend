@@ -75,6 +75,9 @@ public class EmployeeAbsence {
     @Column(name = "reason", length = 255)
     private String reason;
 
+    /**
+     * Fecha y hora en que se creo la ausencia (rellenado por @PrePersist).
+     */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

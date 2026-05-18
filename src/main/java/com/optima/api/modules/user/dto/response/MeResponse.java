@@ -5,7 +5,7 @@ import com.optima.api.modules.user.model.User;
 import java.time.LocalDateTime;
 
 /**
- * DTO de salida del endpoint GET /api/me.
+ * MeResponse - DTO de salida del endpoint GET /api/me.
  *
  * [v16 membership] Antes el /me reusaba UserResponse, que mezclaba la
  * identidad (fullName/email) con la membership (businessId/roleId). Ahora

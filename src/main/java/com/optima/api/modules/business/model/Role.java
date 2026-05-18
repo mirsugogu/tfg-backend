@@ -11,7 +11,7 @@ import lombok.Setter;
  * Catálogo global (compartido por todos los negocios).
  * Valores insertados en el schema SQL: ADMIN, EMPLOYEE.
  *
- * Mapea a la tabla `roles` (docs/schema_v18.sql):
+ * Mapea a la tabla `roles` (docs/schema_v20.sql):
  *   CREATE TABLE roles (
  *       id_role BIGINT AUTO_INCREMENT PRIMARY KEY,
  *       name    VARCHAR(30) NOT NULL UNIQUE
@@ -20,8 +20,8 @@ import lombok.Setter;
  * COMUNICACION:
  * - La instancia: Hibernate, al hidratar filas leidas de MySQL.
  * - La consume: RoleService (la convierte en RoleResponse).
- * - Es referenciada por: User.role (@ManyToOne) - cada usuario tiene
- *   exactamente un rol.
+ * - Es referenciada por: Membership.role (@ManyToOne) - cada membresia
+ *   (usuario en un negocio) tiene exactamente un rol.
  *
  * Anotaciones Lombok:
  *   @Getter @Setter         getters/setters de los 2 campos.

@@ -1,5 +1,5 @@
 -- ============================================================
--- Optima SaaS - Database Schema v20
+-- Optima SaaS - Database Schema v19
 -- Multi-tenant (Shared DB, Shared Schema)
 -- No superadmins | Taxes per business | English naming
 --
@@ -63,17 +63,6 @@
 --                    insertar una fila con id_membership Y id_booth
 --                    rellenos -> "tipo 4" no contemplado, semantica
 --                    indefinida en findApplicableBlocks.
---
--- Diferencias respecto a v19:
---   [v20 catalog-audit] Columnas `service_categories.created_at` y
---                    `services.created_at` (ambas NOT NULL DEFAULT
---                    CURRENT_TIMESTAMP) para alinear las entidades del
---                    catalog con la regla 7 del patron canonico de
---                    entidad (@PrePersist para createdAt). Paralelo a
---                    v18 con taxes: ambas tablas son soft delete pero
---                    no exponian la marca de creacion. Tras v20 todas
---                    las entidades soft-delete del proyecto cumplen
---                    isActive + createdAt + deactivatedAt.
 -- ============================================================
 
 DROP DATABASE IF EXISTS optima_db;
@@ -230,7 +219,6 @@ CREATE TABLE service_categories (
                                     id_business    BIGINT       NOT NULL,
                                     name           VARCHAR(100) NOT NULL,
                                     is_active      BOOLEAN      NOT NULL DEFAULT TRUE,
-                                    created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,   -- [v20 catalog-audit]
                                     deactivated_at DATETIME     NULL,
                                     CONSTRAINT fk_category_business
                                         FOREIGN KEY (id_business) REFERENCES businesses(id_business),
@@ -251,7 +239,6 @@ CREATE TABLE services (
                           price            DECIMAL(10,2) NOT NULL,
                           duration_minutes INT           NOT NULL,
                           is_active        BOOLEAN       NOT NULL DEFAULT TRUE,
-                          created_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,   -- [v20 catalog-audit]
                           deactivated_at   DATETIME      NULL,
                           CONSTRAINT fk_service_business
                               FOREIGN KEY (id_business) REFERENCES businesses(id_business),
@@ -330,26 +317,6 @@ CREATE TABLE appointments (
                               notes          TEXT,
                               created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                               updated_at     DATETIME NULL,                          -- [v19 audit]
-    -- [audit/race-condition] Columnas virtuales que materializan el "slot activo"
-    -- de la cita. Si la cita esta en estado activo (1=PENDING, 2=CONFIRMED,
-    -- 3=IN_PROGRESS) el slot vale (membership + start) y (booth + start);
-    -- si esta en cualquier otro estado (CANCELLED, NO_SHOW, COMPLETED) o no
-    -- usa cabina, vale NULL. El indice UNIQUE permite multiples NULLs, asi
-    -- que las citas no activas o sin cabina conviven sin restriccion.
-    -- Esto bloquea a NIVEL BD que dos transacciones concurrentes inserten
-    -- dos citas activas con el mismo (empleado, slot) o (cabina, slot),
-    -- complementando los locks pesimistas (que solo protegen las filas de
-    -- membership/booth, no el predicado temporal).
-                              active_slot_key       VARCHAR(50) GENERATED ALWAYS AS (
-                                  CASE WHEN id_status IN (1, 2, 3)
-                                       THEN CONCAT(id_membership, '_', start_datetime)
-                                       ELSE NULL END
-                              ) VIRTUAL,
-                              active_booth_slot_key VARCHAR(50) GENERATED ALWAYS AS (
-                                  CASE WHEN id_booth IS NOT NULL AND id_status IN (1, 2, 3)
-                                       THEN CONCAT(id_booth, '_', start_datetime)
-                                       ELSE NULL END
-                              ) VIRTUAL,
                               CONSTRAINT fk_appointment_business
                                   FOREIGN KEY (id_business) REFERENCES businesses(id_business),
                               CONSTRAINT fk_appointment_client
@@ -361,11 +328,7 @@ CREATE TABLE appointments (
                               CONSTRAINT fk_appointment_status
                                   FOREIGN KEY (id_status) REFERENCES appointment_statuses(id_status),
                               CONSTRAINT chk_appointment_times
-                                  CHECK (start_datetime < end_datetime),
-                              CONSTRAINT uq_appointment_active_slot
-                                  UNIQUE (active_slot_key),
-                              CONSTRAINT uq_appointment_active_booth_slot
-                                  UNIQUE (active_booth_slot_key)
+                                  CHECK (start_datetime < end_datetime)
 ) ENGINE=InnoDB;
 
 -- ------------------------------------------------------------
@@ -413,10 +376,7 @@ CREATE TABLE business_hours (
                                     CHECK (
                                         is_closed = TRUE
                                             OR (start_time IS NOT NULL AND end_time IS NOT NULL AND start_time < end_time)
-                                        ),
-
-                                CONSTRAINT uq_business_hours_day
-                                    UNIQUE (id_business, day_of_week)
+                                        )
 ) ENGINE=InnoDB;
 
 
@@ -533,19 +493,18 @@ INSERT INTO businesses (name, slug, email, appointment_interval)
 VALUES ('Otro', 'otro', 'otro@optima.com', 30);
 
 -- u1: Admin Demo (identidad)
--- Password seed: "12345678". Cada usuario lleva su PROPIO hash BCrypt (salt
--- distinto) para que crackear uno no comprometa los demas.
 INSERT INTO users (full_name, email, password_hash)
 VALUES ('Admin Demo', 'admin@optima.com',
-        '$2a$10$PqBj6CFmvPqwYJetBkVQA.w062mh3mrb2DxF78lIQj2dI/XqjptI.');
+        '$2a$10$XLihaXA2hZhv9fmi1KkYHewNFyhdnAexajF2fDQS9TZSa3a1gke4q');
 -- m1: Admin Demo en business 1 con rol ADMIN
 INSERT INTO memberships (id_user, id_business, id_role) VALUES (1, 1, 1);
 
--- u2: Empleado Demo (mismo password "12345678" pero salt distinto). Sirve
--- para probar el rol EMPLOYEE en la coleccion Postman.
+-- u2: Empleado Demo (mismo password "12345678", mismo hash BCrypt;
+-- el salt va embebido en el hash). Sirve para probar el rol EMPLOYEE
+-- en la coleccion Postman.
 INSERT INTO users (full_name, email, password_hash)
 VALUES ('Empleado Demo', 'empleado@optima.com',
-        '$2a$10$fCI9ZhcMUj5Z.fmPX2nZ7.SrSn22K42fxU8dvf8GCm8NUDoGud8xq');
+        '$2a$10$XLihaXA2hZhv9fmi1KkYHewNFyhdnAexajF2fDQS9TZSa3a1gke4q');
 -- m2: Empleado Demo en business 1 con rol EMPLOYEE
 INSERT INTO memberships (id_user, id_business, id_role) VALUES (2, 1, 2);
 
@@ -560,14 +519,14 @@ VALUES (2, 'Cliente Ajeno Seed', TRUE);
 -- ============================================================
 
 -- ------------------------------------------------------------
--- 2 empleados mas (mismo password "12345678" pero hash distinto cada uno).
+-- 2 empleados mas (mismo password "12345678", mismo hash BCrypt).
 -- [v16 membership] Cada user va seguido de su membership con (b1, role
 -- EMPLOYEE) para mantener la coincidencia 1:1 user_id <-> membership_id.
 -- ------------------------------------------------------------
 -- u3: Maria
 INSERT INTO users (full_name, email, password_hash, phone)
 VALUES ('Maria Garcia', 'maria@optima.com',
-        '$2a$10$Gs/mSNCqSc5puTJzCA0NIe23YqUEJtCG/YZ4WVep9L9SZZTb.DSy6',
+        '$2a$10$XLihaXA2hZhv9fmi1KkYHewNFyhdnAexajF2fDQS9TZSa3a1gke4q',
         '600111001');
 -- m3: Maria en business 1 con rol EMPLOYEE
 INSERT INTO memberships (id_user, id_business, id_role) VALUES (3, 1, 2);
@@ -575,7 +534,7 @@ INSERT INTO memberships (id_user, id_business, id_role) VALUES (3, 1, 2);
 -- u4: Carlos
 INSERT INTO users (full_name, email, password_hash, phone)
 VALUES ('Carlos Lopez', 'carlos@optima.com',
-        '$2a$10$zBo7AGlqJF08rLwjLaUXV.D4aAFyFjwhutIlrPes6lVaJmbrvSP1u',
+        '$2a$10$XLihaXA2hZhv9fmi1KkYHewNFyhdnAexajF2fDQS9TZSa3a1gke4q',
         '600111002');
 -- m4: Carlos en business 1 con rol EMPLOYEE
 INSERT INTO memberships (id_user, id_business, id_role) VALUES (4, 1, 2);
@@ -722,13 +681,3 @@ INSERT INTO appointment_services (id_appointment, id_service, applied_price, app
 -- ------------------------------------------------------------
 INSERT INTO schedule_blocks (id_business, id_membership, id_booth, start_date, end_date, reason)
 VALUES (1, NULL, NULL, '2027-05-15', '2027-05-15', 'San Isidro');
-
--- ------------------------------------------------------------
--- Ausencia de prueba: Maria (membership=3) de 09:00 a 13:00 el 2027-03-17.
--- Cualquier intento de crear una cita para Maria que solape con ese
--- rango debe rechazarse con 409 (validateNoEmployeeAbsence). GET
--- /availability con membershipId=3 ese mismo dia debe excluir todos los
--- slots de la franja de la manana.
--- ------------------------------------------------------------
-INSERT INTO employee_absences (id_membership, start_datetime, end_datetime, reason)
-VALUES (3, '2027-03-17 09:00:00', '2027-03-17 13:00:00', 'Cita médica');

@@ -30,16 +30,7 @@ public class RoleService {
     private final RoleRepository roleRepository;
 
     /**
-     * Devuelve todos los roles del catalogo como DTOs.
-     *
-     * Pasos:
-     *   1. roleRepository.findAll() -> SELECT * FROM roles via Hibernate.
-     *   2. .map(RoleResponse::from) convierte cada Role (entidad JPA)
-     *      en RoleResponse (DTO). RoleResponse.from() centraliza el mapeo.
-     *   3. .toList() colecta el stream en lista inmutable.
-     *
-     * Devolvemos DTOs (no entidades) para no exponer la estructura de la
-     * BD al exterior y desacoplar el contrato HTTP del schema.
+     * Devuelve todos los roles del catalogo (ADMIN, EMPLOYEE).
      */
     public List<RoleResponse> listAll() {
         return roleRepository.findAll()

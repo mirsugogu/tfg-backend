@@ -70,8 +70,8 @@ public class MeController {
      *
      * [v16 membership] Punto unico de mutacion para fullName, email y phone.
      * El admin del negocio ya no puede tocarlos via /api/businesses/{}/users/{}
-     * (eso solo gestiona el rol de la membership) — la identidad la dueña la
-     * propia persona, que se identifica con su JWT.
+     * (eso solo gestiona el rol de la membership) — la identidad es propiedad
+     * de la propia persona, que se identifica con su JWT.
      */
     @PutMapping
     public MeResponse updateMe(@AuthenticationPrincipal AuthPrincipal principal,

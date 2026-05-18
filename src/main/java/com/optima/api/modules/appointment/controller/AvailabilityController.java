@@ -3,6 +3,7 @@ package com.optima.api.modules.appointment.controller;
 import com.optima.api.modules.appointment.dto.response.AvailabilityResponse;
 import com.optima.api.modules.appointment.service.AvailabilityService;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -67,7 +68,9 @@ public class AvailabilityController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
 
             @RequestParam
-            @NotEmpty(message = "Debe indicar al menos un servicio") List<Long> serviceIds,
+            @NotEmpty(message = "Debe indicar al menos un servicio")
+            List<@NotNull(message = "ningún id puede ser nulo")
+                 @Positive(message = "los ids deben ser positivos") Long> serviceIds,
 
             @RequestParam(required = false) @Positive Long membershipId,
 

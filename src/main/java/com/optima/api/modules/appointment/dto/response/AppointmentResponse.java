@@ -10,9 +10,11 @@ import java.util.List;
  * AppointmentResponse - DTO de salida de una cita.
  *
  * Aplana la entidad Appointment + recibe la lista de BookedService ya
- * cargada por el service. Para cada relacion @ManyToOne (client, employee,
- * status) expone id+name en lugar del objeto entero, asi el frontend evita
- * ir a otros endpoints.
+ * cargada por el service. Para las relaciones @ManyToOne expone:
+ *   - business: solo businessId (el negocio ya esta en el path).
+ *   - client, membership (empleado), booth (opcional), status:
+ *     <rel>Id + <rel>Name.
+ * Asi el frontend no tiene que ir a otros endpoints adicionales.
  *
  * COMUNICACION:
  * - Lo construye AppointmentResponse.from(Appointment, List<BookedService>)
@@ -50,6 +52,7 @@ public record AppointmentResponse(
         LocalDateTime endDateTime,
         String notes,
         LocalDateTime createdAt,
+        LocalDateTime updatedAt,
         List<BookedServiceResponse> bookedServices
 ) {
     public static AppointmentResponse from(Appointment a,
@@ -77,6 +80,7 @@ public record AppointmentResponse(
                 a.getEndDateTime(),
                 a.getNotes(),
                 a.getCreatedAt(),
+                a.getUpdatedAt(),
                 mapped
         );
     }

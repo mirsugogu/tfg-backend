@@ -24,11 +24,11 @@ import org.springframework.web.bind.annotation.*;
  * - Devuelve: ClientResponse(s) en JSON.
  *
  * Permisos:
- *   NINGUN endpoint tiene @PreAuthorize. Es INTENCIONAL: en el modelo
- *   "Scenario A", AMBOS roles ADMIN y EMPLOYEE pueden gestionar clientes
- *   (es operativa diaria, no configuracion). Si solo el ADMIN pudiera
- *   anadir clientes, los empleados no podrian dar de alta a las personas
- *   que llegan al negocio.
+ *   NINGUN endpoint tiene @PreAuthorize. Es INTENCIONAL: AMBOS roles
+ *   ADMIN y EMPLOYEE pueden gestionar clientes (operativa diaria, no
+ *   configuracion). Si solo el ADMIN pudiera anadir clientes, los
+ *   empleados no podrian dar de alta a las personas que llegan al
+ *   negocio.
  */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/clients")

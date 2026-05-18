@@ -20,6 +20,7 @@ public record ServiceCategoryResponse(
         Long businessId,
         String name,
         Boolean isActive,
+        LocalDateTime createdAt,
         LocalDateTime deactivatedAt
 ) {
     public static ServiceCategoryResponse from(ServiceCategory c) {
@@ -28,6 +29,7 @@ public record ServiceCategoryResponse(
                 c.getBusiness().getId(),
                 c.getName(),
                 c.getIsActive(),
+                c.getCreatedAt(),
                 c.getDeactivatedAt()
         );
     }

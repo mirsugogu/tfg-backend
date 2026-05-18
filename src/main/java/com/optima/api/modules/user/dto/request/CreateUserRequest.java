@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 /**
- * DTO de entrada para crear un usuario.
+ * CreateUserRequest - DTO de entrada para crear un usuario.
  * El businessId viene del path, no del body.
  * El password llega en texto plano y el servicio lo hashea con BCrypt
  * antes de guardarlo en la BD.

@@ -3,6 +3,7 @@ package com.optima.api.modules.appointment.repository;
 import com.optima.api.modules.appointment.model.Appointment;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,10 +20,14 @@ import java.util.Optional;
  * - Lo inyectan: AppointmentService, AppointmentValidator.
  * - Habla con: MySQL via Hibernate.
  *
- * Spring Data deriva findAllByBusinessId y findByIdAndBusinessId del
- * nombre. existsOverlappingAppointment lleva @Query JPQL custom porque
- * la logica de solapamiento (A < D AND C < B) no se expresa limpiamente
- * con metodos derivados.
+ * Spring Data deriva findByIdAndBusinessId del nombre del metodo. Los
+ * otros 4 metodos llevan @Query JPQL custom porque su logica no se
+ * expresa limpiamente con metodos derivados:
+ *   - searchAppointments: filtros opcionales con (:param IS NULL OR ...).
+ *   - existsOverlappingAppointment / existsOverlappingBoothAppointment:
+ *     solapamiento de rangos (A < D AND C < B) restringido a citas activas.
+ *   - findActiveByBusinessAndDay: precarga de citas del dia para el
+ *     algoritmo de disponibilidad (anti N+1).
  *
  * Multi-tenant: NUNCA se hace findById sin businessId; el patron es
  * findByIdAndBusinessId para evitar que un ADMIN del negocio 5 lea
@@ -44,7 +49,15 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
      * (inclusive) y `to` como fin del rango (exclusive). Asi un cliente
      * que pide "del 2027-03-15 al 2027-03-15" enviara from=2027-03-15T00:00
      * y to=2027-03-16T00:00, capturando el dia entero.
+     *
+     * Anti-N+1: el @EntityGraph fuerza a Hibernate a cargar las relaciones
+     * @ManyToOne que AppointmentResponse.from() lee inmediatamente (client,
+     * membership, membership.user, booth, status) en JOINs de la misma
+     * query principal. Sin esto, listar 50 citas dispara ~5 selects extra
+     * por fila (~250 selects total); con esto basta una sola query.
      */
+    @EntityGraph(attributePaths = {"client", "membership", "membership.user",
+                                    "booth", "status"})
     @Query("""
             SELECT a FROM Appointment a
             WHERE a.business.id = :businessId

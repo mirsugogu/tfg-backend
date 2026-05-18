@@ -28,7 +28,7 @@ import java.time.LocalDateTime;
  * - Tiene @ManyToOne con: Business.
  * - Es referenciada por: BusinessService.tax (@ManyToOne).
  *
- * Mapea a la tabla `taxes` (docs/schema_v18.sql; created_at anyadido en v18).
+ * Mapea a la tabla `taxes` (docs/schema_v20.sql; created_at anyadido en v18).
  * El uniqueConstraint uq_tax_business_name (id_business, name) impide dos
  * impuestos con el mismo nombre en el mismo negocio.
  */

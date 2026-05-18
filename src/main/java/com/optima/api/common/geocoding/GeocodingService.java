@@ -13,8 +13,9 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * Servicio que llama a la API de geocoding de Nominatim (OpenStreetMap)
- * para convertir una direccion postal en coordenadas (lat, lng).
+ * GeocodingService - Servicio que llama a la API de geocoding de
+ * Nominatim (OpenStreetMap) para convertir una direccion postal en
+ * coordenadas (lat, lng).
  *
  * Es best-effort: si la API falla, no devuelve resultados o
  * la respuesta no se puede parsear, devuelve Optional#empty()

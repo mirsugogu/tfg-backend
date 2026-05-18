@@ -7,9 +7,10 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 
 /**
- * DTO de entrada para crear una ausencia de empleado (vacaciones, cita
- * médica, etc.). El businessId y el userId vienen del path,
- * no del body. La coherencia start < end se valida en el servicio.
+ * CreateEmployeeAbsenceRequest - DTO de entrada para crear una ausencia de
+ * empleado (vacaciones, cita médica, etc.). El businessId y el userId
+ * vienen del path, no del body. La coherencia start < end se valida en el
+ * servicio.
  *
  * COMUNICACION:
  * - Lo deserializa Jackson, lo valida @Valid en EmployeeAbsenceController.

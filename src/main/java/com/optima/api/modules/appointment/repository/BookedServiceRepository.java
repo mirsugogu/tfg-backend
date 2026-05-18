@@ -15,9 +15,12 @@ import java.util.List;
  * congelados (applied_price, applied_tax_percentage).
  *
  * COMUNICACION:
- * - Lo inyectan: AppointmentService (saveAll al crear, findAll para
- *   listar) y AppointmentResponse.from() (carga los bookedServices al
- *   construir el DTO).
+ * - Lo inyecta: AppointmentService. saveAll al crear,
+ *   findAllByAppointmentId para detalle (getById, updateStatus,
+ *   markPayment) y findAllByAppointmentIdIn para batch fetch en
+ *   listados paginados (anti N+1).
+ *   El DTO AppointmentResponse.from() recibe la lista ya cargada por
+ *   el service; no toca este repo.
  * - Habla con: MySQL via Hibernate.
  *
  * No hay metodo "porTenant" porque BookedService NO tiene id_business
