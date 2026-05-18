@@ -4,6 +4,7 @@ import com.optima.api.modules.business.model.Membership;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -40,7 +41,13 @@ public interface MembershipRepository extends JpaRepository<Membership, Long> {
     /**
      * Listado paginado de memberships activas de un negocio.
      * Equivalente a "empleados activos del negocio".
+     *
+     * Anti-N+1: el @EntityGraph carga user y role en JOIN dentro de la
+     * query principal. UserResponse.from() accede a m.getUser() y
+     * m.getRole() inmediatamente al construir el DTO, asi que sin
+     * EntityGraph cada fila dispararia 2 selects LAZY adicionales.
      */
+    @EntityGraph(attributePaths = {"user", "role"})
     Page<Membership> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
     /**
