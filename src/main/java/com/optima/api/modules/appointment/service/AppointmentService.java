@@ -87,6 +87,7 @@ public class AppointmentService {
      *
      * Pasos (15 validaciones encadenadas):
      *    1. Verifica que el negocio existe (404 si no).
+     *   1b. Negocio debe estar activo (400 si esta desactivado).
      *    2. Cross-tenant: cliente pertenece a este negocio (404 si no).
      *    3. Cliente debe estar activo (400 si esta desactivado).
      *    4. Cross-tenant: empleado pertenece a este negocio (404 si no).
@@ -121,6 +122,15 @@ public class AppointmentService {
                         HttpStatus.NOT_FOUND,
                         "No se encontró el negocio con ID: " + businessId
                 ));
+
+        // 1b. El negocio debe estar activo: un negocio desactivado no acepta
+        //     nuevas citas (ver Business.java, javadoc del campo isActive).
+        if (!Boolean.TRUE.equals(business.getIsActive())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El negocio con ID: " + businessId + " está desactivado"
+            );
+        }
 
         // 2. Cross-tenant: el cliente pertenece a este negocio
         Client client = clientRepository.findByIdAndBusinessId(

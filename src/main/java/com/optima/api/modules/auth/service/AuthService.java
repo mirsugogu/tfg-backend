@@ -130,13 +130,17 @@ public class AuthService {
                     HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
         }
 
+        // Filtrar memberships activas Y cuyo negocio sigue activo: un
+        // negocio desactivado (is_active=false) no debe aceptar logins;
+        // ver Business.java (documentacion del campo isActive).
         List<Membership> activeMemberships = membershipRepository.findAllByUserId(user.getId())
                 .stream()
                 .filter(Membership::getIsActive)
+                .filter(m -> Boolean.TRUE.equals(m.getBusiness().getIsActive()))
                 .toList();
 
         if (activeMemberships.isEmpty()) {
-            log.warn("Login fallido: usuario sin memberships activas (userId={}, email='{}')",
+            log.warn("Login fallido: usuario sin memberships activas en negocios activos (userId={}, email='{}')",
                     user.getId(), user.getEmail());
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
@@ -191,6 +195,16 @@ public class AuthService {
 
         if (!membership.getIsActive()) {
             log.warn("Select-business denegado: membership inactiva (userId={}, businessId={})",
+                    userId, businessId);
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "No tienes acceso a ese negocio");
+        }
+
+        // El negocio puede estar desactivado aunque la membership siga activa.
+        // Mismo mensaje 403 que la rama anterior (anti-enumeration: no revelar
+        // que el negocio existe pero esta desactivado).
+        if (!Boolean.TRUE.equals(membership.getBusiness().getIsActive())) {
+            log.warn("Select-business denegado: negocio desactivado (userId={}, businessId={})",
                     userId, businessId);
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN, "No tienes acceso a ese negocio");
