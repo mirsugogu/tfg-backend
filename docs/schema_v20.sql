@@ -259,6 +259,8 @@ CREATE TABLE services (
                               FOREIGN KEY (id_category) REFERENCES service_categories(id_category),
                           CONSTRAINT fk_service_tax
                               FOREIGN KEY (id_tax) REFERENCES taxes(id_tax),
+                          CONSTRAINT uq_service_business_name              -- [post-auditoria 2026-05-20]
+                              UNIQUE (id_business, name),
                           CONSTRAINT chk_service_price
                               CHECK (price >= 0),
                           CONSTRAINT chk_service_duration
@@ -506,6 +508,43 @@ CREATE TABLE password_resets (
                                      FOREIGN KEY (id_user) REFERENCES users(id_user)
                                          ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+
+-- ------------------------------------------------------------
+-- INDICES DE OPTIMIZACION  [post-auditoria 2026-05-20]
+-- InnoDB ya indexa automaticamente cada PK, cada UNIQUE y cada
+-- columna FK. Estos indices COMPUESTOS adicionales cubren las
+-- consultas mas calientes (camino critico de crear cita y de
+-- calcular disponibilidad), donde un indice de una sola columna
+-- obligaria a filtrar el rango de fechas en memoria.
+--
+-- A proposito NO se indexan employee_absences ni schedule_blocks:
+-- son tablas que se mantienen pequenas y ahi un indice solo
+-- anadiria coste de escritura sin ganancia real de lectura.
+-- business_hours ya esta cubierta por su UNIQUE(id_business, day).
+-- ------------------------------------------------------------
+
+-- Solapamiento de citas por empleado: AppointmentRepository
+-- .existsOverlappingAppointment, se ejecuta en cada POST /appointments.
+CREATE INDEX idx_appt_membership_start
+    ON appointments (id_membership, start_datetime);
+
+-- Citas activas del dia por negocio: AppointmentRepository
+-- .findActiveByBusinessAndDay (GET /availability) y la busqueda
+-- paginada searchAppointments (GET /appointments).
+CREATE INDEX idx_appt_business_start
+    ON appointments (id_business, start_datetime);
+
+-- Solapamiento de citas por cabina: AppointmentRepository
+-- .existsOverlappingBoothAppointment, en POST /appointments con cabina.
+CREATE INDEX idx_appt_booth_start
+    ON appointments (id_booth, start_datetime);
+
+-- Horario semanal del empleado: EmployeeScheduleRepository
+-- .findAllByMembershipIdAndDayOfWeek, en cada validacion de cita y
+-- en el algoritmo de disponibilidad.
+CREATE INDEX idx_schedule_membership_day
+    ON employee_schedules (id_membership, day_of_week);
 
 
 -- ------------------------------------------------------------
