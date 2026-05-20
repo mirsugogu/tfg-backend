@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --shadow-card: 0 2px 12px -2px rgba(15, 23, 42, 0.06);
+  --shadow-float: 0 12px 40px -12px rgba(15, 23, 42, 0.15);
+}
+
+/*
+ * NOTA: NO se añade un reset propio `* { margin:0; padding:0 }` aquí.
+ * Iría sin capa CSS y, en Tailwind v4, el CSS sin capa gana a las
+ * @layer — anularía TODAS las utilidades de espaciado (p-*, m-*,
+ * space-*). El preflight de Tailwind ya aplica box-sizing y los
+ * resets de margen de forma correcta (dentro de @layer base).
+ */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  background-color: #f4f7fe;
+  color: #1f2c4a;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+::selection {
+  background: #38bdf8;
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
