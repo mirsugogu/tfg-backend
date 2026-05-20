@@ -9,6 +9,7 @@ import com.optima.api.modules.user.model.User;
 import com.optima.api.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -91,6 +92,15 @@ public class PasswordResetService {
     private final SecureRandom secureRandom = new SecureRandom();
 
     /**
+     * URL base del frontend, para construir el enlace de la pantalla de
+     * restablecimiento que viaja en el email. Inyectada con @Value (campo
+     * no-final, mismo patron que app.mail.from en MailService) y con valor
+     * por defecto, para que el arranque no dependa de la propiedad.
+     */
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
+
+    /**
      * Inicia el flujo de reset. Siempre devuelve 200 al caller, hayamos
      * encontrado el email o no (anti-enumeration).
      */
@@ -115,22 +125,33 @@ public class PasswordResetService {
         reset.setExpiresAt(LocalDateTime.now().plus(TOKEN_TTL));
         resetRepository.save(reset);
 
+        // Enlace directo a la pantalla de reset del frontend. El token es
+        // base64 url-safe sin padding (ver generateRawToken), asi que viaja
+        // en la query string sin necesidad de codificarlo. replaceAll quita
+        // una posible barra final de frontendUrl para no generar "//reset".
+        String resetLink = frontendUrl.replaceAll("/+$", "")
+                + "/reset-password?token=" + rawToken;
+
         String subject = "Optima - restablece tu contraseña";
         String body = """
                 Hola %s,
 
-                Has solicitado restablecer tu contraseña en Optima. Usa el
-                siguiente token (valido durante 1 hora) en la pantalla de
-                restablecimiento:
+                Has solicitado restablecer tu contraseña en Optima. Abre
+                este enlace para crear una nueva (valido durante 1 hora):
+
+                    %s
+
+                Si el enlace no funciona, copia este codigo y pegalo en la
+                pantalla de restablecimiento:
 
                     %s
 
                 Si no has solicitado este cambio, ignora este correo: tu
-                contraseña actual sigue siendo valida y el token caducara
+                contraseña actual sigue siendo valida y el codigo caducara
                 solo.
 
                 Optima.
-                """.formatted(user.getFullName(), rawToken);
+                """.formatted(user.getFullName(), resetLink, rawToken);
 
         mailService.sendSimpleEmail(user.getEmail(), subject, body);
         log.info("forgot-password: token emitido para userId={}", user.getId());
