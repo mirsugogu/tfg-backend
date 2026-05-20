@@ -46,11 +46,16 @@ public class ClientController {
         return clientService.create(businessId, request);
     }
 
-    /** Lista paginada de clientes activos del negocio. */
+    /**
+     * Lista paginada de clientes del negocio. ?active=true (por defecto)
+     * devuelve los activos; ?active=false los archivados (la vista desde
+     * la que se reactivan).
+     */
     @GetMapping
     public Page<ClientResponse> listByBusiness(@PathVariable @Positive Long businessId,
+                                               @RequestParam(defaultValue = "true") boolean active,
                                                Pageable pageable) {
-        return clientService.listByBusiness(businessId, pageable);
+        return clientService.listByBusiness(businessId, active, pageable);
     }
 
     /** Obtiene un cliente por ID dentro del negocio (cross-tenant safe). */
@@ -72,5 +77,16 @@ public class ClientController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactivate(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
         clientService.deactivate(businessId, id);
+    }
+
+    /**
+     * PATCH /api/businesses/{businessId}/clients/{id}/reactivate - Revierte
+     * el soft delete de un cliente archivado. Pone isActive=true. Devuelve
+     * el ClientResponse actualizado. 400 si ya estaba activo.
+     */
+    @PatchMapping("/{id}/reactivate")
+    public ClientResponse reactivate(@PathVariable @Positive Long businessId,
+                                     @PathVariable @Positive Long id) {
+        return clientService.reactivate(businessId, id);
     }
 }

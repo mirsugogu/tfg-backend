@@ -52,12 +52,17 @@ public class ServiceCategoryController {
     }
 
     /**
-     * Lista paginada de categorías activas de un negocio.
+     * Lista paginada de categorías de un negocio.
+     *
+     * ?active=true (por defecto) devuelve las categorías activas;
+     * ?active=false devuelve las archivadas (la vista desde la que se
+     * reactivan).
      */
     @GetMapping
     public Page<ServiceCategoryResponse> getActiveCategories(@PathVariable @Positive Long businessId,
+                                                     @RequestParam(defaultValue = "true") boolean active,
                                                      Pageable pageable) {
-        return categoryService.getActiveCategories(businessId, pageable);
+        return categoryService.getActiveCategories(businessId, active, pageable);
     }
 
     /**
@@ -88,5 +93,18 @@ public class ServiceCategoryController {
     @PreAuthorize("hasRole('ADMIN')")
     public void deactivateCategory(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
         categoryService.deactivateCategory(businessId, id);
+    }
+
+    /**
+     * PATCH /api/businesses/{businessId}/categories/{id}/reactivate -
+     * Revierte el soft delete de una categoría archivada (ADMIN). Pone
+     * isActive=true. Devuelve el ServiceCategoryResponse actualizado.
+     * 400 si ya estaba activa.
+     */
+    @PatchMapping("/{id}/reactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ServiceCategoryResponse reactivateCategory(@PathVariable @Positive Long businessId,
+                                                      @PathVariable @Positive Long id) {
+        return categoryService.reactivateCategory(businessId, id);
     }
 }

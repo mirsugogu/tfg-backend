@@ -54,13 +54,18 @@ public class BusinessServiceController {
     }
 
     /**
-     * Lista paginada de servicios activos del negocio.
+     * Lista paginada de servicios del negocio.
      * Pageable se rellena con ?page=&size=&sort=field,asc.
+     *
+     * ?active=true (por defecto) devuelve los servicios activos;
+     * ?active=false devuelve los archivados (la vista desde la que se
+     * reactivan).
      */
     @GetMapping
     public Page<BusinessServiceResponse> getServicesByBusiness(@PathVariable @Positive Long businessId,
+                                                       @RequestParam(defaultValue = "true") boolean active,
                                                        Pageable pageable) {
-        return businessServiceService.getActiveServicesByBusiness(businessId, pageable);
+        return businessServiceService.getActiveServicesByBusiness(businessId, active, pageable);
     }
 
     /**
@@ -91,5 +96,17 @@ public class BusinessServiceController {
     @PreAuthorize("hasRole('ADMIN')")
     public void deactivateService(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
         businessServiceService.deactivateService(businessId, id);
+    }
+
+    /**
+     * PATCH /api/businesses/{businessId}/services/{id}/reactivate - Revierte
+     * el soft delete de un servicio archivado (ADMIN). Pone isActive=true.
+     * Devuelve el BusinessServiceResponse actualizado. 400 si ya estaba activo.
+     */
+    @PatchMapping("/{id}/reactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public BusinessServiceResponse reactivateService(@PathVariable @Positive Long businessId,
+                                                     @PathVariable @Positive Long id) {
+        return businessServiceService.reactivateService(businessId, id);
     }
 }

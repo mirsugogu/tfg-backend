@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  Plus, Pencil, Trash2, Percent, Clock, Save, Building2, Store,
-  CalendarX2, User, MapPin, Globe,
+  Plus, Pencil, Trash2, Archive, ArchiveRestore, Percent, Clock, Save, Building2, Store,
+  CalendarX2, User, MapPin, Globe, Mail, Phone, RefreshCw, Search,
+  ExternalLink, AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -14,12 +15,11 @@ import { useToast } from '@/components/ui/Toast'
 import { usePagedFetch } from '@/hooks/usePagedFetch'
 import api, { getErrorMessage } from '@/lib/api'
 
-const DAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+const DAYS       = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+const DAYS_SHORT = ['', 'L', 'M', 'X', 'J', 'V', 'S', 'D']
 
-// Estilo de tarjeta blanca, idéntico al del resto de páginas del proyecto.
 const CARD = 'bg-white rounded-2xl border border-slate-100/80 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)]'
-// Cabecera de tabla reutilizada por las pestañas con listado tabular.
-const TH = 'px-6 py-3.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider'
+const TH   = 'px-6 py-3.5 text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wider'
 
 const emptyTax   = { name: '', percentage: '' }
 const emptyHour  = { dayOfWeek: '1', startTime: '09:00', endTime: '18:00', isClosed: false }
@@ -29,17 +29,30 @@ const emptyBlock = { type: 'global', membershipId: '', boothId: '', startDate: '
 const fmtDate = (d) =>
   d ? new Date(`${d}T00:00:00`).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'
 
-/**
- * Configuración — pantalla de ajustes del negocio con 5 pestañas. Cada
- * pestaña es un componente independiente que se monta solo cuando está
- * activa, de modo que sus hooks (incluida la paginación) se atan a su
- * propio ciclo de vida y no se cargan datos que no se están viendo.
- */
+const fmtSinceShort = (iso) =>
+  iso ? new Date(iso).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }).replace('.', '') : '—'
+
+const BOOTH_PALETTE = [
+  'from-indigo-400 to-purple-500',
+  'from-cyan-400 to-blue-500',
+  'from-emerald-400 to-teal-500',
+  'from-amber-400 to-orange-500',
+  'from-pink-400 to-rose-500',
+  'from-sky-400 to-blue-500',
+]
+const boothColor = (id) => BOOTH_PALETTE[(id ?? 0) % BOOTH_PALETTE.length]
+
+/* ============================================================
+   CONFIGURACIÓN — entry point
+   ============================================================ */
+
 export default function Configuracion() {
   const { user } = useAuth()
   const bId = user?.businessId
   const isAdmin = user?.role === 'ADMIN'
-  const [tab, setTab] = useState('business')
+
+  const [tab, setTab] = useState(() => localStorage.getItem('optima_cfg_tab') || 'business')
+  useEffect(() => { localStorage.setItem('optima_cfg_tab', tab) }, [tab])
 
   const tabs = [
     { key: 'business', label: 'Negocio',   icon: Building2 },
@@ -83,16 +96,23 @@ export default function Configuracion() {
   )
 }
 
-// ───────────────────────── Negocio ─────────────────────────
+/* ============================================================
+   NEGOCIO
+   ============================================================ */
+
+const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim())
+
 function BusinessTab({ bId, isAdmin }) {
   const toast = useToast()
-  const [biz, setBiz]   = useState(null)   // negocio cargado (incluye slug, coordenadas, isActive)
-  const [form, setForm] = useState(null)   // solo los campos editables (UpdateBusinessRequest)
+  const [biz, setBiz]   = useState(null)
+  const [form, setForm] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState(false)
-  const [reload, setReload]   = useState(0)              // fuerza recargar el negocio
-  const [dangerOpen, setDangerOpen]     = useState(false)  // modal de confirmación de baja
+  const [reload, setReload]   = useState(0)
+  const [dangerOpen, setDangerOpen]     = useState(false)
   const [dangerSaving, setDangerSaving] = useState(false)
+
+  const refresh = () => setReload((v) => v + 1)
 
   useEffect(() => {
     if (!bId) return
@@ -120,10 +140,9 @@ function BusinessTab({ bId, isAdmin }) {
   const handleSave = async () => {
     if (!form.name.trim())  { toast({ type: 'error', message: 'El nombre del negocio es obligatorio.' }); return }
     if (!form.email.trim()) { toast({ type: 'error', message: 'El email del negocio es obligatorio.' }); return }
+    if (!isEmail(form.email)) { toast({ type: 'error', message: 'Formato de email no válido.' }); return }
     setSaving(true)
     try {
-      // UpdateBusinessRequest NO incluye slug (es inmutable). El backend
-      // valida que appointmentInterval sea 15/30/45/60.
       const { data } = await api.put(`/api/businesses/${bId}`, {
         ...form,
         appointmentInterval: Number(form.appointmentInterval),
@@ -132,25 +151,19 @@ function BusinessTab({ bId, isAdmin }) {
       toast({ type: 'success', message: 'Datos del negocio actualizados.' })
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'No se pudo guardar.') })
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
-  // Baja del negocio (soft delete). Tras el DELETE se recarga: el GET
-  // sigue devolviendo el negocio con isActive=false (auditoría G.002).
   const handleDeactivate = async () => {
     setDangerSaving(true)
     try {
       await api.delete(`/api/businesses/${bId}`)
       toast({ type: 'success', message: 'El negocio se ha dado de baja.' })
       setDangerOpen(false)
-      setReload((v) => v + 1)
+      refresh()
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'No se pudo dar de baja el negocio.') })
-    } finally {
-      setDangerSaving(false)
-    }
+    } finally { setDangerSaving(false) }
   }
 
   const handleReactivate = async () => {
@@ -161,36 +174,49 @@ function BusinessTab({ bId, isAdmin }) {
       toast({ type: 'success', message: 'El negocio se ha reactivado.' })
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'No se pudo reactivar el negocio.') })
-    } finally {
-      setDangerSaving(false)
-    }
+    } finally { setDangerSaving(false) }
   }
 
   if (loading || !form) {
-    return (
-      <div className={`${CARD} p-6 space-y-4`}>
-        {[...Array(5)].map((_, i) => <div key={i} className="h-11 rounded-xl bg-slate-100 animate-pulse" />)}
-      </div>
-    )
+    return <div className={`${CARD} p-6 space-y-4`}>{[...Array(5)].map((_, i) => <div key={i} className="h-11 rounded-xl bg-slate-100 animate-pulse" />)}</div>
   }
+
+  const mapsHref = biz?.latitude != null && biz?.longitude != null
+    ? `https://www.google.com/maps?q=${biz.latitude},${biz.longitude}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([biz?.address, biz?.city, biz?.country].filter(Boolean).join(', '))}`
 
   return (
     <div className="space-y-5">
-      {/* Aviso de negocio dado de baja */}
       {!biz.isActive && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 flex flex-wrap items-center gap-3">
           <p className="text-sm text-amber-800 font-medium flex-1 min-w-[220px]">
             Este negocio está <strong>dado de baja</strong>. Reactívalo para volver a operar con normalidad.
           </p>
-          {isAdmin && (
-            <Button onClick={handleReactivate} loading={dangerSaving} size="sm">
-              Reactivar negocio
-            </Button>
-          )}
+          {isAdmin && <Button onClick={handleReactivate} loading={dangerSaving} size="sm">Reactivar negocio</Button>}
         </div>
       )}
 
-      {/* Datos del negocio */}
+      {/* Quick contact strip */}
+      <div className={`${CARD} p-4 flex flex-wrap items-center gap-3`}>
+        <a href={`mailto:${biz.email}`} className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-blue-50/50 text-blue-700 hover:bg-blue-100 transition truncate max-w-full">
+          <Mail size={12} /> {biz.email}
+        </a>
+        {biz.phone && (
+          <a href={`tel:${biz.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-1.5 text-xs font-medium font-mono px-2.5 py-1.5 rounded-lg bg-slate-50 text-slate-700 hover:bg-slate-100 transition">
+            <Phone size={12} /> {biz.phone}
+          </a>
+        )}
+        {(biz.address || biz.city) && (
+          <a href={mapsHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-emerald-50/60 text-emerald-700 hover:bg-emerald-100 transition truncate">
+            <MapPin size={12} /> Ver en mapa <ExternalLink size={11} />
+          </a>
+        )}
+        <span className="ml-auto text-[11px] text-slate-400 inline-flex items-center gap-1">
+          Creado {fmtSinceShort(biz.createdAt)}
+        </span>
+      </div>
+
+      {/* Form */}
       <div className={`${CARD} p-6 space-y-6`}>
         <div className="grid sm:grid-cols-2 gap-4">
           <Input label="Nombre *" value={form.name} onChange={(e) => set('name', e.target.value)} disabled={!isAdmin} />
@@ -208,9 +234,7 @@ function BusinessTab({ bId, isAdmin }) {
 
         <div>
           <Input label="Identificador (slug)" value={biz?.slug || ''} disabled />
-          <p className="text-[11px] text-slate-400 mt-1.5">
-            El identificador se fija al crear el negocio y no se puede cambiar.
-          </p>
+          <p className="text-[11px] text-slate-400 mt-1.5">El identificador se fija al crear el negocio y no se puede cambiar.</p>
         </div>
 
         <div className="border-t border-slate-100 pt-5">
@@ -231,36 +255,28 @@ function BusinessTab({ bId, isAdmin }) {
 
         {isAdmin ? (
           <div className="pt-1">
-            <Button onClick={handleSave} loading={saving} className="gap-2">
-              <Save size={16} /> Guardar cambios
-            </Button>
+            <Button onClick={handleSave} loading={saving} className="gap-2"><Save size={16} /> Guardar cambios</Button>
           </div>
         ) : (
           <p className="text-xs text-slate-400">Solo un administrador puede modificar estos datos.</p>
         )}
       </div>
 
-      {/* Zona de peligro — solo ADMIN y solo con el negocio activo */}
       {isAdmin && biz.isActive && (
         <div className="rounded-2xl border border-red-200 bg-red-50/50 p-6">
           <p className="text-sm font-bold text-red-700">Zona de peligro</p>
-          <p className="text-xs text-slate-500 mt-1 mb-4">
-            Dar de baja el negocio lo desactiva: nadie podrá iniciar sesión ni operar con él hasta reactivarlo.
-          </p>
+          <p className="text-xs text-slate-500 mt-1 mb-4">Dar de baja el negocio lo desactiva: nadie podrá iniciar sesión ni operar con él hasta reactivarlo.</p>
           <Button variant="outline-danger" size="sm" onClick={() => setDangerOpen(true)} className="gap-2">
             <Trash2 size={14} /> Dar de baja el negocio
           </Button>
         </div>
       )}
 
-      {/* Confirmación de baja */}
       <Modal open={dangerOpen} onClose={() => setDangerOpen(false)} title="Dar de baja el negocio" size="sm">
         <div className="space-y-5">
           <div className="flex items-start gap-3 rounded-2xl bg-red-50 border border-red-100 px-4 py-4">
             <Trash2 size={20} className="text-red-500 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-700 leading-snug">
-              ¿Seguro que quieres dar de baja <strong>{biz?.name}</strong>? Podrás reactivarlo después desde esta misma pantalla.
-            </p>
+            <p className="text-sm text-red-700 leading-snug">¿Seguro que quieres dar de baja <strong>{biz?.name}</strong>? Podrás reactivarlo después desde esta misma pantalla.</p>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => setDangerOpen(false)} className="flex-1">Cancelar</Button>
@@ -272,21 +288,48 @@ function BusinessTab({ bId, isAdmin }) {
   )
 }
 
-// ───────────────────────── Impuestos ─────────────────────────
+/* ============================================================
+   IMPUESTOS
+   ============================================================ */
+
 function TaxesTab({ bId, isAdmin }) {
   const toast = useToast()
-  const { items: taxes, page, totalPages, totalElements, loading, setPage, refresh } =
-    usePagedFetch(bId ? `/api/businesses/${bId}/taxes` : null)
+  const [pageSize, setPageSize] = useState(() => parseInt(localStorage.getItem('optima_cfg_taxes_size') || '20', 10))
+  useEffect(() => { localStorage.setItem('optima_cfg_taxes_size', String(pageSize)) }, [pageSize])
+  const [sortDir, setSortDir] = useState(() => localStorage.getItem('optima_cfg_taxes_sort') || 'asc')
+  useEffect(() => { localStorage.setItem('optima_cfg_taxes_sort', sortDir) }, [sortDir])
 
-  const [modal, setModal]     = useState(null)   // 'create' | 'edit' | 'delete'
+  // Vista activos / archivados — sin persistir
+  const [view, setView] = useState('active')
+  const isArchived = view === 'archived'
+  const queryParams = useMemo(() => ({ sort: `name,${sortDir}`, active: view === 'active' }), [sortDir, view])
+
+  const { items: taxes, page, totalPages, totalElements, loading, setPage, refresh } =
+    usePagedFetch(bId ? `/api/businesses/${bId}/taxes` : null, { size: pageSize, params: queryParams })
+
+  // Carga del catálogo para contar uso por impuesto (sin endpoint dedicado).
+  const [services, setServices] = useState([])
+  useEffect(() => {
+    if (!bId) return
+    api.get(`/api/businesses/${bId}/services?size=100`).then((r) => setServices(r.data.content ?? [])).catch(() => {})
+  }, [bId])
+  const usageBy = useMemo(() => {
+    const m = new Map()
+    services.forEach((s) => m.set(s.taxId, (m.get(s.taxId) ?? 0) + 1))
+    return m
+  }, [services])
+
+  const avgPct = useMemo(() => taxes.length === 0 ? null : taxes.reduce((a, t) => a + Number(t.percentage), 0) / taxes.length, [taxes])
+
+  const [modal, setModal]       = useState(null)
   const [selected, setSelected] = useState(null)
-  const [form, setForm]       = useState(emptyTax)
-  const [saving, setSaving]   = useState(false)
+  const [form, setForm]         = useState(emptyTax)
+  const [saving, setSaving]     = useState(false)
 
   const closeModal = () => { setModal(null); setSelected(null) }
-  const openCreate = () => { setForm(emptyTax); setSelected(null); setModal('create') }
-  const openEdit   = (t) => { setSelected(t); setForm({ name: t.name, percentage: String(t.percentage) }); setModal('edit') }
-  const openDelete = (t) => { setSelected(t); setModal('delete') }
+  const openCreate  = () => { setForm(emptyTax); setSelected(null); setModal('create') }
+  const openEdit    = (t) => { setSelected(t); setForm({ name: t.name, percentage: String(t.percentage) }); setModal('edit') }
+  const openArchive = (t) => { setSelected(t); setModal('archive') }
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast({ type: 'error', message: 'El nombre es obligatorio.' }); return }
@@ -306,32 +349,47 @@ function TaxesTab({ bId, isAdmin }) {
       closeModal(); refresh()
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'No se pudo guardar el impuesto.') })
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
-  const handleDelete = async () => {
+  const handleArchive = async () => {
     setSaving(true)
     try {
       await api.delete(`/api/businesses/${bId}/taxes/${selected.id}`)
-      toast({ type: 'success', message: 'Impuesto eliminado.' })
+      toast({ type: 'success', message: 'Impuesto archivado.' })
       closeModal(); refresh()
     } catch (err) {
-      // El 2º DELETE devuelve 400 "ya está desactivado" (soft delete).
-      toast({ type: 'error', message: getErrorMessage(err, 'No se pudo eliminar el impuesto.') })
-    } finally {
-      setSaving(false)
+      toast({ type: 'error', message: getErrorMessage(err, 'No se pudo archivar el impuesto.') })
+    } finally { setSaving(false) }
+  }
+
+  // Restaurar es un clic directo (no destructivo): sin modal de confirmación.
+  const handleReactivate = async (tax) => {
+    try {
+      await api.patch(`/api/businesses/${bId}/taxes/${tax.id}/reactivate`)
+      toast({ type: 'success', message: 'Impuesto restaurado.' })
+      refresh()
+    } catch (err) {
+      toast({ type: 'error', message: getErrorMessage(err, 'No se pudo restaurar el impuesto.') })
     }
   }
 
   return (
     <div>
-      {isAdmin && (
-        <div className="mb-5">
-          <Button onClick={openCreate} className="gap-2"><Plus size={16} /> Nuevo impuesto</Button>
-        </div>
-      )}
+      <Toolbar
+        rightCount={totalElements}
+        rightLabel={isArchived
+          ? `impuesto${totalElements === 1 ? '' : 's'} archivado${totalElements === 1 ? '' : 's'}`
+          : `impuesto${totalElements === 1 ? '' : 's'}`}
+        extraStats={!isArchived && avgPct != null ? `IVA medio ${avgPct.toFixed(1)}%` : null}
+        filter={<ArchiveViewToggle view={view} onChange={setView} />}
+        sortOptions={[{ value: 'asc', label: 'Nombre A → Z' }, { value: 'desc', label: 'Nombre Z → A' }]}
+        sortValue={sortDir} onSortChange={setSortDir}
+        pageSize={pageSize} onPageSize={(v) => { setPageSize(v); setPage(0) }}
+        onRefresh={refresh} loading={loading}
+        primary={isAdmin && <Button onClick={openCreate} className="gap-2"><Plus size={16} /> Nuevo impuesto</Button>}
+      />
+
       <div className={`${CARD} overflow-hidden`}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -339,37 +397,50 @@ function TaxesTab({ bId, isAdmin }) {
               <tr className="bg-slate-50/60 border-b border-slate-100">
                 <th className={TH}>Nombre</th>
                 <th className={TH}>Porcentaje</th>
+                <th className={TH}>Servicios que lo usan</th>
                 {isAdmin && <th className={`${TH} text-right`}>Acciones</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {loading ? (
                 [...Array(3)].map((_, i) => (
-                  <tr key={i}><td colSpan={3} className="px-6 py-4"><div className="h-4 bg-slate-100 rounded-lg animate-pulse" /></td></tr>
+                  <tr key={i}><td colSpan={4} className="px-6 py-4"><div className="h-4 bg-slate-100 rounded-lg animate-pulse" /></td></tr>
                 ))
               ) : taxes.length === 0 ? (
-                <tr><td colSpan={3} className="px-6 py-12 text-center text-slate-400">No hay impuestos configurados.</td></tr>
+                <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                  {isArchived ? 'No hay impuestos archivados.' : 'No hay impuestos configurados.'}
+                </td></tr>
               ) : (
-                taxes.map((t) => (
-                  <tr key={t.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-[#1e3a5f]">{t.name}</td>
-                    <td className="px-6 py-4">
-                      <Badge variant="default"><Percent size={10} className="mr-0.5" />{t.percentage}%</Badge>
-                    </td>
-                    {isAdmin && (
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-1">
-                          <button onClick={() => openEdit(t)} className="rounded-xl p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors" title="Editar">
-                            <Pencil size={15} />
-                          </button>
-                          <button onClick={() => openDelete(t)} className="rounded-xl p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Eliminar">
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
+                taxes.map((t) => {
+                  const count = usageBy.get(t.id) ?? 0
+                  return (
+                    <tr key={t.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="px-6 py-4 font-semibold text-[#1e3a5f]">{t.name}</td>
+                      <td className="px-6 py-4">
+                        <Badge variant="default"><Percent size={10} className="mr-0.5" />{t.percentage}%</Badge>
                       </td>
-                    )}
-                  </tr>
-                ))
+                      <td className="px-6 py-4 text-slate-500 text-xs">
+                        {count > 0 ? `${count} servicio${count === 1 ? '' : 's'}` : <span className="text-slate-300">— ninguno</span>}
+                      </td>
+                      {isAdmin && (
+                        <td className="px-6 py-4 text-right">
+                          {isArchived ? (
+                            <div className="flex justify-end">
+                              <Button variant="success" size="sm" onClick={() => handleReactivate(t)} className="gap-1.5">
+                                <ArchiveRestore size={14} /> Restaurar
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex justify-end gap-1">
+                              <button onClick={() => openEdit(t)} className="rounded-xl p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition" title="Editar"><Pencil size={15} /></button>
+                              <button onClick={() => openArchive(t)} className="rounded-xl p-2 text-slate-400 hover:bg-amber-50 hover:text-amber-600 transition" title="Archivar"><Archive size={15} /></button>
+                            </div>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -387,30 +458,34 @@ function TaxesTab({ bId, isAdmin }) {
           </div>
         </div>
       </Modal>
-      <Modal open={modal === 'delete'} onClose={closeModal} title="Eliminar impuesto" size="sm">
-        <p className="text-sm text-slate-600 mb-5">¿Eliminar el impuesto <strong>{selected?.name}</strong>?</p>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
-          <Button variant="danger" onClick={handleDelete} loading={saving} className="flex-1">Eliminar</Button>
+      <Modal open={modal === 'archive'} onClose={closeModal} title="Archivar impuesto" size="sm">
+        <div className="space-y-5">
+          <div className="flex items-start gap-3 rounded-2xl bg-amber-50 border border-amber-100 px-4 py-4">
+            <Archive size={20} className="text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-800 leading-snug">
+              ¿Archivar el impuesto <strong>{selected?.name}</strong>?
+              {(usageBy.get(selected?.id) ?? 0) > 0 && ` Hay ${usageBy.get(selected?.id)} servicio(s) usándolo; el backend bloqueará la acción si tiene dependencias activas.`}
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
+            <Button variant="danger" onClick={handleArchive} loading={saving} className="flex-1">Archivar</Button>
+          </div>
         </div>
       </Modal>
     </div>
   )
 }
 
-// ───────────────────────── Horarios ─────────────────────────
-// El backend devuelve los horarios como List<> plano (sin paginar): hay
-// como mucho 7 filas, una por día de la semana.
+/* ============================================================
+   HORARIOS — vista visual semanal + acciones rápidas
+   ============================================================ */
+
 function HoursTab({ bId, isAdmin }) {
   const toast = useToast()
-  const [hours, setHours]   = useState(null)
+  const [hours, setHours] = useState(null)
   const [loading, setLoading] = useState(true)
   const [reload, setReload] = useState(0)
-
-  const [modal, setModal]     = useState(null)
-  const [selected, setSelected] = useState(null)
-  const [form, setForm]       = useState(emptyHour)
-  const [saving, setSaving]   = useState(false)
 
   useEffect(() => {
     if (!bId) return
@@ -428,6 +503,12 @@ function HoursTab({ bId, isAdmin }) {
   }, [bId, reload, toast])
 
   const refresh = () => setReload((v) => v + 1)
+
+  const [modal, setModal]       = useState(null)
+  const [selected, setSelected] = useState(null)
+  const [form, setForm]         = useState(emptyHour)
+  const [saving, setSaving]     = useState(false)
+
   const closeModal = () => { setModal(null); setSelected(null) }
   const openCreate = () => { setForm(emptyHour); setSelected(null); setModal('create') }
   const openEdit = (h) => {
@@ -435,7 +516,7 @@ function HoursTab({ bId, isAdmin }) {
     setForm({
       dayOfWeek: String(h.dayOfWeek),
       startTime: h.startTime?.slice(0, 5) || '09:00',
-      endTime:   h.endTime?.slice(0, 5)   || '18:00',
+      endTime:   h.endTime?.slice(0, 5) || '18:00',
       isClosed:  h.isClosed,
     })
     setModal('edit')
@@ -448,8 +529,6 @@ function HoursTab({ bId, isAdmin }) {
     }
     setSaving(true)
     try {
-      // Si el día está cerrado, startTime/endTime van a null; si está
-      // abierto, ambos son obligatorios y apertura < cierre.
       const payload = {
         dayOfWeek: Number(form.dayOfWeek),
         isClosed:  form.isClosed,
@@ -465,11 +544,8 @@ function HoursTab({ bId, isAdmin }) {
       }
       closeModal(); refresh()
     } catch (err) {
-      // Cada día solo admite una fila (restricción UNIQUE business+día).
       toast({ type: 'error', message: getErrorMessage(err, 'No se pudo guardar el horario.') })
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
@@ -480,65 +556,138 @@ function HoursTab({ bId, isAdmin }) {
       closeModal(); refresh()
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'No se pudo eliminar el horario.') })
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
+
+  // Quick action: clonar Lunes en Mar-Vie (sobrescribe los que ya existan)
+  const handleCopyMonToFriday = async () => {
+    const monday = hours?.find((h) => h.dayOfWeek === 1)
+    if (!monday || monday.isClosed) {
+      toast({ type: 'error', message: 'Configura primero el horario del lunes.' }); return
+    }
+    setSaving(true)
+    try {
+      for (let d = 2; d <= 5; d++) {
+        const existing = hours.find((h) => h.dayOfWeek === d)
+        const payload = {
+          dayOfWeek: d,
+          isClosed: false,
+          startTime: monday.startTime,
+          endTime: monday.endTime,
+        }
+        if (existing) await api.put(`/api/businesses/${bId}/hours/${existing.id}`, payload)
+        else          await api.post(`/api/businesses/${bId}/hours`, payload)
+      }
+      toast({ type: 'success', message: 'Horario del lunes copiado a martes–viernes.' })
+      refresh()
+    } catch (err) {
+      toast({ type: 'error', message: getErrorMessage(err, 'No se pudo copiar el horario.') })
+    } finally { setSaving(false) }
+  }
+
+  const handleCloseWeekend = async () => {
+    setSaving(true)
+    try {
+      for (let d = 6; d <= 7; d++) {
+        const existing = hours.find((h) => h.dayOfWeek === d)
+        const payload = { dayOfWeek: d, isClosed: true, startTime: null, endTime: null }
+        if (existing) await api.put(`/api/businesses/${bId}/hours/${existing.id}`, payload)
+        else          await api.post(`/api/businesses/${bId}/hours`, payload)
+      }
+      toast({ type: 'success', message: 'Fin de semana marcado como cerrado.' })
+      refresh()
+    } catch (err) {
+      toast({ type: 'error', message: getErrorMessage(err, 'No se pudo actualizar.') })
+    } finally { setSaving(false) }
+  }
+
+  // Total weekly hours
+  const totalWeekly = useMemo(() => {
+    if (!hours) return 0
+    return hours.reduce((acc, h) => {
+      if (h.isClosed || !h.startTime || !h.endTime) return acc
+      const ms = new Date(`1970-01-01T${h.endTime}`) - new Date(`1970-01-01T${h.startTime}`)
+      return acc + ms / 3600000
+    }, 0)
+  }, [hours])
+
+  // Visual range for grid
+  const DAY_START = 8, DAY_END = 22, total = DAY_END - DAY_START
 
   return (
     <div>
-      {isAdmin && (
-        <div className="mb-5">
-          <Button onClick={openCreate} className="gap-2"><Plus size={16} /> Añadir tramo horario</Button>
+      <div className="mb-4 flex flex-wrap gap-2 items-center">
+        {isAdmin && (
+          <>
+            <button onClick={handleCopyMonToFriday} disabled={saving} className="text-xs font-semibold px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition disabled:opacity-40">Copiar L → V</button>
+            <button onClick={handleCloseWeekend} disabled={saving} className="text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100 transition disabled:opacity-40">Fin de semana cerrado</button>
+          </>
+        )}
+        <span className="ml-auto text-xs text-slate-500"><strong className="text-[#1e3a5f] tabular-nums">{totalWeekly.toFixed(0)} h</strong> semanales</span>
+        {isAdmin && (
+          <Button onClick={openCreate} className="gap-2" size="sm"><Plus size={14} /> Añadir tramo</Button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className={`${CARD} p-5 space-y-2`}>{[...Array(7)].map((_, i) => <div key={i} className="h-8 bg-slate-100 rounded-md animate-pulse" />)}</div>
+      ) : (
+        <div className={`${CARD} p-5`}>
+          <div className="space-y-2">
+            {[1, 2, 3, 4, 5, 6, 7].map((d) => {
+              const h = (hours ?? []).find((x) => x.dayOfWeek === d)
+              const isToday = (new Date().getDay() === 0 ? 7 : new Date().getDay()) === d
+              let bar
+              if (h && !h.isClosed && h.startTime && h.endTime) {
+                const [sh, sm] = h.startTime.slice(0, 5).split(':').map(Number)
+                const [eh, em] = h.endTime.slice(0, 5).split(':').map(Number)
+                const startH = sh + sm / 60 - DAY_START
+                const endH   = eh + em / 60 - DAY_START
+                const left   = Math.max(0, (startH / total) * 100)
+                const width  = Math.max(2, ((endH - startH) / total) * 100)
+                bar = (
+                  <div
+                    className="absolute inset-y-1 rounded-md flex items-center px-2 text-[10px] font-semibold text-white"
+                    style={{ left: `${left}%`, width: `${width}%`, background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)' }}
+                  >
+                    {h.startTime.slice(0, 5)} – {h.endTime.slice(0, 5)}
+                  </div>
+                )
+              } else if (h && h.isClosed) {
+                bar = <div className="absolute inset-y-2 left-1 right-1 rounded-md bg-slate-50 text-[10px] font-medium text-slate-400 flex items-center justify-center">Cerrado</div>
+              } else {
+                bar = <div className="absolute inset-y-2 left-1 right-1 rounded-md border border-dashed border-slate-200 text-[10px] font-medium text-slate-400 flex items-center justify-center">Sin configurar</div>
+              }
+              return (
+                <div key={d} className="grid grid-cols-[80px_1fr_64px] items-center gap-2">
+                  <div className={`text-xs font-bold ${isToday ? 'text-blue-600' : 'text-[#1e3a5f]'}`}>{DAYS[d]}</div>
+                  <div className="relative h-8 rounded-md bg-slate-50 border border-slate-100">{bar}</div>
+                  <div className="flex gap-0.5 justify-end">
+                    {h && isAdmin && (
+                      <>
+                        <button onClick={() => openEdit(h)} className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition" title="Editar"><Pencil size={12} /></button>
+                        <button onClick={() => openDelete(h)} className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 transition" title="Eliminar"><Trash2 size={12} /></button>
+                      </>
+                    )}
+                    {!h && isAdmin && (
+                      <button onClick={() => { setForm({ ...emptyHour, dayOfWeek: String(d) }); setModal('create') }} className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition" title="Añadir"><Plus size={12} /></button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <div className="grid grid-cols-[80px_1fr_64px] gap-2 mt-3">
+            <div />
+            <div className="flex justify-between text-[10px] text-slate-400 px-1 font-mono">
+              {Array.from({ length: Math.floor(total / 2) + 1 }, (_, i) => (
+                <span key={i}>{String(DAY_START + i * 2).padStart(2, '0')}</span>
+              ))}
+            </div>
+            <div />
+          </div>
         </div>
       )}
-      <div className={`${CARD} overflow-hidden`}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50/60 border-b border-slate-100">
-                <th className={TH}>Día</th>
-                <th className={TH}>Apertura</th>
-                <th className={TH}>Cierre</th>
-                <th className={TH}>Estado</th>
-                {isAdmin && <th className={`${TH} text-right`}>Acciones</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {loading ? (
-                [...Array(5)].map((_, i) => (
-                  <tr key={i}><td colSpan={5} className="px-6 py-4"><div className="h-4 bg-slate-100 rounded-lg animate-pulse" /></td></tr>
-                ))
-              ) : (hours ?? []).length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-slate-400">No hay horarios configurados.</td></tr>
-              ) : (
-                hours.map((h) => (
-                  <tr key={h.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-[#1e3a5f]">{DAYS[h.dayOfWeek]}</td>
-                    <td className="px-6 py-4 text-slate-500 font-medium">{h.isClosed ? '—' : h.startTime?.slice(0, 5)}</td>
-                    <td className="px-6 py-4 text-slate-500 font-medium">{h.isClosed ? '—' : h.endTime?.slice(0, 5)}</td>
-                    <td className="px-6 py-4">
-                      <Badge variant={h.isClosed ? 'danger' : 'success'}>{h.isClosed ? 'Cerrado' : 'Abierto'}</Badge>
-                    </td>
-                    {isAdmin && (
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-1">
-                          <button onClick={() => openEdit(h)} className="rounded-xl p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors" title="Editar">
-                            <Pencil size={15} />
-                          </button>
-                          <button onClick={() => openDelete(h)} className="rounded-xl p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Eliminar">
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
       <Modal open={modal === 'create' || modal === 'edit'} onClose={closeModal} title={modal === 'create' ? 'Nuevo tramo horario' : 'Editar tramo horario'} size="sm">
         <div className="space-y-4">
@@ -546,12 +695,7 @@ function HoursTab({ bId, isAdmin }) {
             {DAYS.slice(1).map((d, i) => <option key={i + 1} value={i + 1}>{d}</option>)}
           </Select>
           <label className="flex items-center gap-2.5 text-sm font-medium text-slate-700 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={form.isClosed}
-              onChange={(e) => setForm((p) => ({ ...p, isClosed: e.target.checked }))}
-              className="accent-[#1e3a5f] h-4 w-4 rounded"
-            />
+            <input type="checkbox" checked={form.isClosed} onChange={(e) => setForm((p) => ({ ...p, isClosed: e.target.checked }))} className="accent-[#1e3a5f] h-4 w-4 rounded" />
             El negocio cierra este día
           </label>
           {!form.isClosed && (
@@ -577,21 +721,34 @@ function HoursTab({ bId, isAdmin }) {
   )
 }
 
-// ───────────────────────── Cabinas ─────────────────────────
+/* ============================================================
+   CABINAS
+   ============================================================ */
+
 function BoothsTab({ bId, isAdmin }) {
   const toast = useToast()
+  const [pageSize, setPageSize] = useState(() => parseInt(localStorage.getItem('optima_cfg_booths_size') || '20', 10))
+  useEffect(() => { localStorage.setItem('optima_cfg_booths_size', String(pageSize)) }, [pageSize])
+  const [sortDir, setSortDir] = useState(() => localStorage.getItem('optima_cfg_booths_sort') || 'asc')
+  useEffect(() => { localStorage.setItem('optima_cfg_booths_sort', sortDir) }, [sortDir])
+
+  // Vista activos / archivados — sin persistir
+  const [view, setView] = useState('active')
+  const isArchived = view === 'archived'
+  const queryParams = useMemo(() => ({ sort: `name,${sortDir}`, active: view === 'active' }), [sortDir, view])
+
   const { items: booths, page, totalPages, totalElements, loading, setPage, refresh } =
-    usePagedFetch(bId ? `/api/businesses/${bId}/booths` : null)
+    usePagedFetch(bId ? `/api/businesses/${bId}/booths` : null, { size: pageSize, params: queryParams })
 
-  const [modal, setModal]     = useState(null)
+  const [modal, setModal]       = useState(null)
   const [selected, setSelected] = useState(null)
-  const [form, setForm]       = useState(emptyBooth)
-  const [saving, setSaving]   = useState(false)
+  const [form, setForm]         = useState(emptyBooth)
+  const [saving, setSaving]     = useState(false)
 
-  const closeModal = () => { setModal(null); setSelected(null) }
-  const openCreate = () => { setForm(emptyBooth); setSelected(null); setModal('create') }
-  const openEdit   = (b) => { setSelected(b); setForm({ name: b.name }); setModal('edit') }
-  const openDelete = (b) => { setSelected(b); setModal('delete') }
+  const closeModal  = () => { setModal(null); setSelected(null) }
+  const openCreate  = () => { setForm(emptyBooth); setSelected(null); setModal('create') }
+  const openEdit    = (b) => { setSelected(b); setForm({ name: b.name }); setModal('edit') }
+  const openArchive = (b) => { setSelected(b); setModal('archive') }
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast({ type: 'error', message: 'El nombre es obligatorio.' }); return }
@@ -607,37 +764,54 @@ function BoothsTab({ bId, isAdmin }) {
       closeModal(); refresh()
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'No se pudo guardar la cabina.') })
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
-  const handleDelete = async () => {
+  const handleArchive = async () => {
     setSaving(true)
     try {
       await api.delete(`/api/businesses/${bId}/booths/${selected.id}`)
-      toast({ type: 'success', message: 'Cabina eliminada.' })
+      toast({ type: 'success', message: 'Cabina archivada.' })
       closeModal(); refresh()
     } catch (err) {
-      toast({ type: 'error', message: getErrorMessage(err, 'No se pudo eliminar la cabina.') })
-    } finally {
-      setSaving(false)
+      toast({ type: 'error', message: getErrorMessage(err, 'No se pudo archivar la cabina.') })
+    } finally { setSaving(false) }
+  }
+
+  // Restaurar es un clic directo (no destructivo): sin modal de confirmación.
+  const handleReactivate = async (booth) => {
+    try {
+      await api.patch(`/api/businesses/${bId}/booths/${booth.id}/reactivate`)
+      toast({ type: 'success', message: 'Cabina restaurada.' })
+      refresh()
+    } catch (err) {
+      toast({ type: 'error', message: getErrorMessage(err, 'No se pudo restaurar la cabina.') })
     }
   }
 
   return (
     <div>
-      {isAdmin && (
-        <div className="mb-5">
-          <Button onClick={openCreate} className="gap-2"><Plus size={16} /> Nueva cabina</Button>
-        </div>
-      )}
+      <Toolbar
+        rightCount={totalElements}
+        rightLabel={isArchived
+          ? `cabina${totalElements === 1 ? '' : 's'} archivada${totalElements === 1 ? '' : 's'}`
+          : `cabina${totalElements === 1 ? '' : 's'}`}
+        filter={<ArchiveViewToggle view={view} onChange={setView} />}
+        sortOptions={[{ value: 'asc', label: 'Nombre A → Z' }, { value: 'desc', label: 'Nombre Z → A' }]}
+        sortValue={sortDir} onSortChange={setSortDir}
+        pageSize={pageSize} onPageSize={(v) => { setPageSize(v); setPage(0) }}
+        onRefresh={refresh} loading={loading}
+        primary={isAdmin && <Button onClick={openCreate} className="gap-2"><Plus size={16} /> Nueva cabina</Button>}
+      />
+
       {loading ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-white rounded-2xl border border-slate-100 animate-pulse" />)}
         </div>
       ) : booths.length === 0 ? (
-        <p className="py-16 text-center text-slate-400">No hay cabinas configuradas.</p>
+        <p className="py-16 text-center text-slate-400">
+          {isArchived ? 'No hay cabinas archivadas.' : 'No hay cabinas configuradas.'}
+        </p>
       ) : (
         <>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -645,22 +819,28 @@ function BoothsTab({ bId, isAdmin }) {
               <div key={b.id} className="group bg-white rounded-2xl border border-slate-100 p-5 hover:border-blue-200 hover:shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)] transition">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-400 to-purple-500 text-white shadow-[0_6px_16px_-6px_rgba(99,102,241,0.4)]">
+                    <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${boothColor(b.id)} text-white shadow-[0_6px_16px_-6px_rgba(99,102,241,0.4)]`}>
                       <Store size={17} />
                     </div>
-                    <p className="font-bold text-[#1e3a5f]">{b.name}</p>
+                    <div>
+                      <p className="font-bold text-[#1e3a5f]">{b.name}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Creada {fmtSinceShort(b.createdAt)}</p>
+                    </div>
                   </div>
-                  {isAdmin && (
+                  {isAdmin && !isArchived && (
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEdit(b)} className="rounded-xl p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                        <Pencil size={14} />
-                      </button>
-                      <button onClick={() => openDelete(b)} className="rounded-xl p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors">
-                        <Trash2 size={14} />
-                      </button>
+                      <button onClick={() => openEdit(b)} className="rounded-xl p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition" title="Editar"><Pencil size={14} /></button>
+                      <button onClick={() => openArchive(b)} className="rounded-xl p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600 transition" title="Archivar"><Archive size={14} /></button>
                     </div>
                   )}
                 </div>
+                {isAdmin && isArchived && (
+                  <div className="mt-3 pt-3 border-t border-slate-50">
+                    <Button variant="success" size="sm" onClick={() => handleReactivate(b)} className="w-full gap-2">
+                      <ArchiveRestore size={14} /> Restaurar
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -681,26 +861,35 @@ function BoothsTab({ bId, isAdmin }) {
           </div>
         </div>
       </Modal>
-      <Modal open={modal === 'delete'} onClose={closeModal} title="Eliminar cabina" size="sm">
-        <p className="text-sm text-slate-600 mb-5">¿Eliminar la cabina <strong>{selected?.name}</strong>?</p>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
-          <Button variant="danger" onClick={handleDelete} loading={saving} className="flex-1">Eliminar</Button>
+      <Modal open={modal === 'archive'} onClose={closeModal} title="Archivar cabina" size="sm">
+        <div className="space-y-5">
+          <div className="flex items-start gap-3 rounded-2xl bg-amber-50 border border-amber-100 px-4 py-4">
+            <Archive size={20} className="text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-800 leading-snug">¿Archivar la cabina <strong>{selected?.name}</strong>? Dejará de poder asignarse a citas nuevas.</p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
+            <Button variant="danger" onClick={handleArchive} loading={saving} className="flex-1">Archivar</Button>
+          </div>
         </div>
       </Modal>
     </div>
   )
 }
 
-// ───────────────────────── Bloqueos de agenda ─────────────────────────
-// El backend NO expone PUT para schedule-blocks: solo POST y DELETE. Si un
-// bloqueo está mal, se borra y se crea de nuevo.
+/* ============================================================
+   BLOQUEOS
+   ============================================================ */
+
 function BlocksTab({ bId, isAdmin }) {
   const toast = useToast()
-  const { items: blocks, page, totalPages, totalElements, loading, setPage, refresh } =
-    usePagedFetch(bId ? `/api/businesses/${bId}/schedule-blocks` : null)
+  const [pageSize, setPageSize] = useState(() => parseInt(localStorage.getItem('optima_cfg_blocks_size') || '20', 10))
+  useEffect(() => { localStorage.setItem('optima_cfg_blocks_size', String(pageSize)) }, [pageSize])
+  const [typeFilter, setTypeFilter] = useState('ALL')
 
-  // Datos para los selectores del formulario (no es una vista navegable).
+  const { items: blocks, page, totalPages, totalElements, loading, setPage, refresh } =
+    usePagedFetch(bId ? `/api/businesses/${bId}/schedule-blocks` : null, { size: pageSize })
+
   const [employees, setEmployees] = useState([])
   const [booths, setBooths]       = useState([])
   useEffect(() => {
@@ -714,10 +903,10 @@ function BlocksTab({ bId, isAdmin }) {
     })
   }, [bId])
 
-  const [modal, setModal]     = useState(null)   // 'create' | 'delete'
+  const [modal, setModal]       = useState(null)
   const [selected, setSelected] = useState(null)
-  const [form, setForm]       = useState(emptyBlock)
-  const [saving, setSaving]   = useState(false)
+  const [form, setForm]         = useState(emptyBlock)
+  const [saving, setSaving]     = useState(false)
 
   const closeModal = () => { setModal(null); setSelected(null) }
   const openCreate = () => { setForm(emptyBlock); setModal('create') }
@@ -725,28 +914,21 @@ function BlocksTab({ bId, isAdmin }) {
 
   const handleCreate = async () => {
     if (form.type === 'employee' && !form.membershipId) { toast({ type: 'error', message: 'Selecciona un empleado.' }); return }
-    if (form.type === 'booth' && !form.boothId) { toast({ type: 'error', message: 'Selecciona una cabina.' }); return }
-    if (!form.startDate || !form.endDate) { toast({ type: 'error', message: 'Las fechas son obligatorias.' }); return }
-    if (form.startDate > form.endDate) { toast({ type: 'error', message: 'La fecha de fin debe ser igual o posterior al inicio.' }); return }
+    if (form.type === 'booth' && !form.boothId)         { toast({ type: 'error', message: 'Selecciona una cabina.' }); return }
+    if (!form.startDate || !form.endDate)               { toast({ type: 'error', message: 'Las fechas son obligatorias.' }); return }
+    if (form.startDate > form.endDate)                  { toast({ type: 'error', message: 'La fecha de fin debe ser igual o posterior al inicio.' }); return }
     setSaving(true)
     try {
-      // El backend exige que membershipId y boothId NO vengan ambos a la
-      // vez: global = ninguno, por empleado = solo membershipId, por
-      // cabina = solo boothId. El selector "tipo" garantiza esa exclusión.
       await api.post(`/api/businesses/${bId}/schedule-blocks`, {
         membershipId: form.type === 'employee' ? Number(form.membershipId) : null,
         boothId:      form.type === 'booth' ? Number(form.boothId) : null,
-        startDate: form.startDate,
-        endDate: form.endDate,
-        reason: form.reason || null,
+        startDate: form.startDate, endDate: form.endDate, reason: form.reason || null,
       })
       toast({ type: 'success', message: 'Bloqueo creado.' })
       closeModal(); refresh()
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'No se pudo crear el bloqueo.') })
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
@@ -757,73 +939,135 @@ function BlocksTab({ bId, isAdmin }) {
       closeModal(); refresh()
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'No se pudo eliminar el bloqueo.') })
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
-  const blockBadge = (b) => {
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const typeOf = (b) => b.membershipId ? 'employee' : (b.boothId ? 'booth' : 'global')
+
+  const filtered = blocks.filter((b) => typeFilter === 'ALL' || typeOf(b) === typeFilter.toLowerCase())
+
+  const sections = useMemo(() => {
+    const active = [], upcoming = [], past = []
+    filtered.forEach((b) => {
+      const start = new Date(`${b.startDate}T00:00:00`)
+      const end   = new Date(`${b.endDate}T23:59:59`)
+      if (today >= start && today <= end) active.push(b)
+      else if (today < start) upcoming.push(b)
+      else past.push(b)
+    })
+    upcoming.sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+    active.sort((a, b) => new Date(a.endDate) - new Date(b.endDate))
+    past.sort((a, b) => new Date(b.endDate) - new Date(a.endDate))
+    return { active, upcoming, past }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered])
+
+  const blockKindBadge = (b) => {
     if (b.membershipId) return <Badge variant="info"><User size={10} className="mr-0.5" />{b.userFullName}</Badge>
     if (b.boothId)      return <Badge variant="purple"><Store size={10} className="mr-0.5" />{b.boothName}</Badge>
     return <Badge variant="default"><Globe size={10} className="mr-0.5" />Global</Badge>
   }
 
+  const BlockCard = ({ b, kind }) => {
+    const isActive = kind === 'active'
+    return (
+      <div className={`bg-white rounded-2xl border ${isActive ? 'border-rose-200' : 'border-slate-100'} p-4 flex items-center gap-3`}>
+        {isActive && <div className="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 ring-1 ring-rose-200">EN CURSO</div>}
+        {blockKindBadge(b)}
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold text-[#1e3a5f]">{fmtDate(b.startDate)} – {fmtDate(b.endDate)}</div>
+          {b.reason && <div className="text-xs text-slate-500 truncate">{b.reason}</div>}
+        </div>
+        {isAdmin && (
+          <button onClick={() => openDelete(b)} className="rounded-xl p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition" title="Eliminar"><Trash2 size={14} /></button>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div>
-      {isAdmin && (
-        <div className="mb-5">
-          <Button onClick={openCreate} className="gap-2"><Plus size={16} /> Nuevo bloqueo</Button>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
+          {[
+            { key: 'ALL',      label: 'Todos' },
+            { key: 'GLOBAL',   label: 'Global' },
+            { key: 'EMPLOYEE', label: 'Empleado' },
+            { key: 'BOOTH',    label: 'Cabina' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setTypeFilter(key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${typeFilter === key ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-[#1e3a5f]'}`}
+            >{label}</button>
+          ))}
+        </div>
+        <button
+          onClick={refresh}
+          title="Refrescar"
+          className="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-[#1e3a5f] transition"
+        >
+          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+        </button>
+        <span className="text-xs text-slate-500">{totalElements} bloqueo{totalElements === 1 ? '' : 's'}</span>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs text-slate-500">Mostrar</span>
+          <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPage(0) }} className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-[#1e3a5f] focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition">
+            <option value={10}>10</option><option value={20}>20</option><option value={50}>50</option>
+          </select>
+          {isAdmin && <Button onClick={openCreate} className="gap-2" size="sm"><Plus size={14} /> Nuevo bloqueo</Button>}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-white rounded-2xl border border-slate-100 animate-pulse" />)}</div>
+      ) : filtered.length === 0 ? (
+        <p className="py-16 text-center text-slate-400">No hay bloqueos de agenda.</p>
+      ) : (
+        <div className="space-y-6">
+          {sections.active.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                <h2 className="text-xs font-bold text-[#1e3a5f] uppercase tracking-wider">Activos ahora</h2>
+                <span className="text-xs text-slate-400 font-medium">· {sections.active.length}</span>
+              </div>
+              <div className="space-y-2">{sections.active.map((b) => <BlockCard key={b.id} b={b} kind="active" />)}</div>
+            </div>
+          )}
+          {sections.upcoming.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                <h2 className="text-xs font-bold text-[#1e3a5f] uppercase tracking-wider">Próximos</h2>
+                <span className="text-xs text-slate-400 font-medium">· {sections.upcoming.length}</span>
+              </div>
+              <div className="space-y-2">{sections.upcoming.map((b) => <BlockCard key={b.id} b={b} kind="upcoming" />)}</div>
+            </div>
+          )}
+          {sections.past.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 rounded-full bg-slate-400" />
+                <h2 className="text-xs font-bold text-[#1e3a5f] uppercase tracking-wider">Pasados</h2>
+                <span className="text-xs text-slate-400 font-medium">· {sections.past.length}</span>
+              </div>
+              <div className="space-y-2">{sections.past.map((b) => <BlockCard key={b.id} b={b} kind="past" />)}</div>
+            </div>
+          )}
         </div>
       )}
-      <div className={`${CARD} overflow-hidden`}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50/60 border-b border-slate-100">
-                <th className={TH}>Tipo</th>
-                <th className={TH}>Desde</th>
-                <th className={TH}>Hasta</th>
-                <th className={`${TH} hidden md:table-cell`}>Motivo</th>
-                {isAdmin && <th className={`${TH} text-right`}>Acciones</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {loading ? (
-                [...Array(3)].map((_, i) => (
-                  <tr key={i}><td colSpan={5} className="px-6 py-4"><div className="h-4 bg-slate-100 rounded-lg animate-pulse" /></td></tr>
-                ))
-              ) : blocks.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-slate-400">No hay bloqueos de agenda.</td></tr>
-              ) : (
-                blocks.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-6 py-4">{blockBadge(b)}</td>
-                    <td className="px-6 py-4 font-semibold text-[#1e3a5f]">{fmtDate(b.startDate)}</td>
-                    <td className="px-6 py-4 font-semibold text-[#1e3a5f]">{fmtDate(b.endDate)}</td>
-                    <td className="px-6 py-4 text-slate-500 hidden md:table-cell">{b.reason || <span className="text-slate-300">—</span>}</td>
-                    {isAdmin && (
-                      <td className="px-6 py-4 text-right">
-                        <button onClick={() => openDelete(b)} className="rounded-xl p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Eliminar">
-                          <Trash2 size={15} />
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+
+      {totalPages > 1 && (
+        <div className={`mt-6 ${CARD} overflow-hidden`}>
+          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onChange={setPage} />
         </div>
-        <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onChange={setPage} />
-      </div>
+      )}
 
       <Modal open={modal === 'create'} onClose={closeModal} title="Nuevo bloqueo de agenda" size="sm">
         <div className="space-y-4">
-          <Select
-            label="Tipo de bloqueo *"
-            value={form.type}
-            onChange={(e) => setForm((p) => ({ ...p, type: e.target.value, membershipId: '', boothId: '' }))}
-          >
+          <Select label="Tipo de bloqueo *" value={form.type} onChange={(e) => setForm((p) => ({ ...p, type: e.target.value, membershipId: '', boothId: '' }))}>
             <option value="global">Global — todo el negocio</option>
             <option value="employee">Por empleado</option>
             <option value="booth">Por cabina</option>
@@ -852,14 +1096,68 @@ function BlocksTab({ bId, isAdmin }) {
         </div>
       </Modal>
       <Modal open={modal === 'delete'} onClose={closeModal} title="Eliminar bloqueo" size="sm">
-        <p className="text-sm text-slate-600 mb-5">
-          ¿Eliminar el bloqueo del <strong>{fmtDate(selected?.startDate)}</strong> al <strong>{fmtDate(selected?.endDate)}</strong>?
-        </p>
+        <p className="text-sm text-slate-600 mb-5">¿Eliminar el bloqueo del <strong>{fmtDate(selected?.startDate)}</strong> al <strong>{fmtDate(selected?.endDate)}</strong>?</p>
         <div className="flex gap-3">
           <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
           <Button variant="danger" onClick={handleDelete} loading={saving} className="flex-1">Eliminar</Button>
         </div>
       </Modal>
+    </div>
+  )
+}
+
+/* ============================================================
+   TOOLBAR — barra superior reutilizable para Impuestos / Cabinas
+   ============================================================ */
+
+function Toolbar({ rightCount, rightLabel, extraStats, filter, sortOptions, sortValue, onSortChange, pageSize, onPageSize, onRefresh, loading, primary }) {
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-3">
+      <span className="text-xs text-slate-500">
+        <strong className="text-[#1e3a5f]">{rightCount}</strong> {rightLabel}
+        {extraStats && <span className="ml-3 text-slate-400">· {extraStats}</span>}
+      </span>
+      <button
+        type="button"
+        onClick={onRefresh}
+        title="Refrescar"
+        className="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-[#1e3a5f] transition"
+      >
+        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+      </button>
+      {filter}
+      <select
+        value={sortValue}
+        onChange={(e) => onSortChange(e.target.value)}
+        className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-[#1e3a5f] focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition"
+      >
+        {sortOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <div className="ml-auto flex items-center gap-2 text-xs text-slate-500">
+        <span>Mostrar</span>
+        <select
+          value={pageSize}
+          onChange={(e) => onPageSize(parseInt(e.target.value, 10))}
+          className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-[#1e3a5f] focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition"
+        >
+          <option value={10}>10</option><option value={20}>20</option><option value={50}>50</option>
+        </select>
+        {primary}
+      </div>
+    </div>
+  )
+}
+
+/* Control segmentado Activos / Archivados — compartido por Impuestos y Cabinas */
+function ArchiveViewToggle({ view, onChange }) {
+  return (
+    <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
+      {[{ key: 'active', label: 'Activos' }, { key: 'archived', label: 'Archivados' }].map(({ key, label }) => (
+        <button key={key} type="button" onClick={() => onChange(key)}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+            view === key ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-[#1e3a5f]'
+          }`}>{label}</button>
+      ))}
     </div>
   )
 }

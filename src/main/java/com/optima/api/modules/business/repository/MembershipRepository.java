@@ -51,6 +51,15 @@ public interface MembershipRepository extends JpaRepository<Membership, Long> {
     Page<Membership> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
     /**
+     * Listado paginado de memberships INACTIVAS (empleados archivados) de
+     * un negocio. Alimenta la vista "Archivados" del listado de empleados,
+     * desde la que el ADMIN los reactiva. Mismo @EntityGraph que la
+     * variante activa para evitar el N+1 al construir UserResponse.
+     */
+    @EntityGraph(attributePaths = {"user", "role"})
+    Page<Membership> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
+
+    /**
      * Version sin paginar para el algoritmo de disponibilidad (necesita
      * iterar todos los candidatos sin la imposicion de un Pageable).
      */

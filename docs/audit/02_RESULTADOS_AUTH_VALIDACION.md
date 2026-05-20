@@ -8,6 +8,19 @@
 
 > Documento en construcción — se actualiza por bloque. Sólo se documenta lo observado.
 
+> **🔧 ACTUALIZACIÓN 2026-05-20 — hallazgos cerrados.** Esta auditoría se
+> ejecutó *antes* de las correcciones de la ronda 2. No detectó bloqueantes
+> de seguridad; su único hallazgo sustantivo (el resto son cosméticos o
+> "PREDICCIÓN-FALLIDA") ya está resuelto:
+>
+> | Hallazgo | Estado | Commit |
+> |---|---|---|
+> | J.005 / J.011 — mensaje de Bean Validation `"must be greater than 0"` sin localizar | ✅ Resuelto | `2086bd6` |
+>
+> Lo confirma la propia auditoría: `03_RESULTADOS_NEGOCIO.md` (lote
+> posterior) ya recoge ese mismo `@Positive` en español
+> (`"debe ser mayor que 0"`, tests F.012 e I.017).
+
 ---
 
 ## 1. Resumen ejecutivo del lote
@@ -23,7 +36,7 @@
   - Anti-enumeration verificado en login (4 caminos → mismo 401) y forgot-password (existe/no → 204 igual). ✅
   - Rate limit confirmado en los 4 endpoints auth (login 20/min, register 20/h, forgot 10/h, reset 20/h) con `Retry-After ≥ 1`. ✅
   - Mass assignment protegido: `id`, `isActive`, `businessId`, `createdAt`, `passwordHash`, `isPaid` no se aceptan desde el body. ✅
-  - 1 mensaje de Bean Validation no localizado al español (J.005 — `"must be greater than 0"`). BAJA.
+  - 1 mensaje de Bean Validation no localizado al español (J.005 — `"must be greater than 0"`). BAJA. **[Resuelto 2026-05-20, commit `2086bd6` — ver banner al inicio.]**
 - **Sin commits realizados**. Datos de prueba **limpiados** vía `docker compose down -v && up -d`; BD vuelta al baseline exacto.
 
 ---

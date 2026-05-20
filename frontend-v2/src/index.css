@@ -50,3 +50,19 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/*
+ * Keyframes para las animaciones de entrada de los drawers laterales
+ * (Clientes, Empleados, Catalogo, Citas, Perfil). Se referencian inline
+ * con `animate-[...]` en esas paginas. Sin esto los drawers siguen
+ * funcionando, solo aparecen sin transicion de entrada.
+ */
+@keyframes fadeIn {
+  from { opacity: 0 }
+  to   { opacity: 1 }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%) }
+  to   { transform: translateX(0) }
+}

@@ -24,6 +24,13 @@ public interface TaxRepository extends JpaRepository<Tax, Long> {
     /** Lista paginada de impuestos activos (excluye soft-deleted). */
     Page<Tax> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
+    /**
+     * Lista paginada de impuestos INACTIVOS (archivados) de un negocio.
+     * Alimenta la vista "Archivados" del listado de impuestos, desde la
+     * que se reactivan.
+     */
+    Page<Tax> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
+
     /** Para validar unicidad del nombre dentro del negocio (case-insensitive). */
     boolean existsByBusinessIdAndNameIgnoreCase(Long businessId, String name);
 

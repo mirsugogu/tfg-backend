@@ -4,10 +4,16 @@ import { cn } from '@/lib/utils'
 
 export function Modal({ open, onClose, title, children, size = 'md' }) {
   useEffect(() => {
-    if (open) document.body.style.overflow = 'hidden'
-    else document.body.style.overflow = ''
-    return () => { document.body.style.overflow = '' }
-  }, [open])
+    document.body.style.overflow = open ? 'hidden' : ''
+    if (!open) return
+    // Cerrar con la tecla Escape, igual que los drawers laterales.
+    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = ''
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open, onClose])
 
   if (!open) return null
 

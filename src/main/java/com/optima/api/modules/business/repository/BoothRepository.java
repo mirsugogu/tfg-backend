@@ -30,6 +30,13 @@ public interface BoothRepository extends JpaRepository<Booth, Long> {
     Page<Booth> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
     /**
+     * Lista paginada de cabinas INACTIVAS (archivadas) de un negocio.
+     * Alimenta la vista "Archivados" del listado de cabinas, desde la
+     * que se reactivan.
+     */
+    Page<Booth> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
+
+    /**
      * Lista completa (sin paginar) de cabinas activas del negocio.
      * Usado por el algoritmo de disponibilidad que necesita iterar todas
      * las cabinas candidatas para buscar la primera libre por slot.

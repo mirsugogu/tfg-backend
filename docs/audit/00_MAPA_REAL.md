@@ -428,12 +428,13 @@ isPaid  @NotNull Boolean
 
 ---
 
-## 4. Reglas de negocio de `AppointmentService.createAppointment` (15 pasos)
+## 4. Reglas de negocio de `AppointmentService.createAppointment` (16 pasos)
 
-Tomado literalmente del Javadoc actualizado (`AppointmentService.java:87-104`) y del orden de invocación real (`AppointmentService.java:114-302`):
+Tomado literalmente del Javadoc actualizado (`AppointmentService.java:88-109`) y del orden de invocación real del método `createAppointment`:
 
 ```text
  1. Verifica que el negocio existe                             → 404 si no.
+ 1b. El negocio debe estar activo                              → 400 si desactivado.
  2. Cross-tenant: cliente pertenece a este negocio              → 404 si no.
  3. Cliente debe estar activo                                   → 400 si desactivado.
  4. Cross-tenant: empleado (membership) pertenece a este negocio
@@ -444,6 +445,8 @@ Tomado literalmente del Javadoc actualizado (`AppointmentService.java:87-104`) y
  7. Cross-tenant: cada servicio pertenece al negocio            → 404 por cada faltante.
  8. Cada servicio debe estar activo                             → 400 si desactivado.
  9. Calcula endDateTime sumando duraciones de los servicios.
+ 9b. La cita cae en el horario de apertura del negocio
+     (validator.validateBusinessHours)                        → 400 si cerrado/no encaja.
 10. La cita encaja en el horario del empleado
     (validator.validateEmployeeSchedule, cruza medianoche)      → 400 si no.
 11. No solapa con otra cita activa del empleado

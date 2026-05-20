@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Building2, ChevronDown, Check } from 'lucide-react'
+import { Building2, ChevronDown, Check, Search, AlertCircle } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { useAuth } from '@/context/AuthContext'
 import { useCatalog } from '@/context/CatalogContext'
@@ -9,12 +9,13 @@ import api, { getErrorMessage } from '@/lib/api'
 
 /**
  * BusinessSwitcher — muestra el negocio activo en el sidebar y, si el
- * usuario pertenece a varios negocios, permite cambiar de uno a otro sin
- * cerrar sesión:
- *   - GET  /api/me/businesses              lista las memberships activas.
- *   - POST /api/auth/select-business/{id}  canjea por un token del otro
- *                                          negocio (acepta el token tenant
- *                                          actual).
+ * usuario pertenece a varios, permite cambiar sin cerrar sesión:
+ *   - GET  /api/me/businesses              lista de memberships.
+ *   - POST /api/auth/select-business/{id}  canjea por token tenant.
+ *
+ * Mejoras sobre la versión original:
+ *   - Buscador inline en el modal cuando hay >5 negocios.
+ *   - Badge "Dado de baja" si el negocio está soft-deleted.
  */
 export function BusinessSwitcher() {
   const { user, switchBusiness } = useAuth()
@@ -25,6 +26,7 @@ export function BusinessSwitcher() {
   const [businesses, setBusinesses] = useState([])
   const [open, setOpen] = useState(false)
   const [switching, setSwitching] = useState(false)
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     api.get('/api/me/businesses')
@@ -35,12 +37,18 @@ export function BusinessSwitcher() {
   const current = businesses.find((b) => b.businessId === user?.businessId)
   const canSwitch = businesses.length > 1
 
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return businesses
+    return businesses.filter((b) => (b.businessName || '').toLowerCase().includes(q))
+  }, [businesses, query])
+
   const handleSwitch = async (businessId) => {
     if (businessId === user?.businessId) { setOpen(false); return }
     setSwitching(true)
     try {
       await switchBusiness(businessId)
-      setOpen(false)
+      setOpen(false); setQuery('')
       navigate('/dashboard')
       toast({ type: 'success', message: 'Has cambiado de negocio.' })
     } catch (err) {
@@ -49,6 +57,8 @@ export function BusinessSwitcher() {
       setSwitching(false)
     }
   }
+
+  const currentInactive = current && current.isActive === false
 
   return (
     <div className="px-3 pt-4">
@@ -64,7 +74,14 @@ export function BusinessSwitcher() {
           <Building2 size={15} />
         </div>
         <div className="flex-1 min-w-0 text-left">
-          <p className="text-xs font-semibold text-white truncate">{current?.businessName || 'Mi negocio'}</p>
+          <p className="text-xs font-semibold text-white truncate flex items-center gap-1.5">
+            {current?.businessName || 'Mi negocio'}
+            {currentInactive && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40">
+                <AlertCircle size={9} /> Baja
+              </span>
+            )}
+          </p>
           <p className="text-[10px] text-white/40 font-medium uppercase tracking-wider mt-0.5">
             {current ? roleLabel(current.role) : '—'}
           </p>
@@ -72,32 +89,58 @@ export function BusinessSwitcher() {
         {canSwitch && <ChevronDown size={14} className="text-white/40 shrink-0" />}
       </button>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Cambiar de negocio" size="sm">
-        <div className="space-y-2">
-          {businesses.map((b) => {
-            const active = b.businessId === user?.businessId
-            return (
-              <button
-                key={b.businessId}
-                onClick={() => handleSwitch(b.businessId)}
-                disabled={switching}
-                className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all disabled:opacity-60 ${
-                  active
-                    ? 'border-blue-300 bg-blue-50/60'
-                    : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40'
-                }`}
-              >
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white shrink-0">
-                  <Building2 size={16} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[#1e3a5f] text-sm truncate">{b.businessName}</p>
-                  <p className="text-xs text-slate-400">{roleLabel(b.role)}</p>
-                </div>
-                {active && <Check size={16} className="text-blue-600 shrink-0" />}
-              </button>
-            )
-          })}
+      <Modal open={open} onClose={() => { setOpen(false); setQuery('') }} title="Cambiar de negocio" size="sm">
+        <div className="space-y-3">
+          {businesses.length > 5 && (
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Filtrar por nombre…"
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-[#1e3a5f] focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition"
+              />
+            </div>
+          )}
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="text-center text-xs text-slate-400 py-6">Sin resultados.</p>
+            ) : (
+              filtered.map((b) => {
+                const active = b.businessId === user?.businessId
+                const inactive = b.isActive === false
+                return (
+                  <button
+                    key={b.businessId}
+                    onClick={() => handleSwitch(b.businessId)}
+                    disabled={switching || inactive}
+                    className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all disabled:opacity-60 ${
+                      active
+                        ? 'border-blue-300 bg-blue-50/60'
+                        : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40'
+                    }`}
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white shrink-0">
+                      <Building2 size={16} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-[#1e3a5f] text-sm truncate flex items-center gap-1.5">
+                        {b.businessName}
+                        {inactive && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 ring-1 ring-rose-200">
+                            <AlertCircle size={9} /> Dado de baja
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-slate-400">{roleLabel(b.role)}</p>
+                    </div>
+                    {active && <Check size={16} className="text-blue-600 shrink-0" />}
+                  </button>
+                )
+              })
+            )}
+          </div>
         </div>
       </Modal>
     </div>

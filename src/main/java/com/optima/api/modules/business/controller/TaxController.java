@@ -60,18 +60,20 @@ public class TaxController {
 
     /**
      * GET /api/businesses/{businessId}/taxes - Lista paginada de impuestos
-     * ACTIVOS del negocio.
+     * del negocio.
      *
-     * Filtra por is_active=true: los impuestos desactivados no aparecen
-     * aqui, pero siguen existiendo para preservar las referencias
-     * historicas (services del catalogo, bookedServices con
-     * appliedTaxPercentage congelado).
+     * ?active=true (por defecto) devuelve los impuestos activos;
+     * ?active=false devuelve los archivados (la vista desde la que se
+     * reactivan). Los impuestos desactivados siguen existiendo para
+     * preservar las referencias historicas (services del catalogo,
+     * bookedServices con appliedTaxPercentage congelado).
      * Pageable se rellena con ?page=&size=&sort=field,asc.
      */
     @GetMapping
     public Page<TaxResponse> listActive(@PathVariable @Positive Long businessId,
+                                        @RequestParam(defaultValue = "true") boolean active,
                                         Pageable pageable) {
-        return taxService.listActive(businessId, pageable);
+        return taxService.listActive(businessId, active, pageable);
     }
 
     /**
@@ -113,5 +115,18 @@ public class TaxController {
     public void deactivate(@PathVariable @Positive Long businessId,
                            @PathVariable @Positive Long id) {
         taxService.deactivate(businessId, id);
+    }
+
+    /**
+     * PATCH /api/businesses/{businessId}/taxes/{id}/reactivate - Revierte
+     * el soft delete de un impuesto archivado (ADMIN). Pone is_active=true
+     * y deactivated_at=null. Devuelve el TaxResponse actualizado. 400 si
+     * ya estaba activo.
+     */
+    @PatchMapping("/{id}/reactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public TaxResponse reactivate(@PathVariable @Positive Long businessId,
+                                  @PathVariable @Positive Long id) {
+        return taxService.reactivate(businessId, id);
     }
 }

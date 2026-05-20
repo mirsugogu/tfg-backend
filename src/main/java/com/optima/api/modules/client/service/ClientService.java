@@ -67,13 +67,17 @@ public class ClientService {
     }
 
     /**
-     * Lista paginada de clientes activos del negocio.
+     * Lista paginada de clientes del negocio. Con active=true (por defecto)
+     * devuelve los activos; con active=false los archivados (soft-deleted),
+     * la vista desde la que se reactivan.
      * Pageable parsea page, size y sort del query string.
      */
     @Transactional(readOnly = true)
-    public Page<ClientResponse> listByBusiness(Long businessId, Pageable pageable) {
-        return clientRepository.findByBusinessIdAndIsActiveTrue(businessId, pageable)
-                .map(ClientResponse::from);
+    public Page<ClientResponse> listByBusiness(Long businessId, boolean active, Pageable pageable) {
+        Page<Client> page = active
+                ? clientRepository.findByBusinessIdAndIsActiveTrue(businessId, pageable)
+                : clientRepository.findByBusinessIdAndIsActiveFalse(businessId, pageable);
+        return page.map(ClientResponse::from);
     }
 
     /**
@@ -117,6 +121,21 @@ public class ClientService {
         c.setIsActive(false);
         c.setDeactivatedAt(LocalDateTime.now());
         clientRepository.save(c);
+    }
+
+    /**
+     * Reactiva un cliente archivado: pone isActive=true y deactivatedAt=null.
+     * Filtra por negocio (cross-tenant safe). Lanza 400 si ya estaba activo.
+     */
+    public ClientResponse reactivate(Long businessId, Long id) {
+        Client c = findOrThrow(businessId, id);
+        if (c.getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El cliente ya está activo");
+        }
+        c.setIsActive(true);
+        c.setDeactivatedAt(null);
+        return ClientResponse.from(clientRepository.save(c));
     }
 
     /**

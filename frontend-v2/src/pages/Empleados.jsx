@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Plus, Search, Pencil, Trash2, Phone, Mail, Shield, User,
-  ChevronDown, Calendar, Clock, UserX, Users,
+  Calendar, Clock, UserMinus, Users, X, RefreshCw, ChevronRight, ArchiveRestore,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
-import { Badge } from '@/components/ui/Badge'
 import { Pagination } from '@/components/ui/Pagination'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useAuth } from '@/context/AuthContext'
@@ -15,8 +14,15 @@ import { useCatalog } from '@/context/CatalogContext'
 import { useToast } from '@/components/ui/Toast'
 import { usePagedFetch } from '@/hooks/usePagedFetch'
 import api, { getErrorMessage } from '@/lib/api'
+import { totalBooked } from '@/lib/format'
 
-const DAYS = ['', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo']
+/* ============================================================
+   CONSTANTES Y HELPERS
+   ============================================================ */
+
+const DAYS_SHORT = ['', 'L', 'M', 'X', 'J', 'V', 'S', 'D']
+const DAYS_FULL = ['', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo']
+const ACTIVE_STATUSES = ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
 
 const AVATAR_COLORS = [
   'from-cyan-400 to-blue-500',
@@ -35,6 +41,34 @@ const emptyAbsence = { startDateTime: '', endDateTime: '', reason: '' }
 const fmtAbsence = (dt) =>
   new Date(dt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
 
+const fmtSinceShort = (iso) =>
+  iso
+    ? new Date(iso).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }).replace('.', '')
+    : '—'
+
+const fmtSinceLong = (iso) =>
+  iso
+    ? new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })
+    : '—'
+
+const ymd = (d) => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const da = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${da}`
+}
+
+const todayDow = () => {
+  const d = new Date().getDay()
+  return d === 0 ? 7 : d
+}
+
+const telHref = (phone) => 'tel:' + String(phone || '').replace(/\s/g, '')
+
+/* ============================================================
+   EMPLEADOS — Lista
+   ============================================================ */
+
 export default function Empleados() {
   const { user } = useAuth()
   const { roles, roleLabel } = useCatalog()
@@ -42,32 +76,69 @@ export default function Empleados() {
   const bId = user?.businessId
   const isAdmin = user?.role === 'ADMIN'
 
-  // Lista paginada real (size 20 por defecto). Se llama refresh() tras
-  // crear / editar / eliminar empleados.
+  // Persistencia ligera de preferencias
+  const [pageSize, setPageSize] = useState(() => parseInt(localStorage.getItem('optima_emp_size') || '20', 10))
+  useEffect(() => { localStorage.setItem('optima_emp_size', String(pageSize)) }, [pageSize])
+
+  // El endpoint de usuarios pagina memberships: el nombre se ordena por el
+  // path anidado 'user.fullName' (el campo fullName vive en la entidad User,
+  // no en Membership). Se descarta el 'fullName' suelto que guardaban
+  // versiones anteriores del frontend, que el backend rechaza con 400.
+  const [sortKey, setSortKey] = useState(() => {
+    const stored = localStorage.getItem('optima_emp_sortkey')
+    return stored === 'createdAt' ? stored : 'user.fullName'
+  })
+  const [sortDir, setSortDir] = useState(() => localStorage.getItem('optima_emp_sortdir') || 'asc')
+  useEffect(() => { localStorage.setItem('optima_emp_sortkey', sortKey) }, [sortKey])
+  useEffect(() => { localStorage.setItem('optima_emp_sortdir', sortDir) }, [sortDir])
+
+  const onSortChange = (value) => {
+    // value formato "fullName,asc" — el select envía las dos partes juntas.
+    const [k, d] = value.split(',')
+    setSortKey(k); setSortDir(d)
+  }
+
+  // Vista activos / archivados — sin persistir (cada visita empieza en activos)
+  const [view, setView] = useState('active') // 'active' | 'archived'
+  const isArchived = view === 'archived'
+
+  // Filtros que viajan al backend: ordenación + flag de soft-delete.
+  const queryParams = useMemo(
+    () => ({ sort: `${sortKey},${sortDir}`, active: view === 'active' }),
+    [sortKey, sortDir, view],
+  )
+
+  // Listado paginado real
   const { items: employees, page, totalPages, totalElements, loading, setPage, refresh } =
-    usePagedFetch(bId ? `/api/businesses/${bId}/users` : null)
+    usePagedFetch(bId ? `/api/businesses/${bId}/users` : null, { size: pageSize, params: queryParams })
 
   const [search, setSearch] = useState('')
-  const [expandedId, setExpandedId] = useState(null)
+  const [roleFilter, setRoleFilter] = useState('ALL') // ALL | ADMIN | EMPLOYEE
+  const [drawer, setDrawer] = useState(null) // empleado seleccionado para el drawer
   const [modal, setModal] = useState(null)
   const [selected, setSelected] = useState(null)
   const [form, setForm] = useState(empty)
   const [saving, setSaving] = useState(false)
 
-  const filtered = employees.filter((e) =>
-    e.fullName?.toLowerCase().includes(search.toLowerCase()) ||
-    e.email?.toLowerCase().includes(search.toLowerCase())
-  )
+  // Cierra el drawer con Esc
+  useEffect(() => {
+    if (!drawer) return
+    const handler = (e) => { if (e.key === 'Escape') setDrawer(null) }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [drawer])
 
-  const defaultRoleId = () =>
-    roles.find((r) => r.name === 'EMPLOYEE')?.id ?? roles[0]?.id ?? ''
+  const filtered = employees
+    .filter((e) => roleFilter === 'ALL' || e.roleName === roleFilter)
+    .filter((e) =>
+      e.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+      e.email?.toLowerCase().includes(search.toLowerCase())
+    )
 
-  const openCreate = () => {
-    setForm({ ...empty, roleId: defaultRoleId() })
-    setSelected(null)
-    setModal('create')
-  }
-  const openEdit = (e) => {
+  const defaultRoleId = () => roles.find((r) => r.name === 'EMPLOYEE')?.id ?? roles[0]?.id ?? ''
+
+  const openCreate = () => { setForm({ ...empty, roleId: defaultRoleId() }); setSelected(null); setModal('create') }
+  const openEditRole = (e) => {
     setSelected(e)
     setForm({
       fullName: e.fullName,
@@ -78,7 +149,7 @@ export default function Empleados() {
     })
     setModal('edit')
   }
-  const openDelete = (e) => { setSelected(e); setModal('delete') }
+  const openDeactivate = (e) => { setSelected(e); setModal('deactivate') }
   const closeModal = () => { setModal(null); setSelected(null) }
 
   const handleChange = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }))
@@ -91,10 +162,10 @@ export default function Empleados() {
       toast({ type: 'error', message: 'Selecciona un rol.' }); return
     }
     if (modal === 'create' && !form.password) {
-      toast({ type: 'error', message: 'La contrasena es obligatoria.' }); return
+      toast({ type: 'error', message: 'La contraseña es obligatoria.' }); return
     }
     if (modal === 'create' && form.password.length < 8) {
-      toast({ type: 'error', message: 'La contrasena debe tener al menos 8 caracteres.' }); return
+      toast({ type: 'error', message: 'La contraseña debe tener al menos 8 caracteres.' }); return
     }
     setSaving(true)
     try {
@@ -108,18 +179,15 @@ export default function Empleados() {
         })
         toast({ type: 'success', message: 'Empleado creado correctamente.' })
       } else {
-        // El backend solo acepta roleId en UpdateUserRequest (audit C.10.003:
-        // mass-assignment protegido — fullName/email/phone se ignorarian
-        // silenciosamente). Mandamos SOLO roleId para no inducir al usuario
-        // a creer que se actualiza el resto. Para cambiar nombre/email/
-        // telefono cada usuario debe hacerlo en su propio /perfil.
-        await api.put(`/api/businesses/${bId}/users/${selected.id}`, {
-          roleId: Number(form.roleId),
-        })
+        // Backend solo acepta roleId (mass-assignment protegido). Para
+        // cambiar nombre/email/teléfono, el propio usuario debe editarlo en /perfil.
+        await api.put(`/api/businesses/${bId}/users/${selected.id}`, { roleId: Number(form.roleId) })
         toast({ type: 'success', message: 'Rol actualizado.' })
       }
       closeModal()
       refresh()
+      // si el drawer estaba abierto sobre este, refresca también su rol
+      if (drawer?.id === selected?.id) setDrawer(null)
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'Error al guardar.') })
     } finally {
@@ -127,61 +195,157 @@ export default function Empleados() {
     }
   }
 
-  const handleDelete = async () => {
+  const handleDeactivate = async () => {
     setSaving(true)
     try {
       await api.delete(`/api/businesses/${bId}/users/${selected.id}`)
       toast({ type: 'success', message: 'Empleado desactivado.' })
       closeModal()
+      if (drawer?.id === selected.id) setDrawer(null)
       refresh()
     } catch (err) {
-      toast({ type: 'error', message: getErrorMessage(err, 'Error al eliminar el empleado.') })
+      toast({ type: 'error', message: getErrorMessage(err, 'Error al desactivar el empleado.') })
     } finally {
       setSaving(false)
     }
   }
 
+  // Reactivar es un clic directo (no destructivo): sin modal de confirmación.
+  const handleReactivate = async (emp) => {
+    try {
+      await api.patch(`/api/businesses/${bId}/users/${emp.id}/reactivate`)
+      toast({ type: 'success', message: 'Empleado reactivado.' })
+      if (drawer?.id === emp.id) setDrawer(null)
+      refresh()
+    } catch (err) {
+      toast({ type: 'error', message: getErrorMessage(err, 'Error al reactivar el empleado.') })
+    }
+  }
+
+  /* ---------- Render ---------- */
+
   return (
     <div className="p-8 max-w-7xl mx-auto">
+
       {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-7 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-[#1e3a5f] tracking-tight">Empleados</h1>
           <p className="text-sm text-slate-500 mt-1.5 font-medium flex items-center gap-1.5">
             <Users size={14} />
-            {loading ? '…' : `${totalElements} usuario${totalElements === 1 ? '' : 's'} en plantilla`}
+            {loading
+              ? '…'
+              : isArchived
+                ? `${totalElements} usuario${totalElements === 1 ? '' : 's'} archivado${totalElements === 1 ? '' : 's'}`
+                : `${totalElements} usuario${totalElements === 1 ? '' : 's'} en plantilla`}
           </p>
         </div>
-        {isAdmin && (
-          <Button onClick={openCreate} className="gap-2" disabled={!roles.length}>
-            <Plus size={16} /> Nuevo empleado
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={refresh}
+            title="Refrescar"
+            className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-[#1e3a5f] transition"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+          </button>
+          {isAdmin && (
+            <Button onClick={openCreate} className="gap-2" disabled={!roles.length}>
+              <Plus size={16} /> Nuevo empleado
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="mb-6 relative max-w-sm">
-        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar en esta pagina por nombre o email…"
-          className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-10 pr-3.5 text-sm text-[#1f2c4a] placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all"
-        />
+      {/* Toolbar */}
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[240px] max-w-md">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nombre o email…"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3.5 text-sm text-[#1f2c4a] placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all"
+          />
+        </div>
+
+        {/* Filtro por rol */}
+        <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
+          {[
+            { key: 'ALL',      label: 'Todos' },
+            { key: 'ADMIN',    label: 'Admins' },
+            { key: 'EMPLOYEE', label: 'Empleados' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setRoleFilter(key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                roleFilter === key
+                  ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]'
+                  : 'text-slate-500 hover:text-[#1e3a5f]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Vista activos / archivados */}
+        <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
+          {[{ key: 'active', label: 'Activos' }, { key: 'archived', label: 'Archivados' }].map(({ key, label }) => (
+            <button key={key} type="button" onClick={() => setView(key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                view === key ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-[#1e3a5f]'
+              }`}>{label}</button>
+          ))}
+        </div>
+
+        {/* Ordenación */}
+        <select
+          value={`${sortKey},${sortDir}`}
+          onChange={(e) => onSortChange(e.target.value)}
+          className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-[#1e3a5f] focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition"
+        >
+          <option value="user.fullName,asc">Nombre A → Z</option>
+          <option value="user.fullName,desc">Nombre Z → A</option>
+          <option value="createdAt,desc">Más recientes</option>
+          <option value="createdAt,asc">Más antiguos</option>
+        </select>
+
+        {/* Tamaño de página */}
+        <div className="ml-auto flex items-center gap-2 text-xs text-slate-500">
+          <span>Mostrar</span>
+          <select
+            value={pageSize}
+            onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPage(0) }}
+            className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-[#1e3a5f] focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition"
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+          </select>
+        </div>
       </div>
 
       {/* Cards grid */}
-      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {loading ? (
           [...Array(4)].map((_, i) => (
             <div key={i} className="h-40 bg-white rounded-2xl border border-slate-100 animate-pulse" />
           ))
         ) : filtered.length === 0 ? (
           <div className="col-span-full">
-            {search ? (
+            {search || roleFilter !== 'ALL' ? (
               <p className="py-20 text-center text-slate-400">
-                {`Sin resultados en esta página${totalPages > 1 ? ' (prueba a cambiar de página)' : ''}.`}
+                Sin resultados con estos filtros.
               </p>
+            ) : isArchived ? (
+              <EmptyState
+                icon={Users}
+                title="No hay empleados archivados"
+                description="Los empleados que desactives aparecerán aquí para que puedas reactivarlos."
+              />
             ) : (
               <EmptyState
                 icon={Users}
@@ -194,90 +358,20 @@ export default function Empleados() {
           </div>
         ) : (
           filtered.map((e) => (
-            <div
+            <EmployeeCard
               key={e.id}
-              className="bg-white rounded-2xl border border-slate-100/80 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)] overflow-hidden"
-            >
-              {/* Gradient top bar */}
-              <div className={`h-1 w-full bg-gradient-to-r ${avatarColor(e.id)}`} />
-
-              <div className="p-5">
-                {/* Employee header */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${avatarColor(e.id)} text-white font-bold text-lg shadow-[0_6px_16px_-6px_rgba(14,165,233,0.4)]`}>
-                      {e.fullName?.[0]?.toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-[#1e3a5f] truncate">{e.fullName}</p>
-                      <div className="mt-1">
-                        {e.roleName === 'ADMIN'
-                          ? <Badge variant="navy"><Shield size={10} className="mr-0.5" />{roleLabel('ADMIN')}</Badge>
-                          : <Badge variant="cyan"><User size={10} className="mr-0.5" />{roleLabel(e.roleName)}</Badge>
-                        }
-                      </div>
-                    </div>
-                  </div>
-                  {isAdmin && (
-                    <div className="flex gap-1 shrink-0">
-                      <button
-                        onClick={() => openEdit(e)}
-                        className="rounded-xl p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                        title="Cambiar rol"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        onClick={() => openDelete(e)}
-                        className="rounded-xl p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                        title="Desactivar"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Contact info */}
-                <div className="mt-4 space-y-1.5">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <Mail size={12} className="text-slate-400 shrink-0" />
-                    <span className="truncate">{e.email}</span>
-                  </div>
-                  {e.phone && (
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <Phone size={12} className="text-slate-400 shrink-0" />
-                      <span>{e.phone}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Expand toggle */}
-                <button
-                  onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}
-                  className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-slate-200 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 hover:text-[#1e3a5f] hover:border-blue-200 transition-all"
-                >
-                  <ChevronDown
-                    size={13}
-                    className={`transition-transform duration-200 ${expandedId === e.id ? 'rotate-180 text-blue-500' : ''}`}
-                  />
-                  {expandedId === e.id ? 'Ocultar horarios y ausencias' : 'Ver horarios y ausencias'}
-                </button>
-
-                {/* Expanded section — montado/desmontado con la expansion para
-                    que sus hooks (paginacion de absences) se aten al ciclo
-                    de vida del panel y no a la pagina completa. */}
-                {expandedId === e.id && (
-                  <EmployeePanel emp={e} bId={bId} isAdmin={isAdmin} />
-                )}
-              </div>
-            </div>
+              emp={e}
+              onOpen={() => setDrawer(e)}
+              archived={isArchived}
+              showReactivate={isArchived && isAdmin}
+              onReactivate={() => handleReactivate(e)}
+            />
           ))
         )}
       </div>
 
-      {/* Paginacion de la lista de empleados */}
-      <div className="mt-6 rounded-2xl border border-slate-100 overflow-hidden">
+      {/* Paginación */}
+      <div className="mt-6 rounded-2xl border border-slate-100 overflow-hidden bg-white">
         <Pagination
           page={page}
           totalPages={totalPages}
@@ -286,7 +380,23 @@ export default function Empleados() {
         />
       </div>
 
-      {/* Modal crear / editar empleado */}
+      {/* Drawer */}
+      {drawer && (
+        <EmployeeDrawer
+          key={drawer.id}
+          emp={drawer}
+          bId={bId}
+          isAdmin={isAdmin}
+          archived={isArchived}
+          onClose={() => setDrawer(null)}
+          onEditRole={() => openEditRole(drawer)}
+          onDeactivate={() => openDeactivate(drawer)}
+          onReactivate={() => handleReactivate(drawer)}
+          onAfterChange={refresh}
+        />
+      )}
+
+      {/* Modal crear / editar rol */}
       <Modal
         open={modal === 'create' || modal === 'edit'}
         onClose={closeModal}
@@ -295,8 +405,8 @@ export default function Empleados() {
         <div className="space-y-4">
           {modal === 'edit' && (
             <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-xs text-slate-500">
-              Para cambiar el nombre, email o telefono el propio usuario debe editarlo en su perfil.
-              Desde aqui solo puedes actualizar el rol.
+              Para cambiar el nombre, email o teléfono el propio usuario debe editarlo en su perfil.
+              Desde aquí solo puedes actualizar el rol.
             </div>
           )}
           <Input
@@ -317,7 +427,7 @@ export default function Empleados() {
             disabled={modal === 'edit'}
           />
           <Input
-            label="Telefono"
+            label="Teléfono"
             name="phone"
             value={form.phone}
             onChange={handleChange}
@@ -326,12 +436,12 @@ export default function Empleados() {
           />
           {modal === 'create' && (
             <Input
-              label="Contrasena *"
+              label="Contraseña *"
               name="password"
               type="password"
               value={form.password}
               onChange={handleChange}
-              placeholder="Minimo 8 caracteres"
+              placeholder="Mínimo 8 caracteres"
             />
           )}
           <Select label="Rol *" name="roleId" value={form.roleId} onChange={handleChange}>
@@ -349,18 +459,19 @@ export default function Empleados() {
         </div>
       </Modal>
 
-      {/* Modal eliminar empleado */}
-      <Modal open={modal === 'delete'} onClose={closeModal} title="Eliminar empleado" size="sm">
+      {/* Modal desactivar */}
+      <Modal open={modal === 'deactivate'} onClose={closeModal} title="Desactivar empleado" size="sm">
         <div className="space-y-5">
-          <div className="flex items-start gap-3 rounded-2xl bg-red-50 border border-red-100 px-4 py-4">
-            <UserX size={20} className="text-red-500 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-700 leading-snug">
-              ¿Desactivar a <strong>{selected?.fullName}</strong>? No podra iniciar sesion ni ser asignado a nuevas citas.
+          <div className="flex items-start gap-3 rounded-2xl bg-amber-50 border border-amber-100 px-4 py-4">
+            <UserMinus size={20} className="text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-800 leading-snug">
+              ¿Desactivar a <strong>{selected?.fullName}</strong>? Dejará de poder iniciar sesión y
+              no podrá asignarse a nuevas citas, pero seguirá presente en el historial.
             </p>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
-            <Button variant="danger" onClick={handleDelete} loading={saving} className="flex-1">Eliminar</Button>
+            <Button variant="danger" onClick={handleDeactivate} loading={saving} className="flex-1">Desactivar</Button>
           </div>
         </div>
       </Modal>
@@ -368,32 +479,93 @@ export default function Empleados() {
   )
 }
 
-// ---------------------------------------------------------------------------
-// EmployeePanel — subpanel expandible. Carga los horarios (List<>) y las
-// ausencias (Page<>) del empleado, y agrupa sus propios modales para
-// crear/editar/eliminar ambos recursos.
-// ---------------------------------------------------------------------------
-function EmployeePanel({ emp, bId, isAdmin }) {
+/* ============================================================
+   EMPLOYEE CARD
+   ============================================================ */
+
+function EmployeeCard({ emp, onOpen, showReactivate, onReactivate }) {
+  const isAdmin = emp.roleName === 'ADMIN'
+  return (
+    <div
+      onClick={onOpen}
+      className="group bg-white rounded-2xl border border-slate-100/80 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)] overflow-hidden hover:shadow-[0_12px_40px_-12px_rgba(15,23,42,0.15)] hover:border-blue-200 transition cursor-pointer"
+    >
+      <div className={`h-1 w-full bg-gradient-to-r ${avatarColor(emp.id)}`} />
+      <div className="p-5">
+        <div className="flex items-start gap-3.5">
+          <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${avatarColor(emp.id)} text-white font-bold text-lg shadow-[0_6px_16px_-6px_rgba(14,165,233,0.4)]`}>
+            {emp.fullName?.[0]?.toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-bold text-[#1e3a5f] truncate">{emp.fullName}</p>
+              {isAdmin
+                ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#1e3a5f] text-white shrink-0"><Shield size={10} /> Admin</span>
+                : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-50 text-cyan-700 ring-1 ring-cyan-100 shrink-0"><User size={10} /> Empleado</span>
+              }
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1 inline-flex items-center gap-1 capitalize">
+              <Calendar size={11} /> Empleado desde {fmtSinceShort(emp.createdAt)}
+            </p>
+          </div>
+          <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500 transition shrink-0" />
+        </div>
+
+        <div className="mt-3 pt-3 border-t border-slate-50 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+          {emp.email && (
+            <a
+              href={`mailto:${emp.email}`}
+              className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-blue-50/50 text-blue-700 hover:bg-blue-100 transition truncate max-w-full"
+            >
+              <Mail size={12} /> {emp.email}
+            </a>
+          )}
+          {emp.phone ? (
+            <a
+              href={telHref(emp.phone)}
+              className="inline-flex items-center gap-1.5 text-xs font-medium font-mono px-2.5 py-1.5 rounded-lg bg-slate-50 text-slate-700 hover:bg-slate-100 transition"
+            >
+              <Phone size={12} /> {emp.phone}
+            </a>
+          ) : (
+            <span className="text-xs text-slate-300 italic">Sin teléfono</span>
+          )}
+        </div>
+
+        {showReactivate && (
+          <div className="mt-3 pt-3 border-t border-slate-50" onClick={(e) => e.stopPropagation()}>
+            <Button variant="success" size="sm" onClick={onReactivate} className="w-full gap-2">
+              <ArchiveRestore size={14} /> Reactivar
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ============================================================
+   EMPLOYEE DRAWER — carga horarios + ausencias + citas del mes
+   ============================================================ */
+
+function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDeactivate, onReactivate, onAfterChange }) {
   const toast = useToast()
   const empUrl = `/api/businesses/${bId}/users/${emp.id}`
 
-  // Schedules: el backend devuelve List<> plano (sin paginacion).
+  // ---- Schedules ----
   const [schedules, setSchedules] = useState(null)
-  const [schedLoading, setSchedLoading] = useState(true)
   const [schedReload, setSchedReload] = useState(0)
   useEffect(() => {
-    setSchedLoading(true)
     api.get(`${empUrl}/schedules`)
       .then((r) => setSchedules(r.data))
       .catch((err) => {
         toast({ type: 'error', message: getErrorMessage(err, 'Error al cargar horarios.') })
         setSchedules([])
       })
-      .finally(() => setSchedLoading(false))
   }, [empUrl, schedReload, toast])
   const refreshSchedules = useCallback(() => setSchedReload((v) => v + 1), [])
 
-  // Absences: Page<> paginado. Tamano 10 para que la card no crezca demasiado.
+  // ---- Absences (paginadas, size 10) ----
   const {
     items: absences,
     page: absPage,
@@ -404,237 +576,291 @@ function EmployeePanel({ emp, bId, isAdmin }) {
     refresh: refreshAbsences,
   } = usePagedFetch(`${empUrl}/absences`, { size: 10 })
 
-  // Modales locales al panel
-  const [modal, setModal] = useState(null)
-  const [selectedSchedule, setSelectedSchedule] = useState(null)
-  const [selectedAbsence, setSelectedAbsence] = useState(null)
-  const [scheduleForm, setScheduleForm] = useState(emptySchedule)
-  const [absenceForm, setAbsenceForm] = useState(emptyAbsence)
-  const [saving, setSaving] = useState(false)
+  // ---- KPI del mes: citas + ingresos + horas ----
+  // Una sola llamada a /appointments filtrada por membershipId. Si la lista
+  // del backend supera 200 elementos en un mes ajusta el size; raro para
+  // un empleado individual.
+  const [kpi, setKpi] = useState(null)
+  useEffect(() => {
+    const from = ymd(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+    const to   = ymd(new Date())
+    api.get(`/api/businesses/${bId}/appointments`, {
+      params: { from, to, membershipId: emp.id, size: 200 },
+    })
+      .then((r) => {
+        const list = r.data.content ?? []
+        const considered = list.filter((a) => a.statusName !== 'CANCELLED' && a.statusName !== 'NO_SHOW')
+        const citas = considered.length
+        const ingresos = considered.reduce((acc, a) => acc + parseFloat(totalBooked(a.bookedServices)), 0)
+        const minutos = considered.reduce(
+          (acc, a) => acc + (new Date(a.endDateTime) - new Date(a.startDateTime)) / 60000,
+          0,
+        )
+        setKpi({ citas, ingresos, horas: Math.round(minutos / 60) })
+      })
+      .catch(() => setKpi({ citas: 0, ingresos: 0, horas: 0 }))
+  }, [bId, emp.id])
 
-  const closeModal = () => {
-    setModal(null)
-    setSelectedSchedule(null)
-    setSelectedAbsence(null)
-  }
+  // ---- Estado del empleado HOY ----
+  const dow = todayDow()
+  const todaySch = (schedules ?? []).find((s) => s.dayOfWeek === dow)
+  const now = new Date()
+  const currentAbsence = absences.find(
+    (a) => new Date(a.startDateTime) <= now && now <= new Date(a.endDateTime),
+  )
+  const status = currentAbsence
+    ? { kind: 'absent',
+        label: `Ausente hasta ${fmtAbsence(currentAbsence.endDateTime)}`,
+        cls:   'bg-amber-50 text-amber-700 ring-amber-200',
+        dot:   'bg-amber-500' }
+    : todaySch
+      ? { kind: 'available',
+          label: `Disponible · ${todaySch.startTime?.slice(0,5)}–${todaySch.endTime?.slice(0,5)}`,
+          cls:   'bg-emerald-50 text-emerald-700 ring-emerald-200',
+          dot:   'bg-emerald-500' }
+      : { kind: 'off',
+          label: 'Descansa hoy',
+          cls:   'bg-slate-100 text-slate-600 ring-slate-200',
+          dot:   'bg-slate-400' }
 
-  // ---- Schedules CRUD ----
-  const openScheduleCreate = () => {
-    setSelectedSchedule(null)
-    setScheduleForm(emptySchedule)
-    setModal('schedule-create')
-  }
-  const openScheduleEdit = (s) => {
-    setSelectedSchedule(s)
+  // ---- Modales de schedule/absence (mismos que el original) ----
+  const [scheduleModal, setScheduleModal]   = useState(null) // create | edit | delete
+  const [absenceModal, setAbsenceModal]     = useState(null)
+  const [selectedSch, setSelectedSch]       = useState(null)
+  const [selectedAbs, setSelectedAbs]       = useState(null)
+  const [scheduleForm, setScheduleForm]     = useState(emptySchedule)
+  const [absenceForm, setAbsenceForm]       = useState(emptyAbsence)
+  const [savingChild, setSavingChild]       = useState(false)
+
+  const closeSched = () => { setScheduleModal(null); setSelectedSch(null) }
+  const closeAbs   = () => { setAbsenceModal(null); setSelectedAbs(null) }
+
+  // Schedule open helpers
+  const openSchedCreate = () => { setSelectedSch(null); setScheduleForm({ ...emptySchedule, dayOfWeek: String(dow) }); setScheduleModal('create') }
+  const openSchedEdit = (s) => {
+    setSelectedSch(s)
     setScheduleForm({
       dayOfWeek: String(s.dayOfWeek),
       startTime: s.startTime?.slice(0, 5) || '09:00',
       endTime:   s.endTime?.slice(0, 5)   || '18:00',
     })
-    setModal('schedule-edit')
+    setScheduleModal('edit')
   }
-  const openScheduleDelete = (s) => {
-    setSelectedSchedule(s)
-    setModal('schedule-delete')
-  }
+  const openSchedDelete = (s) => { setSelectedSch(s); setScheduleModal('delete') }
 
-  const handleScheduleSave = async () => {
+  const handleSchedSave = async () => {
     if (scheduleForm.startTime >= scheduleForm.endTime) {
-      toast({ type: 'error', message: 'La hora de fin debe ser posterior a la de inicio.' })
-      return
+      toast({ type: 'error', message: 'La hora de fin debe ser posterior a la de inicio.' }); return
     }
-    setSaving(true)
+    setSavingChild(true)
     try {
       const payload = {
         dayOfWeek: parseInt(scheduleForm.dayOfWeek, 10),
         startTime: scheduleForm.startTime + ':00',
-        endTime:   scheduleForm.endTime   + ':00',
+        endTime:   scheduleForm.endTime + ':00',
       }
-      if (modal === 'schedule-create') {
+      if (scheduleModal === 'create') {
         await api.post(`${empUrl}/schedules`, payload)
-        toast({ type: 'success', message: 'Horario anadido.' })
+        toast({ type: 'success', message: 'Horario añadido.' })
       } else {
-        await api.put(`${empUrl}/schedules/${selectedSchedule.id}`, payload)
+        await api.put(`${empUrl}/schedules/${selectedSch.id}`, payload)
         toast({ type: 'success', message: 'Horario actualizado.' })
       }
-      closeModal()
+      closeSched()
       refreshSchedules()
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'Error al guardar.') })
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSavingChild(false) }
   }
-
-  const handleScheduleDelete = async () => {
-    setSaving(true)
+  const handleSchedDelete = async () => {
+    setSavingChild(true)
     try {
-      await api.delete(`${empUrl}/schedules/${selectedSchedule.id}`)
+      await api.delete(`${empUrl}/schedules/${selectedSch.id}`)
       toast({ type: 'success', message: 'Horario eliminado.' })
-      closeModal()
+      closeSched()
       refreshSchedules()
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'Error al eliminar.') })
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSavingChild(false) }
   }
 
-  // ---- Absences CRUD ----
-  const openAbsenceCreate = () => {
-    setSelectedAbsence(null)
-    setAbsenceForm(emptyAbsence)
-    setModal('absence-create')
-  }
-  const openAbsenceEdit = (a) => {
-    setSelectedAbsence(a)
-    // El input datetime-local pide formato yyyy-MM-ddTHH:mm (sin segundos).
+  // Absence helpers
+  const openAbsCreate = () => { setSelectedAbs(null); setAbsenceForm(emptyAbsence); setAbsenceModal('create') }
+  const openAbsEdit = (a) => {
+    setSelectedAbs(a)
     setAbsenceForm({
       startDateTime: a.startDateTime?.slice(0, 16) || '',
       endDateTime:   a.endDateTime?.slice(0, 16)   || '',
       reason:        a.reason || '',
     })
-    setModal('absence-edit')
+    setAbsenceModal('edit')
   }
-  const openAbsenceDelete = (a) => {
-    setSelectedAbsence(a)
-    setModal('absence-delete')
-  }
-
-  const handleAbsenceSave = async () => {
+  const openAbsDelete = (a) => { setSelectedAbs(a); setAbsenceModal('delete') }
+  const handleAbsSave = async () => {
     const { startDateTime, endDateTime, reason } = absenceForm
     if (!startDateTime || !endDateTime) {
-      toast({ type: 'error', message: 'Las fechas son obligatorias.' })
-      return
+      toast({ type: 'error', message: 'Las fechas son obligatorias.' }); return
     }
     if (new Date(endDateTime) <= new Date(startDateTime)) {
-      toast({ type: 'error', message: 'La fecha de fin debe ser posterior al inicio.' })
-      return
+      toast({ type: 'error', message: 'La fecha de fin debe ser posterior al inicio.' }); return
     }
-    setSaving(true)
+    setSavingChild(true)
     try {
-      // Se anade ':00' para llegar al formato LocalDateTime esperado por el
-      // backend (yyyy-MM-ddTHH:mm:ss). NO se anade 'Z': el audit H.005
-      // documenta que el backend ignora silenciosamente el sufijo UTC.
       const toLocalDt = (dt) => (dt.length === 16 ? dt + ':00' : dt)
       const payload = {
         startDateTime: toLocalDt(startDateTime),
         endDateTime:   toLocalDt(endDateTime),
         reason:        reason || null,
       }
-      if (modal === 'absence-create') {
+      if (absenceModal === 'create') {
         await api.post(`${empUrl}/absences`, payload)
         toast({ type: 'success', message: 'Ausencia registrada.' })
       } else {
-        // PUT /absences/{id} - UpdateEmployeeAbsenceRequest acepta los
-        // mismos campos pero SIN @FutureOrPresent: permite editar ausencias
-        // pasadas (audit C.14.006).
-        await api.put(`${empUrl}/absences/${selectedAbsence.id}`, payload)
+        await api.put(`${empUrl}/absences/${selectedAbs.id}`, payload)
         toast({ type: 'success', message: 'Ausencia actualizada.' })
       }
-      closeModal()
+      closeAbs()
       refreshAbsences()
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'Error al guardar.') })
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSavingChild(false) }
   }
-
-  const handleAbsenceDelete = async () => {
-    setSaving(true)
+  const handleAbsDelete = async () => {
+    setSavingChild(true)
     try {
-      await api.delete(`${empUrl}/absences/${selectedAbsence.id}`)
+      await api.delete(`${empUrl}/absences/${selectedAbs.id}`)
       toast({ type: 'success', message: 'Ausencia eliminada.' })
-      closeModal()
+      closeAbs()
       refreshAbsences()
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'Error al eliminar.') })
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSavingChild(false) }
   }
 
-  const subLoading = schedLoading || absLoading
+  const isAdminRole = emp.roleName === 'ADMIN'
 
   return (
-    <div className="mt-4 pt-4 border-t border-slate-100 space-y-5">
-      {subLoading ? (
-        <div className="space-y-2 py-1">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-3 bg-slate-100 rounded-lg animate-pulse" />
-          ))}
-        </div>
-      ) : (
-        <>
-          {/* Schedules */}
-          <div>
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="flex items-center gap-1.5">
-                <div className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-50">
-                  <Clock size={11} className="text-blue-500" />
+    <>
+      <div
+        onClick={onClose}
+        className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm animate-[fadeIn_200ms_ease-out]"
+      />
+      <aside className="fixed top-0 right-0 z-50 h-screen w-[540px] max-w-[95vw] bg-white shadow-[0_28px_56px_-16px_rgba(15,23,42,0.22)] flex flex-col animate-[slideInRight_240ms_cubic-bezier(0.2,0.7,0.2,1)]">
+
+        {/* Head */}
+        <div className="px-6 pt-6 pb-5 border-b border-slate-100">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-4 min-w-0 flex-1">
+              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${avatarColor(emp.id)} flex items-center justify-center text-white text-xl font-bold shrink-0 shadow-[0_8px_20px_-6px_rgba(14,165,233,0.45)]`}>
+                {emp.fullName?.[0]?.toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="text-lg font-bold text-[#1e3a5f]">{emp.fullName}</div>
+                  {isAdminRole
+                    ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#1e3a5f] text-white"><Shield size={10} /> Admin</span>
+                    : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-50 text-cyan-700 ring-1 ring-cyan-100"><User size={10} /> Empleado</span>
+                  }
                 </div>
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Horarios</p>
+                <div className="text-xs text-slate-400 mt-1 inline-flex items-center gap-1.5">
+                  <Calendar size={12} /> Empleado desde {fmtSinceLong(emp.createdAt)}
+                </div>
+                <div className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ring-1 ${status.cls}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+                  {status.label}
+                </div>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-[#1e3a5f] transition" title="Cerrar">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+
+          {/* KPIs del mes */}
+          <div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-2">Resumen del mes</div>
+            <div className="grid grid-cols-3 gap-2">
+              <KpiTile label="Citas"    value={kpi == null ? '…' : kpi.citas} />
+              <KpiTile label="Ingresos" value={kpi == null ? '…' : `${kpi.ingresos.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €`} />
+              <KpiTile label="Horas"    value={kpi == null ? '…' : `${kpi.horas} h`} />
+            </div>
+          </div>
+
+          {/* Contacto */}
+          <div>
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-2">Contacto</div>
+            <div className="grid grid-cols-2 gap-2">
+              <a href={`mailto:${emp.email}`} className="group flex items-center gap-3 px-3 py-2.5 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/40 transition">
+                <span className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"><Mail size={16} /></span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Email</span>
+                  <span className="block text-xs font-semibold text-[#1e3a5f] truncate">{emp.email}</span>
+                </span>
+              </a>
+              {emp.phone ? (
+                <a href={telHref(emp.phone)} className="group flex items-center gap-3 px-3 py-2.5 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/40 transition">
+                  <span className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"><Phone size={16} /></span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Teléfono</span>
+                    <span className="block text-xs font-semibold text-[#1e3a5f] truncate font-mono">{emp.phone}</span>
+                  </span>
+                </a>
+              ) : (
+                <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-slate-100 opacity-60">
+                  <span className="w-9 h-9 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center"><Phone size={16} /></span>
+                  <span className="flex-1 text-xs text-slate-400">Sin teléfono</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Horario semanal — vista grid */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <div className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-50"><Clock size={11} className="text-blue-500" /></div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em]">Horario semanal</p>
               </div>
               {isAdmin && (
-                <button
-                  onClick={openScheduleCreate}
-                  className="flex items-center gap-0.5 rounded-xl bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-600 hover:bg-blue-100 transition-colors"
-                >
-                  <Plus size={10} /> Anadir
+                <button onClick={openSchedCreate} className="flex items-center gap-0.5 rounded-xl bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-600 hover:bg-blue-100 transition">
+                  <Plus size={10} /> Añadir
                 </button>
               )}
             </div>
-            {(schedules ?? []).length === 0 ? (
-              <p className="text-xs text-slate-400 italic pl-1">Sin horarios definidos.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {[...(schedules ?? [])]
-                  .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
-                  .map((s) => (
-                    <div key={s.id} className="flex items-center text-xs bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
-                      <span className="font-semibold text-[#1e3a5f] w-20 shrink-0">{DAYS[s.dayOfWeek]}</span>
-                      <span className="flex-1 text-slate-500 font-medium">
-                        {s.startTime?.slice(0, 5)} – {s.endTime?.slice(0, 5)}
-                      </span>
-                      {isAdmin && (
-                        <div className="flex gap-0.5">
-                          <button onClick={() => openScheduleEdit(s)} className="rounded-lg p-1 text-slate-400 hover:bg-blue-50 hover:text-blue-500 transition-colors">
-                            <Pencil size={11} />
-                          </button>
-                          <button onClick={() => openScheduleDelete(s)} className="rounded-lg p-1 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors">
-                            <Trash2 size={11} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-              </div>
-            )}
+            <ScheduleGrid
+              schedules={schedules ?? []}
+              loading={schedules === null}
+              isAdmin={isAdmin}
+              onEdit={openSchedEdit}
+              onDelete={openSchedDelete}
+              onAdd={openSchedCreate}
+            />
           </div>
 
-          {/* Absences */}
+          {/* Ausencias */}
           <div>
-            <div className="flex items-center justify-between mb-2.5">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5">
-                <div className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-50">
-                  <Calendar size={11} className="text-amber-500" />
-                </div>
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <div className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-50"><Calendar size={11} className="text-amber-500" /></div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em]">
                   Ausencias{absTotal > 0 && <span className="text-slate-400 font-medium normal-case tracking-normal"> · {absTotal}</span>}
                 </p>
               </div>
               {isAdmin && (
-                <button
-                  onClick={openAbsenceCreate}
-                  className="flex items-center gap-0.5 rounded-xl bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-600 hover:bg-amber-100 transition-colors"
-                >
-                  <Plus size={10} /> Anadir
+                <button onClick={openAbsCreate} className="flex items-center gap-0.5 rounded-xl bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-600 hover:bg-amber-100 transition">
+                  <Plus size={10} /> Añadir
                 </button>
               )}
             </div>
-            {absences.length === 0 ? (
-              <p className="text-xs text-slate-400 italic pl-1">Sin ausencias registradas.</p>
+            {absLoading ? (
+              <div className="space-y-1.5">
+                {[...Array(2)].map((_, i) => <div key={i} className="h-10 bg-amber-50/40 rounded-xl animate-pulse" />)}
+              </div>
+            ) : absences.length === 0 ? (
+              <p className="text-xs text-slate-400 italic px-1 py-2">Sin ausencias registradas.</p>
             ) : (
               <div className="space-y-1.5">
                 {[...absences]
@@ -649,27 +875,14 @@ function EmployeePanel({ emp, bId, isAdmin }) {
                       </div>
                       {isAdmin && (
                         <div className="flex gap-0.5 ml-2 shrink-0">
-                          <button
-                            onClick={() => openAbsenceEdit(a)}
-                            className="rounded-lg p-1 text-slate-400 hover:bg-blue-50 hover:text-blue-500 transition-colors"
-                            title="Editar"
-                          >
-                            <Pencil size={11} />
-                          </button>
-                          <button
-                            onClick={() => openAbsenceDelete(a)}
-                            className="rounded-lg p-1 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                            title="Eliminar"
-                          >
-                            <Trash2 size={11} />
-                          </button>
+                          <button onClick={() => openAbsEdit(a)}   className="rounded-lg p-1 text-slate-400 hover:bg-blue-50 hover:text-blue-500 transition" title="Editar"><Pencil size={11} /></button>
+                          <button onClick={() => openAbsDelete(a)} className="rounded-lg p-1 text-slate-400 hover:bg-red-50 hover:text-red-500 transition" title="Eliminar"><Trash2 size={11} /></button>
                         </div>
                       )}
                     </div>
                   ))}
               </div>
             )}
-            {/* Paginacion solo si el empleado tiene mas de 10 ausencias */}
             <Pagination
               page={absPage}
               totalPages={absTotalPages}
@@ -677,23 +890,43 @@ function EmployeePanel({ emp, bId, isAdmin }) {
               onChange={setAbsPage}
             />
           </div>
-        </>
-      )}
+        </div>
+
+        {/* Foot */}
+        {isAdmin && (
+          <div className="px-6 py-4 border-t border-slate-100 flex gap-2">
+            {archived ? (
+              <Button variant="success" onClick={onReactivate} className="flex-1 gap-2">
+                <ArchiveRestore size={15} /> Reactivar
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={onDeactivate} className="flex-1 gap-2">
+                  <UserMinus size={15} /> Desactivar
+                </Button>
+                <Button onClick={onEditRole} className="flex-1 gap-2">
+                  <Pencil size={15} /> Cambiar rol
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </aside>
 
       {/* Schedule modals */}
       <Modal
-        open={modal === 'schedule-create' || modal === 'schedule-edit'}
-        onClose={closeModal}
-        title={modal === 'schedule-create' ? 'Anadir horario' : 'Editar horario'}
+        open={scheduleModal === 'create' || scheduleModal === 'edit'}
+        onClose={closeSched}
+        title={scheduleModal === 'create' ? 'Añadir horario' : 'Editar horario'}
         size="sm"
       >
         <div className="space-y-4">
           <Select
-            label="Dia *"
+            label="Día *"
             value={scheduleForm.dayOfWeek}
             onChange={(e) => setScheduleForm((p) => ({ ...p, dayOfWeek: e.target.value }))}
           >
-            {DAYS.slice(1).map((d, i) => (
+            {DAYS_FULL.slice(1).map((d, i) => (
               <option key={i + 1} value={i + 1}>{d}</option>
             ))}
           </Select>
@@ -712,33 +945,33 @@ function EmployeePanel({ emp, bId, isAdmin }) {
             />
           </div>
           <div className="flex gap-3 pt-1">
-            <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
-            <Button onClick={handleScheduleSave} loading={saving} className="flex-1">
-              {modal === 'schedule-create' ? 'Anadir' : 'Guardar'}
+            <Button variant="outline" onClick={closeSched} className="flex-1">Cancelar</Button>
+            <Button onClick={handleSchedSave} loading={savingChild} className="flex-1">
+              {scheduleModal === 'create' ? 'Añadir' : 'Guardar'}
             </Button>
           </div>
         </div>
       </Modal>
-      <Modal open={modal === 'schedule-delete'} onClose={closeModal} title="Eliminar horario" size="sm">
+      <Modal open={scheduleModal === 'delete'} onClose={closeSched} title="Eliminar horario" size="sm">
         <div className="space-y-5">
           <div className="flex items-start gap-3 rounded-2xl bg-red-50 border border-red-100 px-4 py-4">
             <Trash2 size={18} className="text-red-500 shrink-0 mt-0.5" />
             <p className="text-sm text-red-700 leading-snug">
-              ¿Eliminar el horario del <strong>{DAYS[selectedSchedule?.dayOfWeek]}</strong>?
+              ¿Eliminar el horario del <strong>{DAYS_FULL[selectedSch?.dayOfWeek]}</strong>?
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
-            <Button variant="danger" onClick={handleScheduleDelete} loading={saving} className="flex-1">Eliminar</Button>
+            <Button variant="outline" onClick={closeSched} className="flex-1">Cancelar</Button>
+            <Button variant="danger" onClick={handleSchedDelete} loading={savingChild} className="flex-1">Eliminar</Button>
           </div>
         </div>
       </Modal>
 
-      {/* Absence modals — create + edit comparten formulario */}
+      {/* Absence modals */}
       <Modal
-        open={modal === 'absence-create' || modal === 'absence-edit'}
-        onClose={closeModal}
-        title={modal === 'absence-create' ? 'Registrar ausencia' : 'Editar ausencia'}
+        open={absenceModal === 'create' || absenceModal === 'edit'}
+        onClose={closeAbs}
+        title={absenceModal === 'create' ? 'Registrar ausencia' : 'Editar ausencia'}
         size="sm"
       >
         <div className="space-y-4">
@@ -746,16 +979,14 @@ function EmployeePanel({ emp, bId, isAdmin }) {
             label="Inicio *"
             type="datetime-local"
             value={absenceForm.startDateTime}
-            // En CREATE el backend valida @FutureOrPresent; en EDIT NO
-            // (audit C.14.006 — intencionalmente sin la anotacion).
-            min={modal === 'absence-create' ? new Date().toISOString().slice(0, 16) : undefined}
+            min={absenceModal === 'create' ? new Date().toISOString().slice(0, 16) : undefined}
             onChange={(e) => setAbsenceForm((p) => ({ ...p, startDateTime: e.target.value }))}
           />
           <Input
             label="Fin *"
             type="datetime-local"
             value={absenceForm.endDateTime}
-            min={modal === 'absence-create'
+            min={absenceModal === 'create'
               ? (absenceForm.startDateTime || new Date().toISOString().slice(0, 16))
               : absenceForm.startDateTime || undefined}
             onChange={(e) => setAbsenceForm((p) => ({ ...p, endDateTime: e.target.value }))}
@@ -764,30 +995,133 @@ function EmployeePanel({ emp, bId, isAdmin }) {
             label="Motivo"
             value={absenceForm.reason}
             onChange={(e) => setAbsenceForm((p) => ({ ...p, reason: e.target.value }))}
-            placeholder="Vacaciones, baja medica…"
+            placeholder="Vacaciones, baja médica…"
           />
           <div className="flex gap-3 pt-1">
-            <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
-            <Button onClick={handleAbsenceSave} loading={saving} className="flex-1">
-              {modal === 'absence-create' ? 'Registrar' : 'Guardar'}
+            <Button variant="outline" onClick={closeAbs} className="flex-1">Cancelar</Button>
+            <Button onClick={handleAbsSave} loading={savingChild} className="flex-1">
+              {absenceModal === 'create' ? 'Registrar' : 'Guardar'}
             </Button>
           </div>
         </div>
       </Modal>
-      <Modal open={modal === 'absence-delete'} onClose={closeModal} title="Eliminar ausencia" size="sm">
+      <Modal open={absenceModal === 'delete'} onClose={closeAbs} title="Eliminar ausencia" size="sm">
         <div className="space-y-5">
           <div className="flex items-start gap-3 rounded-2xl bg-red-50 border border-red-100 px-4 py-4">
             <Trash2 size={18} className="text-red-500 shrink-0 mt-0.5" />
             <p className="text-sm text-red-700 leading-snug">
-              ¿Eliminar la ausencia del <strong>{selectedAbsence ? fmtAbsence(selectedAbsence.startDateTime) : ''}</strong>?
+              ¿Eliminar la ausencia del <strong>{selectedAbs ? fmtAbsence(selectedAbs.startDateTime) : ''}</strong>?
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
-            <Button variant="danger" onClick={handleAbsenceDelete} loading={saving} className="flex-1">Eliminar</Button>
+            <Button variant="outline" onClick={closeAbs} className="flex-1">Cancelar</Button>
+            <Button variant="danger" onClick={handleAbsDelete} loading={savingChild} className="flex-1">Eliminar</Button>
           </div>
         </div>
       </Modal>
+    </>
+  )
+}
+
+/* ============================================================
+   KPI TILE + SCHEDULE GRID
+   ============================================================ */
+
+function KpiTile({ label, value }) {
+  return (
+    <div className="rounded-xl border border-slate-100 px-3 py-3 text-center">
+      <div className="text-xs text-slate-500 font-medium">{label}</div>
+      <div className="text-xl font-extrabold text-[#1e3a5f] mt-0.5 tabular-nums">{value}</div>
     </div>
   )
 }
+
+function ScheduleGrid({ schedules, loading, isAdmin, onEdit, onDelete, onAdd }) {
+  const DAY_START = 8, DAY_END = 22
+  const total = DAY_END - DAY_START
+  const dow = todayDow()
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 space-y-1.5">
+        {[...Array(7)].map((_, i) => <div key={i} className="h-7 bg-white rounded-md animate-pulse" />)}
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+      <div className="space-y-1.5">
+        {[1, 2, 3, 4, 5, 6, 7].map((d) => {
+          const sch = schedules.find((s) => s.dayOfWeek === d)
+          const isToday = d === dow
+          let bar
+          if (sch) {
+            const [sh, sm] = sch.startTime.slice(0, 5).split(':').map(Number)
+            const [eh, em] = sch.endTime.slice(0, 5).split(':').map(Number)
+            const startH = sh + sm / 60 - DAY_START
+            const endH   = eh + em / 60 - DAY_START
+            const left   = Math.max(0, (startH / total) * 100)
+            const width  = Math.max(2, ((endH - startH) / total) * 100)
+            bar = (
+              <div
+                className="absolute inset-y-1 rounded-md flex items-center px-2 text-[10px] font-semibold text-white"
+                style={{ left: `${left}%`, width: `${width}%`, background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)' }}
+              >
+                {sch.startTime.slice(0, 5)} – {sch.endTime.slice(0, 5)}
+              </div>
+            )
+          } else {
+            bar = (
+              <div className="absolute inset-y-2 left-1 right-1 rounded-md border border-dashed border-slate-200 text-[10px] font-medium text-slate-400 flex items-center justify-center">
+                Libre
+              </div>
+            )
+          }
+          return (
+            <div key={d} className="grid grid-cols-[36px_1fr_56px] items-center gap-2">
+              <div className={`text-[11px] font-bold text-center ${isToday ? 'text-blue-600' : 'text-slate-500'}`}>
+                {DAYS_SHORT[d]}
+                {isToday && <span className="block w-1 h-1 rounded-full bg-blue-500 mx-auto mt-0.5" />}
+              </div>
+              <div className="relative h-7 rounded-md bg-white border border-slate-100">{bar}</div>
+              <div className="flex gap-0.5 justify-end">
+                {sch ? (
+                  isAdmin && (
+                    <>
+                      <button onClick={() => onEdit(sch)}   className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition"><Pencil size={12} /></button>
+                      <button onClick={() => onDelete(sch)} className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 transition"><Trash2 size={12} /></button>
+                    </>
+                  )
+                ) : (
+                  isAdmin && (
+                    <button onClick={onAdd} className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition" title="Añadir"><Plus size={12} /></button>
+                  )
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div className="grid grid-cols-[36px_1fr_56px] gap-2 mt-2">
+        <div />
+        <div className="flex justify-between text-[9px] text-slate-400 px-1 font-mono">
+          {Array.from({ length: Math.floor(total / 2) + 1 }, (_, i) => (
+            <span key={i}>{String(DAY_START + i * 2).padStart(2, '0')}</span>
+          ))}
+        </div>
+        <div />
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------
+   Animaciones del drawer — añade al final de src/index.css
+
+   @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+   @keyframes slideInRight {
+     from { transform: translateX(100%) }
+     to   { transform: translateX(0) }
+   }
+   ------------------------------------------------------------ */

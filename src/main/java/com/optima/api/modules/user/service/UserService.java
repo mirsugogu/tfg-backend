@@ -115,12 +115,16 @@ public class UserService {
     }
 
     /**
-     * Listado paginado de empleados (memberships activas) del negocio.
+     * Listado paginado de empleados del negocio. Con active=true (por
+     * defecto) devuelve los activos; con active=false los archivados
+     * (memberships desactivadas), la vista desde la que se reactivan.
      */
     @Transactional(readOnly = true)
-    public Page<UserResponse> listByBusiness(Long businessId, Pageable pageable) {
-        return membershipRepository.findByBusinessIdAndIsActiveTrue(businessId, pageable)
-                .map(UserResponse::from);
+    public Page<UserResponse> listByBusiness(Long businessId, boolean active, Pageable pageable) {
+        Page<Membership> page = active
+                ? membershipRepository.findByBusinessIdAndIsActiveTrue(businessId, pageable)
+                : membershipRepository.findByBusinessIdAndIsActiveFalse(businessId, pageable);
+        return page.map(UserResponse::from);
     }
 
     /**
@@ -177,6 +181,21 @@ public class UserService {
         }
         m.setIsActive(false);
         membershipRepository.save(m);
+    }
+
+    /**
+     * Revierte el soft delete: vuelve a marcar la membership como activa.
+     * La usa la vista de empleados archivados. Lanza 400 si ya está activa.
+     * Solo toca la pertenencia a este negocio, no la identidad (User).
+     */
+    public UserResponse reactivate(Long businessId, Long id) {
+        Membership m = findOrThrow(businessId, id);
+        if (m.getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El empleado ya está activo");
+        }
+        m.setIsActive(true);
+        return UserResponse.from(membershipRepository.save(m));
     }
 
     /**

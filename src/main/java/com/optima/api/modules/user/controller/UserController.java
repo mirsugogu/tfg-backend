@@ -61,14 +61,19 @@ public class UserController {
     }
 
     /**
-     * GET /api/businesses/{businessId}/users - Lista paginada de usuarios activos.
+     * GET /api/businesses/{businessId}/users - Lista paginada de empleados.
      * Sin @PreAuthorize: cualquier autenticado del negocio puede consultarlo.
      * Pageable se rellena con los query params ?page=&size=&sort=field,asc.
+     *
+     * ?active=true (por defecto) devuelve los empleados activos;
+     * ?active=false devuelve los archivados (la vista desde la que se
+     * reactivan).
      */
     @GetMapping
     public Page<UserResponse> listByBusiness(@PathVariable @Positive Long businessId,
+                                             @RequestParam(defaultValue = "true") boolean active,
                                              Pageable pageable) {
-        return userService.listByBusiness(businessId, pageable);
+        return userService.listByBusiness(businessId, active, pageable);
     }
 
     /**
@@ -95,14 +100,26 @@ public class UserController {
 
     /**
      * DELETE /api/businesses/{businessId}/users/{id} - Soft delete (ADMIN).
-     * Marca isActive=false y deactivatedAt=now. NO borra fisicamente la fila
-     * (preserva integridad referencial con citas pasadas).
-     * Devuelve 204 No Content.
+     * Marca la membership como inactiva (isActive=false). NO borra
+     * fisicamente la fila (preserva integridad referencial con las citas
+     * pasadas). Devuelve 204 No Content.
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
     public void deactivate(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
         userService.deactivate(businessId, id);
+    }
+
+    /**
+     * PATCH /api/businesses/{businessId}/users/{id}/reactivate - Revierte
+     * el soft delete de un empleado archivado (ADMIN). Pone isActive=true.
+     * Devuelve el UserResponse actualizado. 400 si ya estaba activo.
+     */
+    @PatchMapping("/{id}/reactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserResponse reactivate(@PathVariable @Positive Long businessId,
+                                   @PathVariable @Positive Long id) {
+        return userService.reactivate(businessId, id);
     }
 }

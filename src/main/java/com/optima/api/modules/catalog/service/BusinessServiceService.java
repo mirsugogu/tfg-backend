@@ -121,12 +121,16 @@ public class BusinessServiceService {
     }
 
     /**
-     * Lista los servicios activos de un negocio.
+     * Lista los servicios de un negocio. Con active=true (por defecto)
+     * devuelve los activos; con active=false los archivados (soft-deleted),
+     * la vista desde la que se reactivan.
      */
     @Transactional(readOnly = true)
-    public Page<BusinessServiceResponse> getActiveServicesByBusiness(Long businessId, Pageable pageable) {
-        return serviceRepository.findAllByBusinessIdAndIsActiveTrue(businessId, pageable)
-                .map(BusinessServiceResponse::from);
+    public Page<BusinessServiceResponse> getActiveServicesByBusiness(Long businessId, boolean active, Pageable pageable) {
+        Page<BusinessService> page = active
+                ? serviceRepository.findAllByBusinessIdAndIsActiveTrue(businessId, pageable)
+                : serviceRepository.findAllByBusinessIdAndIsActiveFalse(businessId, pageable);
+        return page.map(BusinessServiceResponse::from);
     }
 
     /**
@@ -200,6 +204,21 @@ public class BusinessServiceService {
         service.setIsActive(false);
         service.setDeactivatedAt(LocalDateTime.now());
         serviceRepository.save(service);
+    }
+
+    /**
+     * Reactiva un servicio archivado: pone isActive=true y deactivatedAt=null.
+     * Filtra por negocio (cross-tenant safe). Lanza 400 si ya estaba activo.
+     */
+    public BusinessServiceResponse reactivateService(Long businessId, Long id) {
+        BusinessService service = findOrThrow(businessId, id);
+        if (service.getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El servicio ya está activo");
+        }
+        service.setIsActive(true);
+        service.setDeactivatedAt(null);
+        return BusinessServiceResponse.from(serviceRepository.save(service));
     }
 
     /**

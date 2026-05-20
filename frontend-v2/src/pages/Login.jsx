@@ -1,15 +1,25 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, Navigate, Link } from 'react-router-dom'
-import { Eye, EyeOff, Lock, Mail, Building2, ArrowRight, CalendarDays, Users, Scissors } from 'lucide-react'
+import {
+  Eye, EyeOff, Lock, Mail, Building2, ArrowRight, ArrowLeft,
+  CalendarDays, Users, Scissors, AlertCircle, AlertTriangle, Shield, User,
+} from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { getErrorMessage } from '@/lib/api'
 import { LogoMark } from '@/components/ui/LogoMark'
 
-/** Caja de error en rojo, reutilizada por el formulario y el selector. */
-function ErrorBox({ children }) {
+function ErrorBox({ children, icon: Icon = AlertCircle, variant = 'danger', title }) {
+  const tones = {
+    danger: 'bg-red-50 border-red-100 text-red-700',
+    rate:   'bg-amber-50 border-amber-100 text-amber-800',
+  }
   return (
-    <div className="mt-4 rounded-2xl bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-700 font-medium">
-      {children}
+    <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-medium flex items-start gap-2 ${tones[variant]}`}>
+      <Icon size={16} className="shrink-0 mt-0.5" />
+      <div>
+        {title && <p className="font-semibold">{title}</p>}
+        <p className={title ? 'text-xs mt-0.5' : ''}>{children}</p>
+      </div>
     </div>
   )
 }
@@ -20,47 +30,85 @@ const features = [
   { Icon: Scissors,     text: 'Catálogo de servicios flexible' },
 ]
 
-const inputCls =
-  'h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-sm text-[#1f2c4a] ' +
-  'placeholder:text-slate-400 transition-all focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-100'
+const ROLE_LABEL = { ADMIN: 'Administrador', EMPLOYEE: 'Empleado' }
+const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim())
 
-/**
- * Login — acceso a la plataforma. Diseño responsive de dos zonas:
- *  - Una tarjeta de acceso centrada (visible siempre, también en móvil).
- *  - Un panel de marca lateral azul marino (solo en escritorio, lg+).
- *
- * Soporta el login multi-membership: si la cuenta pertenece a varios
- * negocios, la tarjeta muestra el selector de negocio en lugar del
- * formulario.
- */
+const inputBase =
+  'h-12 w-full rounded-2xl border bg-slate-50 pl-11 pr-4 text-sm text-[#1f2c4a] placeholder:text-slate-400 ' +
+  'transition-all focus:outline-none focus:bg-white focus:ring-4'
+const inputOk = `${inputBase} border-slate-200 focus:border-blue-400 focus:ring-blue-100`
+const inputErr = `${inputBase} border-amber-300 bg-white focus:border-amber-400 focus:ring-amber-100`
+
 export default function Login() {
   const { user, login, selectBusiness, loading, pendingBusinesses } = useAuth()
   const navigate = useNavigate()
+  const emailRef = useRef(null)
 
-  const [form, setForm] = useState({ email: '', password: '' })
+  // Recordar email entre sesiones (NUNCA la contraseña).
+  const [form, setForm] = useState({
+    email: localStorage.getItem('optima_last_email') || '',
+    password: '',
+  })
   const [showPassword, setShowPassword] = useState(false)
+  const [capsLock, setCapsLock] = useState(false)
+  const [emailBlurred, setEmailBlurred] = useState(false)
   const [error, setError] = useState('')
+  const [rateLeft, setRateLeft] = useState(0) // segundos restantes si 429
+
+  // autoFocus inteligente: email si está vacío, password si no
+  useEffect(() => {
+    if (emailRef.current) {
+      if (!form.email) emailRef.current.focus()
+      else document.querySelector('input[name="password"]')?.focus()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Countdown del 429
+  useEffect(() => {
+    if (rateLeft <= 0) return
+    const t = setInterval(() => setRateLeft((s) => Math.max(0, s - 1)), 1000)
+    return () => clearInterval(t)
+  }, [rateLeft])
 
   if (user) return <Navigate to="/dashboard" replace />
 
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
 
+  // Detecta Bloq Mayús mientras se escribe la contraseña
+  const handlePwdKey = (e) => {
+    if (typeof e.getModifierState === 'function') setCapsLock(e.getModifierState('CapsLock'))
+  }
+
+  const emailInvalid = emailBlurred && form.email.length > 0 && !isEmail(form.email)
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (rateLeft > 0) return
     setError('')
     if (!form.email || !form.password) {
       setError('Rellena email y contraseña para continuar.')
       return
     }
+    if (!isEmail(form.email)) {
+      setError('El email no tiene un formato válido.')
+      return
+    }
     try {
       const result = await login(form.email, form.password)
+      // Guarda el email para próximas sesiones (solo si el login no peta).
+      localStorage.setItem('optima_last_email', form.email)
       if (result.type === 'tenant') navigate('/dashboard')
-      // result.type === 'identity' → pendingBusinesses queda en el contexto
-      // y el selector de negocio se renderiza en este mismo render.
+      // type === 'identity' → pendingBusinesses queda en el contexto.
     } catch (err) {
-      // Mensaje del backend (anti-enumeration: el mismo 401 para email
-      // inexistente, contraseña incorrecta o cuenta inactiva).
-      setError(getErrorMessage(err, 'Error al iniciar sesión. Inténtalo de nuevo.'))
+      // Si el backend devuelve 429, el interceptor de api.js ya extrajo
+      // retryAfter; lo usamos para mostrar countdown.
+      if (err?.isRateLimited && Number.isFinite(err.retryAfter) && err.retryAfter > 0) {
+        setRateLeft(err.retryAfter)
+        setError('')
+      } else {
+        setError(getErrorMessage(err, 'Error al iniciar sesión. Inténtalo de nuevo.'))
+      }
     }
   }
 
@@ -74,13 +122,19 @@ export default function Login() {
     }
   }
 
+  const handleBackToLogin = () => {
+    // Limpia el flujo identity y vuelve al formulario.
+    sessionStorage.removeItem('optima_identity_token')
+    sessionStorage.removeItem('optima_pending_businesses')
+    window.location.reload()
+  }
+
   return (
     <div className="min-h-screen flex bg-[#f4f7fe]">
-      {/* ───────── Tarjeta de acceso ───────── */}
+      {/* ─── Tarjeta de acceso ─── */}
       <div className="flex flex-1 overflow-y-auto p-5 sm:p-8">
         <div className="w-full max-w-md m-auto">
           <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_24px_70px_-24px_rgba(15,23,42,0.3)] p-7 sm:p-9">
-            {/* Logo */}
             <div className="flex items-center gap-2.5 mb-7">
               <LogoMark size={42} />
               <div className="leading-none">
@@ -92,8 +146,17 @@ export default function Login() {
             {pendingBusinesses ? (
               /* ── Selector de negocio (login multi-membership) ── */
               <>
-                <h1 className="text-2xl font-bold text-[#1e3a5f] tracking-tight">Selecciona negocio</h1>
-                <p className="mt-1.5 text-sm text-slate-500">Tu cuenta tiene acceso a varios negocios.</p>
+                <div className="flex items-center justify-between mb-1.5">
+                  <h1 className="text-2xl font-bold text-[#1e3a5f] tracking-tight">Selecciona negocio</h1>
+                  <button
+                    onClick={handleBackToLogin}
+                    title="Volver al inicio de sesión"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-[#1e3a5f] transition"
+                  >
+                    <ArrowLeft size={12} /> Volver
+                  </button>
+                </div>
+                <p className="text-sm text-slate-500">Tu cuenta tiene acceso a varios negocios.</p>
                 <div className="mt-6 space-y-2.5">
                   {pendingBusinesses.map((b) => (
                     <button
@@ -108,7 +171,10 @@ export default function Login() {
                         </span>
                         <span className="min-w-0">
                           <span className="block font-semibold text-[#1e3a5f] text-sm truncate">{b.businessName}</span>
-                          <span className="block text-xs text-slate-400 mt-0.5">{b.role}</span>
+                          <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600">
+                            {b.role === 'ADMIN' ? <Shield size={10} /> : <User size={10} />}
+                            {ROLE_LABEL[b.role] || b.role}
+                          </span>
                         </span>
                       </span>
                       <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors shrink-0" />
@@ -116,11 +182,15 @@ export default function Login() {
                   ))}
                 </div>
                 {error && <ErrorBox>{error}</ErrorBox>}
+                <p className="mt-5 text-center text-sm text-slate-500">
+                  ¿Quieres dar de alta otro negocio?{' '}
+                  <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">Registra uno nuevo</Link>
+                </p>
               </>
             ) : (
               /* ── Formulario de acceso ── */
               <>
-                <h1 className="text-2xl font-bold text-[#1e3a5f] tracking-tight">Bienvenido</h1>
+                <h1 className="text-2xl font-bold text-[#1e3a5f] tracking-tight">Bienvenido de nuevo</h1>
                 <p className="mt-1.5 text-sm text-slate-500">Accede al panel de gestión de tu negocio.</p>
 
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -129,10 +199,22 @@ export default function Login() {
                     <div className="relative">
                       <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
-                        name="email" type="email" value={form.email} onChange={handleChange}
-                        placeholder="tu@email.com" className={inputCls} autoComplete="email"
+                        ref={emailRef}
+                        name="email"
+                        type="email"
+                        value={form.email}
+                        onChange={handleChange}
+                        onBlur={() => setEmailBlurred(true)}
+                        placeholder="tu@email.com"
+                        className={emailInvalid ? inputErr : inputOk}
+                        autoComplete="email"
                       />
                     </div>
+                    {emailInvalid && (
+                      <p className="text-[11px] mt-0.5 text-amber-600 inline-flex items-center gap-1">
+                        <AlertCircle size={12} /> Formato de email no válido
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-1.5">
@@ -145,24 +227,43 @@ export default function Login() {
                     <div className="relative">
                       <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
-                        name="password" type={showPassword ? 'text' : 'password'} value={form.password}
-                        onChange={handleChange} placeholder="••••••••" className={`${inputCls} pr-11`}
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={form.password}
+                        onChange={handleChange}
+                        onKeyDown={handlePwdKey}
+                        onKeyUp={handlePwdKey}
+                        onBlur={() => setCapsLock(false)}
+                        placeholder="••••••••"
+                        className={`${inputOk} pr-11`}
                         autoComplete="current-password"
                       />
                       <button
                         type="button" onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                         aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        tabIndex={-1}
                       >
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
+                    {capsLock && (
+                      <p className="text-[11px] mt-0.5 text-amber-600 inline-flex items-center gap-1">
+                        <AlertTriangle size={12} /> Bloq Mayús activado
+                      </p>
+                    )}
                   </div>
 
-                  {error && <ErrorBox>{error}</ErrorBox>}
+                  {rateLeft > 0 ? (
+                    <ErrorBox variant="rate" icon={AlertCircle} title="Demasiados intentos">
+                      Vuelve a probar en <strong>{rateLeft}</strong> segundo{rateLeft === 1 ? '' : 's'}.
+                    </ErrorBox>
+                  ) : error ? (
+                    <ErrorBox>{error}</ErrorBox>
+                  ) : null}
 
                   <button
-                    type="submit" disabled={loading}
+                    type="submit" disabled={loading || rateLeft > 0}
                     className="w-full h-12 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold text-sm shadow-[0_12px_30px_-10px_rgba(14,165,233,0.6)] hover:brightness-105 disabled:opacity-60 disabled:pointer-events-none transition-all flex items-center justify-center gap-2"
                   >
                     {loading && (
@@ -171,39 +272,13 @@ export default function Login() {
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
                     )}
-                    {loading ? 'Accediendo…' : 'Iniciar sesión'}
+                    {loading ? 'Accediendo…' : (rateLeft > 0 ? `Espera ${rateLeft}s…` : 'Iniciar sesión')}
                   </button>
                 </form>
 
-                {/* Cuenta de demostración */}
-                <div className="mt-5 rounded-2xl bg-blue-50/70 border border-blue-100 px-4 py-3.5">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-blue-900 uppercase tracking-wider">Cuenta de demostración</span>
-                    <button
-                      type="button"
-                      onClick={() => setForm({ email: 'admin@optima.com', password: '12345678' })}
-                      className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 bg-white px-2.5 py-1 rounded-lg border border-blue-100 transition-colors"
-                    >
-                      Autocompletar
-                    </button>
-                  </div>
-                  <div className="space-y-1 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-blue-900/55">Email</span>
-                      <code className="font-mono font-semibold text-blue-900">admin@optima.com</code>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-blue-900/55">Contraseña</span>
-                      <code className="font-mono font-semibold text-blue-900">12345678</code>
-                    </div>
-                  </div>
-                </div>
-
                 <p className="mt-5 text-center text-sm text-slate-500">
                   ¿No tienes cuenta?{' '}
-                  <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">
-                    Crea tu negocio
-                  </Link>
+                  <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">Crea tu negocio</Link>
                 </p>
               </>
             )}
@@ -215,9 +290,8 @@ export default function Login() {
         </div>
       </div>
 
-      {/* ───────── Panel de marca (solo escritorio) ───────── */}
+      {/* ─── Panel de marca (solo escritorio) ─── */}
       <div className="hidden lg:flex lg:w-[45%] relative bg-[#1e3a5f] flex-col justify-center overflow-hidden px-12 xl:px-16">
-        {/* Manchas de gradiente de fondo */}
         <div className="absolute -top-32 -right-24 w-[460px] h-[460px] rounded-full bg-gradient-to-br from-cyan-400/25 to-blue-500/5 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-40 -left-24 w-[420px] h-[420px] rounded-full bg-gradient-to-tr from-blue-500/20 to-cyan-300/5 blur-3xl pointer-events-none" />
 

@@ -65,17 +65,20 @@ public class BoothController {
 
     /**
      * GET /api/businesses/{businessId}/booths - Lista paginada de cabinas
-     * ACTIVAS del negocio.
+     * del negocio.
      *
-     * El listado filtra por is_active=true: las cabinas desactivadas no
-     * aparecen aqui, solo siguen existiendo para preservar la integridad
-     * referencial de citas historicas que las usaran.
+     * ?active=true (por defecto) devuelve las cabinas activas;
+     * ?active=false devuelve las archivadas (la vista desde la que se
+     * reactivan). Las cabinas desactivadas siguen existiendo para
+     * preservar la integridad referencial de citas historicas que las
+     * usaran.
      * Pageable se rellena con ?page=&size=&sort=field,asc.
      */
     @GetMapping
     public Page<BoothResponse> listActive(@PathVariable @Positive Long businessId,
+                                          @RequestParam(defaultValue = "true") boolean active,
                                           Pageable pageable) {
-        return boothService.listActive(businessId, pageable);
+        return boothService.listActive(businessId, active, pageable);
     }
 
     /**
@@ -116,5 +119,18 @@ public class BoothController {
     public void deactivate(@PathVariable @Positive Long businessId,
                            @PathVariable @Positive Long id) {
         boothService.deactivate(businessId, id);
+    }
+
+    /**
+     * PATCH /api/businesses/{businessId}/booths/{id}/reactivate - Revierte
+     * el soft delete de una cabina archivada (ADMIN). Pone is_active=true
+     * y deactivated_at=null. Devuelve el BoothResponse actualizado. 400 si
+     * ya estaba activa.
+     */
+    @PatchMapping("/{id}/reactivate")
+    @PreAuthorize("hasRole('ADMIN')")
+    public BoothResponse reactivate(@PathVariable @Positive Long businessId,
+                                    @PathVariable @Positive Long id) {
+        return boothService.reactivate(businessId, id);
     }
 }

@@ -61,7 +61,9 @@
     { "key": "appointmentId2", "value": "", "type": "string" },
     { "key": "tokenEmployee", "value": "", "type": "string" },
     { "key": "regSuffix", "value": "", "type": "string" },
-    { "key": "tokenRegistered", "value": "", "type": "string" }
+    { "key": "tokenRegistered", "value": "", "type": "string" },
+    { "key": "boothId", "value": "", "type": "string" },
+    { "key": "boothToDeleteId", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -349,7 +351,7 @@
         {
           "name": "GET list",
           "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
-          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/taxes","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","taxes"]}}
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/taxes","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","taxes"],"query":[{"key":"active","value":"false","description":"Filtra por estado: true = activos (por defecto), false = archivados (soft-deleted)","disabled":true}]}}
         },
         {
           "name": "GET by id",
@@ -375,6 +377,11 @@
           "name": "PUT tax2 desactivado -> 400",
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
           "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/taxes/{{taxId2}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","taxes","{{taxId2}}"]},"body":{"mode":"raw","raw":"{\"name\":\"X\",\"percentage\":5.00}"}}
+        },
+        {
+          "name": "Reactivar tax2 (desarchivar)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('isActive true',()=>pm.expect(pm.response.json().isActive).to.eql(true));"]}}],
+          "request": {"method":"PATCH","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/taxes/{{taxId2}}/reactivate","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","taxes","{{taxId2}}","reactivate"]}}
         }
       ]
     },
@@ -414,7 +421,7 @@
         {
           "name": "GET list",
           "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
-          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/users","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","users"]}}
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/users","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","users"],"query":[{"key":"active","value":"false","description":"Filtra por estado: true = activos (por defecto), false = archivados (soft-deleted)","disabled":true}]}}
         },
         {
           "name": "GET by id",
@@ -440,6 +447,11 @@
           "name": "DELETE user ya desactivado -> 400",
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
           "request": {"method":"DELETE","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/users/{{userToDeleteId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","users","{{userToDeleteId}}"]}}
+        },
+        {
+          "name": "Reactivar user (desarchivar)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('isActive true',()=>pm.expect(pm.response.json().isActive).to.eql(true));"]}}],
+          "request": {"method":"PATCH","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/users/{{userToDeleteId}}/reactivate","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","users","{{userToDeleteId}}","reactivate"]}}
         }
       ]
     },
@@ -559,7 +571,7 @@
         {
           "name": "GET list",
           "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
-          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/clients","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","clients"]}}
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/clients","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","clients"],"query":[{"key":"active","value":"false","description":"Filtra por estado: true = activos (por defecto), false = archivados (soft-deleted)","disabled":true}]}}
         },
         {
           "name": "GET by id",
@@ -600,6 +612,11 @@
           "name": "PUT cliente desactivado -> 400",
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
           "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/clients/{{clientToDeleteId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","clients","{{clientToDeleteId}}"]},"body":{"mode":"raw","raw":"{\"fullName\":\"X\"}"}}
+        },
+        {
+          "name": "Reactivar client (desarchivar)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('isActive true',()=>pm.expect(pm.response.json().isActive).to.eql(true));"]}}],
+          "request": {"method":"PATCH","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/clients/{{clientToDeleteId}}/reactivate","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","clients","{{clientToDeleteId}}","reactivate"]}}
         }
       ]
     },
@@ -629,7 +646,7 @@
         {
           "name": "GET list",
           "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
-          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/categories","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","categories"]}}
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/categories","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","categories"],"query":[{"key":"active","value":"false","description":"Filtra por estado: true = activos (por defecto), false = archivados (soft-deleted)","disabled":true}]}}
         },
         {
           "name": "GET by id",
@@ -650,6 +667,11 @@
           "name": "DELETE category (soft)",
           "event": [{"listen":"test","script":{"exec":["pm.test('204',()=>pm.response.to.have.status(204));"]}}],
           "request": {"method":"DELETE","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/categories/{{categoryToDeleteId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","categories","{{categoryToDeleteId}}"]}}
+        },
+        {
+          "name": "Reactivar category (desarchivar)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('isActive true',()=>pm.expect(pm.response.json().isActive).to.eql(true));"]}}],
+          "request": {"method":"PATCH","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/categories/{{categoryToDeleteId}}/reactivate","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","categories","{{categoryToDeleteId}}","reactivate"]}}
         }
       ]
     },
@@ -694,7 +716,7 @@
         {
           "name": "GET list",
           "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
-          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/services","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","services"]}}
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/services","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","services"],"query":[{"key":"active","value":"false","description":"Filtra por estado: true = activos (por defecto), false = archivados (soft-deleted)","disabled":true}]}}
         },
         {
           "name": "[AUDIT 2.1] GET by id: incluye taxId",
@@ -705,6 +727,11 @@
           "name": "PUT update",
           "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
           "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/services/{{serviceId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","services","{{serviceId}}"]},"body":{"mode":"raw","raw":"{\"categoryId\":{{categoryId}},\"taxId\":{{taxId}},\"name\":\"Corte premium\",\"description\":\"Premium v2\",\"price\":25.00,\"durationMinutes\":45}"}}
+        },
+        {
+          "name": "Reactivar service (desarchivar)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('isActive true',()=>pm.expect(pm.response.json().isActive).to.eql(true));"]}}],
+          "request": {"method":"PATCH","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/services/{{serviceId2}}/reactivate","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","services","{{serviceId2}}","reactivate"]}}
         }
       ]
     },
@@ -962,6 +989,56 @@
             {"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","const j=pm.response.json();","pm.test('latitud null',()=>pm.expect(j.latitude).to.eql(null));","pm.test('longitud null',()=>pm.expect(j.longitude).to.eql(null));"]}}
           ],
           "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses","host":["{{baseUrl}}"],"path":["api","businesses"]},"body":{"mode":"raw","raw":"{\"name\":\"Salon Sin Address {{mapsSuffix2}}\",\"slug\":\"sin-address-{{mapsSuffix2}}\",\"email\":\"noaddr{{mapsSuffix2}}@salon.com\",\"appointmentInterval\":30}"}}
+        }
+      ]
+    },
+    {
+      "name": "16 - booths",
+      "item": [
+        {
+          "name": "POST happy",
+          "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","pm.collectionVariables.set('boothId',pm.response.json().id);"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths"]},"body":{"mode":"raw","raw":"{\"name\":\"Sala Test-{{uniqSuffix}}\"}"}}
+        },
+        {
+          "name": "POST nombre duplicado -> 409",
+          "event": [{"listen":"test","script":{"exec":["pm.test('409',()=>pm.response.to.have.status(409));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths"]},"body":{"mode":"raw","raw":"{\"name\":\"Sala Test-{{uniqSuffix}}\"}"}}
+        },
+        {
+          "name": "POST nombre vacio -> 400",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths"]},"body":{"mode":"raw","raw":"{\"name\":\"\"}"}}
+        },
+        {
+          "name": "GET list",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths"],"query":[{"key":"active","value":"false","description":"Filtra por estado: true = activos (por defecto), false = archivados (soft-deleted)","disabled":true}]}}
+        },
+        {
+          "name": "GET by id",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths/{{boothId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths","{{boothId}}"]}}
+        },
+        {
+          "name": "PUT update",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths/{{boothId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths","{{boothId}}"]},"body":{"mode":"raw","raw":"{\"name\":\"Sala renombrada-{{uniqSuffix}}\"}"}}
+        },
+        {
+          "name": "POST boothToDelete",
+          "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","pm.collectionVariables.set('boothToDeleteId',pm.response.json().id);"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths"]},"body":{"mode":"raw","raw":"{\"name\":\"Sala para borrar-{{uniqSuffix}}\"}"}}
+        },
+        {
+          "name": "DELETE booth (soft)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('204',()=>pm.response.to.have.status(204));"]}}],
+          "request": {"method":"DELETE","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths/{{boothToDeleteId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths","{{boothToDeleteId}}"]}}
+        },
+        {
+          "name": "Reactivar booth (desarchivar)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('isActive true',()=>pm.expect(pm.response.json().isActive).to.eql(true));"]}}],
+          "request": {"method":"PATCH","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths/{{boothToDeleteId}}/reactivate","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths","{{boothToDeleteId}}","reactivate"]}}
         }
       ]
     }

@@ -33,6 +33,13 @@ public interface BusinessServiceRepository extends JpaRepository<BusinessService
      */
     Page<BusinessService> findAllByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
+    /**
+     * Lista paginada de servicios INACTIVOS (archivados) de un negocio.
+     * Alimenta la vista "Archivados" del catalogo de servicios, desde la
+     * que se reactivan.
+     */
+    Page<BusinessService> findAllByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
+
     /** Lookup tenant-safe por id+businessId. */
     Optional<BusinessService> findByIdAndBusinessId(Long id, Long businessId);
 

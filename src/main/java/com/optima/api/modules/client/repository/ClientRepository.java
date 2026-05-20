@@ -28,6 +28,13 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
     Page<Client> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
     /**
+     * Lista paginada de clientes INACTIVOS (archivados) de un negocio.
+     * Alimenta la vista "Archivados" del listado de clientes, desde la
+     * que se reactivan.
+     */
+    Page<Client> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
+
+    /**
      * Búsqueda tenant-safe: el cliente existe Y pertenece al negocio dado.
      */
     Optional<Client> findByIdAndBusinessId(Long id, Long businessId);

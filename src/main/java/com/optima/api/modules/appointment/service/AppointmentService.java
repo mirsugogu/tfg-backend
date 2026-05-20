@@ -34,6 +34,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -363,6 +364,17 @@ public class AppointmentService {
     }
 
     /**
+     * Campos por los que se permite ordenar searchAppointments. Como su
+     * query es @Query JPQL, un sort sobre un campo inexistente hace que
+     * Hibernate falle al traducir el HQL y el endpoint devuelva 500.
+     * Validar el sort contra esta whitelist lo convierte en un 400 con
+     * mensaje claro — mismo criterio que el handler de
+     * PropertyReferenceException aplica a los listados de query derivada.
+     */
+    private static final Set<String> SORTABLE_FIELDS =
+            Set.of("id", "startDateTime", "endDateTime", "createdAt", "isPaid");
+
+    /**
      * Busqueda paginada de citas con filtros opcionales `from`, `to` y
      * `membershipId`.
      *
@@ -381,6 +393,15 @@ public class AppointmentService {
                                                        LocalDate to,
                                                        Long membershipId,
                                                        Pageable pageable) {
+        // Rechaza un ?sort= por un campo que la query JPQL no sabe ordenar:
+        // sin esto Hibernate falla al traducir el HQL y el endpoint da 500.
+        pageable.getSort().forEach(order -> {
+            if (!SORTABLE_FIELDS.contains(order.getProperty())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "El campo de ordenación '" + order.getProperty() + "' no es válido");
+            }
+        });
+
         LocalDateTime fromInclusive = from != null ? from.atStartOfDay() : null;
         LocalDateTime toExclusive = to != null ? to.plusDays(1).atStartOfDay() : null;
 

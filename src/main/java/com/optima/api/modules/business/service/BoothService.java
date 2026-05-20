@@ -67,12 +67,16 @@ public class BoothService {
     }
 
     /**
-     * Listado paginado de cabinas activas del negocio (excluye soft-deleted).
+     * Listado paginado de cabinas del negocio. Con active=true (por
+     * defecto) devuelve las activas; con active=false las archivadas
+     * (soft-deleted), la vista desde la que se reactivan.
      */
     @Transactional(readOnly = true)
-    public Page<BoothResponse> listActive(Long businessId, Pageable pageable) {
-        return boothRepository.findByBusinessIdAndIsActiveTrue(businessId, pageable)
-                .map(BoothResponse::from);
+    public Page<BoothResponse> listActive(Long businessId, boolean active, Pageable pageable) {
+        Page<Booth> page = active
+                ? boothRepository.findByBusinessIdAndIsActiveTrue(businessId, pageable)
+                : boothRepository.findByBusinessIdAndIsActiveFalse(businessId, pageable);
+        return page.map(BoothResponse::from);
     }
 
     /**
@@ -120,6 +124,21 @@ public class BoothService {
         b.setIsActive(false);
         b.setDeactivatedAt(LocalDateTime.now());
         boothRepository.save(b);
+    }
+
+    /**
+     * Reactiva una cabina archivada: pone isActive=true y deactivatedAt=null.
+     * Filtra por negocio (cross-tenant safe). Lanza 400 si ya estaba activa.
+     */
+    public BoothResponse reactivate(Long businessId, Long id) {
+        Booth b = findOrThrow(businessId, id);
+        if (b.getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "La cabina ya está activa");
+        }
+        b.setIsActive(true);
+        b.setDeactivatedAt(null);
+        return BoothResponse.from(boothRepository.save(b));
     }
 
     private Booth findOrThrow(Long businessId, Long id) {

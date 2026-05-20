@@ -78,12 +78,16 @@ public class ServiceCategoryService {
     }
 
     /**
-     * Lista las categorias activas de un negocio.
+     * Lista las categorias de un negocio. Con active=true (por defecto)
+     * devuelve las activas; con active=false las archivadas (soft-deleted),
+     * la vista desde la que se reactivan.
      */
     @Transactional(readOnly = true)
-    public Page<ServiceCategoryResponse> getActiveCategories(Long businessId, Pageable pageable) {
-        return categoryRepository.findAllByBusinessIdAndIsActiveTrue(businessId, pageable)
-                .map(ServiceCategoryResponse::from);
+    public Page<ServiceCategoryResponse> getActiveCategories(Long businessId, boolean active, Pageable pageable) {
+        Page<ServiceCategory> page = active
+                ? categoryRepository.findAllByBusinessIdAndIsActiveTrue(businessId, pageable)
+                : categoryRepository.findAllByBusinessIdAndIsActiveFalse(businessId, pageable);
+        return page.map(ServiceCategoryResponse::from);
     }
 
     /**
@@ -132,6 +136,22 @@ public class ServiceCategoryService {
         category.setIsActive(false);
         category.setDeactivatedAt(LocalDateTime.now());
         categoryRepository.save(category);
+    }
+
+    /**
+     * Reactiva una categoría archivada: pone isActive=true y
+     * deactivatedAt=null. Filtra por negocio (cross-tenant safe). Lanza 400
+     * si ya estaba activa.
+     */
+    public ServiceCategoryResponse reactivateCategory(Long businessId, Long id) {
+        ServiceCategory category = findOrThrow(businessId, id);
+        if (category.getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "La categoría ya está activa");
+        }
+        category.setIsActive(true);
+        category.setDeactivatedAt(null);
+        return ServiceCategoryResponse.from(categoryRepository.save(category));
     }
 
     /**

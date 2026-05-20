@@ -7,6 +7,7 @@ const variants = {
   ghost: 'text-slate-500 hover:bg-slate-100 hover:text-slate-800',
   danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 shadow-sm',
   'outline-danger': 'border border-red-200 text-red-600 bg-white hover:bg-red-50 hover:border-red-300',
+  success: 'bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 shadow-sm',
 }
 
 const sizes = {

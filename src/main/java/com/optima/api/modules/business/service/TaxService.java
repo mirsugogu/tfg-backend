@@ -66,12 +66,16 @@ public class TaxService {
     }
 
     /**
-     * Listado paginado de impuestos activos del negocio (excluye soft-deleted).
+     * Listado paginado de impuestos del negocio. Con active=true (por
+     * defecto) devuelve los activos; con active=false los archivados
+     * (soft-deleted), la vista desde la que se reactivan.
      */
     @Transactional(readOnly = true)
-    public Page<TaxResponse> listActive(Long businessId, Pageable pageable) {
-        return taxRepository.findByBusinessIdAndIsActiveTrue(businessId, pageable)
-            .map(TaxResponse::from);
+    public Page<TaxResponse> listActive(Long businessId, boolean active, Pageable pageable) {
+        Page<Tax> page = active
+            ? taxRepository.findByBusinessIdAndIsActiveTrue(businessId, pageable)
+            : taxRepository.findByBusinessIdAndIsActiveFalse(businessId, pageable);
+        return page.map(TaxResponse::from);
     }
 
     /**
@@ -121,6 +125,21 @@ public class TaxService {
         t.setIsActive(false);
         t.setDeactivatedAt(LocalDateTime.now());
         taxRepository.save(t);
+    }
+
+    /**
+     * Reactiva un impuesto archivado: pone isActive=true y deactivatedAt=null.
+     * Filtra por negocio (cross-tenant safe). Lanza 400 si ya estaba activo.
+     */
+    public TaxResponse reactivate(Long businessId, Long id) {
+        Tax t = findOrThrow(businessId, id);
+        if (t.getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "El impuesto ya está activo");
+        }
+        t.setIsActive(true);
+        t.setDeactivatedAt(null);
+        return TaxResponse.from(taxRepository.save(t));
     }
 
     private Tax findOrThrow(Long businessId, Long id) {
