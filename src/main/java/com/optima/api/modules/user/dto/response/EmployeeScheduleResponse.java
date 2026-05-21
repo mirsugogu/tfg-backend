@@ -20,9 +20,9 @@ import java.time.LocalTime;
  *   EmployeeScheduleController.
  *
  * Diseno: el DTO no conoce repositorios. Convertir entidad -> record es
- * una transformacion pura; el N+1 al cargar membership.business y
- * membership.user (LAZY) es el mismo trade-off que asume AppointmentResponse,
- * defendible para los tamanyos esperados de paginacion del TFG.
+ * una transformacion pura. El listado del horario carga membership y
+ * membership.user con @EntityGraph en el repositorio (un unico JOIN), de
+ * modo que aplanar la relacion no dispara N+1.
  */
 public record EmployeeScheduleResponse(
         Long id,

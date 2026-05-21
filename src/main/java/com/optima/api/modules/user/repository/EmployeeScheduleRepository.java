@@ -1,6 +1,7 @@
 package com.optima.api.modules.user.repository;
 
 import com.optima.api.modules.user.model.EmployeeSchedule;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -39,7 +40,12 @@ public interface EmployeeScheduleRepository extends JpaRepository<EmployeeSchedu
     /**
      * Lista todos los tramos del horario de un empleado, ordenados de lunes
      * a domingo y dentro de cada día por hora de inicio.
+     *
+     * Lleva un grafo de entidad (membership, membership.user): Hibernate los
+     * trae en un unico JOIN y se evita el N+1 al construir
+     * EmployeeScheduleResponse, que lee membership.user.fullName por fila.
      */
+    @EntityGraph(attributePaths = {"membership", "membership.user"})
     List<EmployeeSchedule> findAllByMembershipIdOrderByDayOfWeekAscStartTimeAsc(Long membershipId);
 
     /**

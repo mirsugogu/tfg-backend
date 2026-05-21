@@ -62,7 +62,13 @@ public interface MembershipRepository extends JpaRepository<Membership, Long> {
     /**
      * Version sin paginar para el algoritmo de disponibilidad (necesita
      * iterar todos los candidatos sin la imposicion de un Pageable).
+     *
+     * Lleva @EntityGraph(user): AvailabilityService lee user.fullName de
+     * cada empleado candidato al construir los slots; sin el grafo cada
+     * uno dispararia un select LAZY extra (N+1). No se incluye role: el
+     * algoritmo de disponibilidad no lo usa.
      */
+    @EntityGraph(attributePaths = {"user"})
     List<Membership> findAllByBusinessIdAndIsActiveTrue(Long businessId);
 
     /**

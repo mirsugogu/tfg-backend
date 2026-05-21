@@ -54,15 +54,17 @@ Auditoría línea a línea del backend (Spring Boot) y del frontend (`frontend-v
   actual` del `pom.xml`. La versión NO se cambió (sigue 3.4.1); solo se
   alinearon los docs con la realidad. Verificado: `mvnw validate` → exit 0.
 
-#### CMN-2 · MEDIA · seguridad
-- **Archivo**: `common/security/TenantGuardFilter.java:60-72`
-- La regex `^/api/businesses/(\d+)(/.*)?$` solo casa `businessId` numérico. Una
-  ruta con segmento no numérico (`/api/businesses/1abc/...`) NO la matchea y el
-  guard cross-tenant se salta. En la práctica el controller lo rechaza con 400
-  (`@Positive Long`), así que no hay fuga; pero la defensa en profundidad queda
-  rota y el Javadoc del filtro promete cubrir "cualquier recurso anidado".
-- **Sugerencia**: regex `^/api/businesses/([^/]+)(/.*)?$` + `try/catch` al
-  parsear el grupo, rechazando con 403 si no es numérico.
+#### CMN-2 · MEDIA · seguridad · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `common/security/TenantGuardFilter.java`
+- La regex `^/api/businesses/(\d+)(/.*)?$` solo casaba `businessId` numérico:
+  una ruta con segmento no numérico (`/api/businesses/1abc/...`) NO la
+  matcheaba y el guard cross-tenant se saltaba (mitigado solo por el 400 del
+  `@Positive Long` del controller).
+- **Corrección aplicada**: regex ampliada a `^/api/businesses/([^/]+)(/.*)?$`
+  + `try/catch NumberFormatException` al parsear el segmento; si no es numérico
+  se rechaza con 403. Javadoc del filtro y de la regex actualizados. Verificado:
+  `mvnw test` verde (`TenantGuardFilterTest` incluido), y smoke: `/businesses/1`
+  → 200, `/999` → 403, `/1abc` → 403 (antes 400).
 
 #### CMN-3 · BAJA · convención
 - **Archivo**: `common/security/TenantGuardFilter.java:52-54`
@@ -114,14 +116,15 @@ Auditoría línea a línea del backend (Spring Boot) y del frontend (`frontend-v
   sobre el método. Verificado: `mvnw test` verde, `GET /schedule-blocks` → 200,
   y la SQL de Hibernate ahora hace los `LEFT JOIN` en una sola consulta.
 
-#### BIZ-2 · MEDIA · inconsistencia
-- **Archivo**: `modules/business/service/BusinessService.java:76`; Javadoc de
-  `CreateBusinessRequest:31` / `UpdateBusinessRequest:34`
-- El Javadoc afirma que el email es "UNIQUE GLOBAL en la tabla `users`", pero
+#### BIZ-2 · MEDIA · inconsistencia · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `CreateBusinessRequest.java:30`, `UpdateBusinessRequest.java:32`
+- El Javadoc afirmaba que el email es "UNIQUE GLOBAL en la tabla `users`", pero
   `createEntity` valida `businessRepository.existsByEmail` — la columna
   `businesses.email`, independiente de `users.email`. El código es correcto;
-  el comentario es engañoso.
-- **Sugerencia**: corregir el Javadoc de ambos DTOs.
+  el comentario era engañoso.
+- **Corrección aplicada**: Javadoc de ambos DTOs reescrito — el email es el de
+  contacto del negocio (`businesses.email`), no `users.email`. Solo comentarios.
+  Verificado: `mvnw compile` → exit 0.
 
 #### BIZ-3 · BAJA · convención
 - **Archivo**: `TaxRepository.java:25,32`, `BoothRepository.java:30,37`
@@ -147,14 +150,17 @@ Auditoría línea a línea del backend (Spring Boot) y del frontend (`frontend-v
 
 ### 3.3 user / client
 
-#### USR-1 · MEDIA · rendimiento
-- **Archivo**: `EmployeeScheduleRepository.java:37,43`, `EmployeeAbsenceRepository.java:44,51`
-- Los listados de horarios y ausencias no llevan `@EntityGraph`, pero sus
-  Response DTOs acceden a `membership.business` y `membership.user` (LAZY) →
-  N+1. El Javadoc de los DTOs afirma "el mismo trade-off que `AppointmentResponse`",
-  afirmación ya falsa tras el commit `e6e294b`.
-- **Sugerencia**: `@EntityGraph(attributePaths = {"membership.user","membership.business"})`
-  en los 3 finders + corregir el Javadoc.
+#### USR-1 · MEDIA · rendimiento · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `EmployeeScheduleRepository.java:43`, `EmployeeAbsenceRepository.java:44`
+- Los listados de horarios y ausencias no llevaban `@EntityGraph`, pero sus
+  Response DTOs acceden a `membership` y `membership.user` (LAZY) → N+1. El
+  Javadoc de los DTOs afirmaba "el mismo trade-off que `AppointmentResponse`",
+  ya falso tras el commit `e6e294b`.
+- **Corrección aplicada**: `@EntityGraph(attributePaths = {"membership","membership.user"})`
+  en los 2 finders que SÍ alimentan listados de DTO. `findAllByMembershipIdAndDayOfWeek`
+  NO se tocó (solo valida solape, no produce DTOs). `membership.business` excluido
+  (acceso id-only). Javadoc obsoleto de los 2 DTOs corregido. Verificado:
+  `mvnw test` verde, `/schedules` y `/absences` → 200 con `LEFT JOIN`.
 
 #### USR-2 · BAJA · rendimiento
 - **Archivo**: `MembershipRepository.java:66,109` (callers en `UserService.listMyBusinesses`)
@@ -230,12 +236,13 @@ servicios. Verificado.
 
 ### 3.5 appointment
 
-#### APP-1 · MEDIA · rendimiento
-- **Archivo**: `AvailabilityService.java:332` (`resolveEmployeeCandidates`, `:258`)
-- Usa `MembershipRepository.findAllByBusinessIdAndIsActiveTrue` (sin
-  `@EntityGraph`) y luego `emp.getUser().getFullName()` en el bucle → N+1.
-  Inconsistente con el resto del algoritmo, que sí hace batch fetch.
-- **Sugerencia**: `@EntityGraph(attributePaths = {"user"})` en ese finder.
+#### APP-1 · MEDIA · rendimiento · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `MembershipRepository.java:66` (caller: `AvailabilityService:258`)
+- `findAllByBusinessIdAndIsActiveTrue` no llevaba `@EntityGraph`; el algoritmo
+  de disponibilidad hace `emp.getUser().getFullName()` por candidato → N+1.
+- **Corrección aplicada**: `@EntityGraph(attributePaths = {"user"})` en el finder
+  (único caller verificado: `AvailabilityService:258`, solo necesita `user`).
+  Verificado: `mvnw test` verde, `/availability` → 200, SQL con `LEFT JOIN users`.
 
 #### APP-2 · BAJA · bug
 - **Archivo**: `AppointmentValidator.java:245-256`
@@ -285,20 +292,25 @@ coherente. Los 6 tests están actualizados y son correctos.
 
 Los únicos hallazgos son **huecos de cobertura de tests**:
 
-#### SCH-4 · MEDIA · cobertura-tests
-- No hay test del camino feliz de `createAppointment` (persistencia de la cita +
-  `BookedService`, cálculo de `endDateTime` sumando duraciones, congelado de
-  `appliedPrice`/`appliedTaxPercentage`). Los 3 tests existentes solo cubren
-  rechazos 409.
-- **Sugerencia**: añadir un test con `ArgumentCaptor` que verifique `save`/`saveAll`
-  y los campos congelados.
+#### SCH-4 · MEDIA · cobertura-tests · ✅ CORREGIDO (2026-05-21)
+- No había test del camino feliz de `createAppointment` (persistencia de la cita
+  + `BookedService`, cálculo de `endDateTime`, congelado de `appliedPrice`/
+  `appliedTaxPercentage`). Los 3 tests existentes solo cubrían rechazos 409.
+- **Corrección aplicada**: nuevo test
+  `createAppointment_persisteCitaYCongelaPrecios_cuandoTodoEsValido` en
+  `AppointmentServiceTest` — captura con `ArgumentCaptor` la cita y los
+  `BookedService` guardados y verifica `endDateTime` = inicio + duración y los
+  precios congelados. Solo código de test. Verificado: `mvnw test` → exit 0.
 
-#### SCH-5 · MEDIA · cobertura-tests
+#### SCH-5 · MEDIA · cobertura-tests · ✅ CORREGIDO (2026-05-21)
 - Sin test de la máquina de estados de citas (`VALID_TRANSITIONS`), de
   `markPayment` ni de la whitelist de `sort` (esta última fue un bug-fix de QA
   500→400 sin test de regresión).
-- **Sugerencia**: test de transición válida + inválida, y de `sort` fuera de
-  whitelist → 400.
+- **Corrección aplicada**: nuevo `AppointmentValidatorTest` con 3 tests de
+  `validateStatusTransition` (transición válida, ilegal → 400, estado final →
+  400) + nuevo test `searchAppointments_lanza400_cuandoElSortNoEstaEnLaWhitelist`
+  en `AppointmentServiceTest`. `markPayment` (trivial) se deja sin test. Solo
+  código de test. Verificado: `mvnw test` → exit 0.
 
 #### SCH-6 · BAJA · cobertura-tests
 - `selectBusiness` no se testea con una membership inactiva.

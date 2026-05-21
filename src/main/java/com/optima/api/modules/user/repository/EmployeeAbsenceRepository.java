@@ -3,6 +3,7 @@ package com.optima.api.modules.user.repository;
 import com.optima.api.modules.user.model.EmployeeAbsence;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -40,7 +41,12 @@ public interface EmployeeAbsenceRepository extends JpaRepository<EmployeeAbsence
      *
      * Sigue la convencion Spring Data: prefijo findBy (no findAll) cuando
      * se devuelve Page. findAll* esta reservado para retornos List/Iterable.
+     *
+     * Lleva un grafo de entidad (membership, membership.user): Hibernate los
+     * trae en un unico JOIN y se evita el N+1 al construir
+     * EmployeeAbsenceResponse, que lee membership.user.fullName por fila.
      */
+    @EntityGraph(attributePaths = {"membership", "membership.user"})
     Page<EmployeeAbsence> findByMembershipIdOrderByStartDateTimeAsc(Long membershipId, Pageable pageable);
 
     /**

@@ -46,19 +46,24 @@ import java.util.regex.Pattern;
  *   HttpServletResponse un JSON ErrorResponse con status 403 y aborta
  *   la cadena (NO llama a chain.doFilter).
  *
- * URLs que matchea (regex ^/api/businesses/(\d+)(/.*)?$):
+ * URLs que matchea (regex ^/api/businesses/([^/]+)(/.*)?$):
  *   /api/businesses/5         -> matchea, valida tenant.
  *   /api/businesses/5/users   -> matchea, valida tenant.
- *   /api/businesses           -> NO matchea (catalogo publico).
- *   /api/businesses/slug/abc  -> NO matchea (busqueda por slug, publica).
+ *   /api/businesses/1abc/...  -> matchea; segmento no numerico -> 403.
+ *   /api/businesses           -> NO matchea (no hay segmento de negocio).
  *   /api/auth/token           -> NO matchea (login).
  */
 @Component
 public class TenantGuardFilter extends OncePerRequestFilter {
 
-    /** Captura el businessId numerico de paths como /api/businesses/123/loquesea */
+    /**
+     * Captura el primer segmento de paths como /api/businesses/{x}/loquesea.
+     * Usa [^/]+ (cualquier segmento, no solo \d+) a proposito: asi el filtro
+     * tambien matchea un businessId no numerico y lo puede rechazar, en vez
+     * de dejarlo pasar sin validar (defensa en profundidad).
+     */
     private static final Pattern BUSINESS_PATH =
-            Pattern.compile("^/api/businesses/(\\d+)(/.*)?$");
+            Pattern.compile("^/api/businesses/([^/]+)(/.*)?$");
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -72,7 +77,15 @@ public class TenantGuardFilter extends OncePerRequestFilter {
         if (m.matches()) {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null && auth.getPrincipal() instanceof AuthPrincipal principal) {
-                long pathBusinessId = Long.parseLong(m.group(1));
+                long pathBusinessId;
+                try {
+                    pathBusinessId = Long.parseLong(m.group(1));
+                } catch (NumberFormatException ex) {
+                    // El segmento de negocio no es numerico: no se puede
+                    // validar contra el token, asi que se rechaza.
+                    writeForbidden(response, "Identificador de negocio no valido");
+                    return;
+                }
                 // [v16 membership] Distinguimos dos rechazos:
                 //   - identity-only token (businessId==null): el usuario aun
                 //     no ha elegido negocio; el frontend debe redirigirle al

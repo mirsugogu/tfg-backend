@@ -27,7 +27,8 @@ import jakarta.validation.constraints.Size;
  * Notas semanticas (validadas en el service, no aqui):
  *   - El slug se valida en formato (lowercase, sin espacios) y unicidad
  *     global por BusinessService.
- *   - El email es UNIQUE GLOBAL en la tabla users (post-v16).
+ *   - El email es el de contacto del negocio: UNIQUE en la tabla
+ *     businesses, columna independiente de users.email.
  *   - city + postalCode (si vienen) se usan para resolver lat/lng via
  *     Nominatim (best-effort).
  *   - appointmentInterval solo admite 15, 30, 45 o 60.

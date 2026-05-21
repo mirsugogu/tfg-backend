@@ -29,7 +29,8 @@ import jakarta.validation.constraints.Size;
  * en el Update.
  *
  * Notas semanticas (validadas en el service):
- *   - El email es UNIQUE GLOBAL; si cambia, se revalida unicidad.
+ *   - El email es el de contacto del negocio (tabla businesses, no
+ *     users); si cambia, BusinessService revalida su unicidad.
  *   - city + postalCode (si vienen) re-resuelven lat/lng via Nominatim
  *     (best-effort).
  *   - appointmentInterval solo admite 15, 30, 45 o 60.
