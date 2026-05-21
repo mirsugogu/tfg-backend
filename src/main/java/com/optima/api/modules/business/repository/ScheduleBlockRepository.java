@@ -3,6 +3,7 @@ package com.optima.api.modules.business.repository;
 import com.optima.api.modules.business.model.ScheduleBlock;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,7 +33,13 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, Lo
      * Listado paginado de bloqueos de un negocio (orden cronologico ASC).
      * Sigue la convencion Spring Data: prefijo findBy (no findAll) cuando
      * se devuelve Page. findAll* esta reservado para retornos List/Iterable.
+     *
+     * Lleva un grafo de entidad (membership, su user y booth): Hibernate los
+     * trae en un unico LEFT JOIN y se evita el N+1 al construir
+     * ScheduleBlockResponse, que dereferencia esas relaciones LAZY por cada
+     * fila del listado.
      */
+    @EntityGraph(attributePaths = {"membership", "membership.user", "booth"})
     Page<ScheduleBlock> findByBusinessIdOrderByStartDateAsc(Long businessId, Pageable pageable);
 
     /** Lookup tenant-safe por id+businessId. */

@@ -3,6 +3,7 @@ package com.optima.api.modules.catalog.repository;
 import com.optima.api.modules.catalog.model.BusinessService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -30,14 +31,24 @@ public interface BusinessServiceRepository extends JpaRepository<BusinessService
     /**
      * Lista paginada de servicios activos de un negocio.
      * Pageable parsea page, size y sort del query string.
+     *
+     * Lleva un grafo de entidad (category, tax): Hibernate los trae en un
+     * unico JOIN y se evita el N+1 al construir BusinessServiceResponse, que
+     * lee category.name y tax.name por cada fila. (business no se incluye:
+     * solo se le pide el id, que sale de la columna FK sin cargar la entidad.)
      */
+    @EntityGraph(attributePaths = {"category", "tax"})
     Page<BusinessService> findAllByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
     /**
      * Lista paginada de servicios INACTIVOS (archivados) de un negocio.
      * Alimenta la vista "Archivados" del catalogo de servicios, desde la
      * que se reactivan.
+     *
+     * Mismo grafo de entidad que el listado de activos (ver arriba): evita
+     * el N+1 al aplanar category y tax en BusinessServiceResponse.
      */
+    @EntityGraph(attributePaths = {"category", "tax"})
     Page<BusinessService> findAllByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
 
     /** Lookup tenant-safe por id+businessId. */
