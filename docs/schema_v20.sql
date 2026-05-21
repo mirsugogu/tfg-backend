@@ -771,3 +771,11 @@ VALUES (1, NULL, NULL, '2027-05-15', '2027-05-15', 'San Isidro');
 -- ------------------------------------------------------------
 INSERT INTO employee_absences (id_membership, start_datetime, end_datetime, reason)
 VALUES (3, '2027-03-17 09:00:00', '2027-03-17 13:00:00', 'Cita médica');
+
+
+DROP USER IF EXISTS 'optima_user'@'%';
+DROP USER IF EXISTS 'optima_user'@'localhost';
+CREATE USER 'optima_user'@'%' IDENTIFIED BY 'optima_pass';
+CREATE USER 'optima_user'@'localhost' IDENTIFIED BY 'optima_pass';
+GRANT ALL PRIVILEGES ON optima_db.* TO 'optima_user'@'%';
+GRANT ALL PRIVILEGES ON optima_db.* TO 'optima_user'@'localhost';
