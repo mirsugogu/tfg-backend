@@ -458,6 +458,8 @@ export default function Dashboard() {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+            title="Buscar (Ctrl+K)"
             className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-[#1e3a5f] bg-white border border-slate-200 rounded-xl px-4 py-2.5 hover:bg-slate-50 transition"
           >
             <Search size={16} /> Buscar
