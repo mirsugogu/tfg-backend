@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "optima-tfg-v4.2-membership-v16",
     "name": "Optima API TFG v4.2 (membership v16)",
-    "description": "Coleccion organizada por entidad/tabla del schema. Carpeta 00-Auth ampliada para el flujo membership v16: login email+password (sin businessSlug), register publico de negocio, select-business/{id}, /api/me/* (perfil, password, businesses). El paso de login devuelve tokenType=tenant (1 membership) o identity (>1) con la lista de memberships. baseUrl por defecto http://localhost:8080.",
+    "description": "Coleccion organizada por entidad/tabla del schema. Carpeta 00-Auth ampliada para el flujo membership v16: login email+password (sin businessSlug), register publico de negocio, select-business/{id}, /api/me/* (perfil, password, businesses). El paso de login devuelve tokenType=tenant (1 membership) o identity (>1) con la lista de memberships. admin@optima.com tiene 2 memberships (ADMIN del negocio 1, EMPLEADO del negocio 2): su login devuelve un identity token y la coleccion lo canjea por un tenant token con select-business/1 antes de las pruebas tenant-scoped. baseUrl por defecto http://localhost:8080.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -73,10 +73,15 @@
       "name": "00 - Auth",
       "item": [
         {
-          "name": "Login admin (hardcoded)",
+          "name": "Login admin -> identity token (2 memberships)",
           "auth": { "type": "noauth" },
-          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","const j=pm.response.json();","pm.test('devuelve token',()=>pm.expect(j.token).to.be.a('string').and.not.empty);","pm.collectionVariables.set('token',j.token);"]}}],
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","const j=pm.response.json();","pm.test('tokenType=identity (admin es ADMIN del negocio 1 y EMPLEADO del 2)',()=>pm.expect(j.tokenType).to.equal('identity'));","pm.test('lista con las 2 memberships',()=>{pm.expect(j.businesses).to.be.an('array');pm.expect(j.businesses.length).to.equal(2);});","pm.test('devuelve token',()=>pm.expect(j.token).to.be.a('string').and.not.empty);","pm.collectionVariables.set('token',j.token);"]}}],
           "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/auth/token","host":["{{baseUrl}}"],"path":["api","auth","token"]},"body":{"mode":"raw","raw":"{\"email\":\"admin@optima.com\",\"password\":\"12345678\"}"}}
+        },
+        {
+          "name": "Select business 1 -> tenant token (canjea el identity token)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","const j=pm.response.json();","pm.test('tokenType=tenant',()=>pm.expect(j.tokenType).to.equal('tenant'));","pm.test('devuelve token',()=>pm.expect(j.token).to.be.a('string').and.not.empty);","pm.collectionVariables.set('token',j.token);"]}}],
+          "request": {"method":"POST","url":{"raw":"{{baseUrl}}/api/auth/select-business/{{businessId}}","host":["{{baseUrl}}"],"path":["api","auth","select-business","{{businessId}}"]}}
         },
         {
           "name": "Login bad credentials -> 401",

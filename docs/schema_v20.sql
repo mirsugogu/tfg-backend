@@ -548,10 +548,11 @@ CREATE INDEX idx_schedule_membership_day
 
 
 -- ------------------------------------------------------------
--- SEED: negocio demo + admin para login + segundo negocio con un
--- cliente para que los tests de cross-tenant de la coleccion Postman
--- tengan referentes reales (admin de "demo" no debe poder acceder a
--- ningun recurso bajo /businesses/2/...).
+-- SEED: dos negocios completos. El negocio 1 ("Demo", peluqueria) y el
+-- negocio 2 ("Centro de Estetica Aura"). admin@optima.com es ADMIN del
+-- negocio 1 y EMPLEADO del negocio 2 (doble membership): al hacer login
+-- recibe identity token + selector de negocio. El bloque que llena el
+-- negocio 2 esta al final del archivo (ver "SEED ENRIQUECIDO 2").
 -- Credenciales del demo:
 --   email:        admin@optima.com   (UNIQUE global desde v16)
 --   password:     12345678
@@ -565,11 +566,17 @@ CREATE INDEX idx_schedule_membership_day
 -- employee_absences y appointments mantengan los mismos numeros despues
 -- del rename id_user -> id_membership.
 -- ------------------------------------------------------------
-INSERT INTO businesses (name, slug, email, appointment_interval)
-VALUES ('Demo', 'demo', 'demo@optima.com', 30);
+INSERT INTO businesses (name, slug, email, phone,
+                        address, city, state, country, postal_code,
+                        appointment_interval)
+VALUES ('Demo', 'demo', 'demo@optima.com', '911234567',
+        'Calle Mayor 10', 'Madrid', 'Madrid', 'Espana', '28013', 30);
 
-INSERT INTO businesses (name, slug, email, appointment_interval)
-VALUES ('Otro', 'otro', 'otro@optima.com', 30);
+INSERT INTO businesses (name, slug, email, phone,
+                        address, city, state, country, postal_code,
+                        appointment_interval)
+VALUES ('Centro de Estetica Aura', 'aura', 'aura@optima.com', '912345678',
+        'Calle Gran Via 28', 'Madrid', 'Madrid', 'Espana', '28013', 30);
 
 -- u1: Admin Demo (identidad)
 -- Password seed: "12345678". Cada usuario lleva su PROPIO hash BCrypt (salt
@@ -588,8 +595,11 @@ VALUES ('Empleado Demo', 'empleado@optima.com',
 -- m2: Empleado Demo en business 1 con rol EMPLOYEE
 INSERT INTO memberships (id_user, id_business, id_role) VALUES (2, 1, 2);
 
-INSERT INTO clients (id_business, full_name, is_active)
-VALUES (2, 'Cliente Ajeno Seed', TRUE);
+-- Primer cliente del negocio 2 (id_client = 1). El resto de clientes del
+-- negocio 2 se cargan en el bloque "SEED ENRIQUECIDO 2" del final.
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+VALUES (2, 'Beatriz Navarro', 'beatriz.navarro@email.com', '600333001',
+        'Clienta VIP, prefiere cabina tranquila', TRUE);
 
 
 -- ============================================================
@@ -771,6 +781,259 @@ VALUES (1, NULL, NULL, '2027-05-15', '2027-05-15', 'San Isidro');
 -- ------------------------------------------------------------
 INSERT INTO employee_absences (id_membership, start_datetime, end_datetime, reason)
 VALUES (3, '2027-03-17 09:00:00', '2027-03-17 13:00:00', 'Cita médica');
+
+
+-- ============================================================
+-- SEED ENRIQUECIDO 2: NEGOCIO 2 COMPLETO + AMPLIACION DEL NEGOCIO 1
+-- ------------------------------------------------------------
+-- El negocio 2 ("Centro de Estetica Aura") pasa de stub a negocio
+-- completo: staff propio, catalogo, cabinas, agenda y citas en todos
+-- los estados. admin@optima.com entra aqui como EMPLEADO (no ADMIN);
+-- sumado a su rol ADMIN del negocio 1 tiene 2 memberships, asi que su
+-- login devuelve identity token + selector de negocio.
+--
+-- IDs (BD recien creada, AUTO_INCREMENT determinista):
+--   users        u5=Lucia, u6=Javier, u7=Sofia
+--   memberships  m5=admin@optima.com EMPLEADO b2, m6=Lucia ADMIN b2,
+--                m7=Javier EMPLEADO b2, m8=Sofia EMPLEADO b2
+--   taxes 3-4 | categories 4-7 | services 6-16 | booths 3-5
+--   clients 7-12 (negocio 1), 13-21 (negocio 2; +id 1 ya creado)
+--   appointments 5-17 (negocio 1), 18-30 (negocio 2)
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- Staff del negocio 2. Password "12345678" en todos (se reutilizan
+-- hashes BCrypt validos del seed original; todos verifican "12345678").
+-- ------------------------------------------------------------
+-- u5: Lucia Fernandez (sera ADMIN del negocio 2)
+INSERT INTO users (full_name, email, password_hash, phone)
+VALUES ('Lucia Fernandez', 'lucia@optima.com',
+        '$2a$10$fCI9ZhcMUj5Z.fmPX2nZ7.SrSn22K42fxU8dvf8GCm8NUDoGud8xq',
+        '600444001');
+-- u6: Javier Moreno (sera EMPLEADO del negocio 2)
+INSERT INTO users (full_name, email, password_hash, phone)
+VALUES ('Javier Moreno', 'javier@optima.com',
+        '$2a$10$Gs/mSNCqSc5puTJzCA0NIe23YqUEJtCG/YZ4WVep9L9SZZTb.DSy6',
+        '600444002');
+-- u7: Sofia Romero (sera EMPLEADO del negocio 2)
+INSERT INTO users (full_name, email, password_hash, phone)
+VALUES ('Sofia Romero', 'sofia@optima.com',
+        '$2a$10$zBo7AGlqJF08rLwjLaUXV.D4aAFyFjwhutIlrPes6lVaJmbrvSP1u',
+        '600444003');
+
+-- Memberships del negocio 2 (id_business=2; id_role 1=ADMIN, 2=EMPLEADO).
+-- m5 es la membership clave: admin@optima.com (u1) como EMPLEADO del
+-- negocio 2. Con m1 (ADMIN del negocio 1) admin pasa a tener 2 -> login
+-- en 2 pasos (identity token + select-business).
+INSERT INTO memberships (id_user, id_business, id_role) VALUES (1, 2, 2); -- m5
+INSERT INTO memberships (id_user, id_business, id_role) VALUES (5, 2, 1); -- m6
+INSERT INTO memberships (id_user, id_business, id_role) VALUES (6, 2, 2); -- m7
+INSERT INTO memberships (id_user, id_business, id_role) VALUES (7, 2, 2); -- m8
+
+-- ------------------------------------------------------------
+-- Horario del negocio 2: Lun-Vie 10-20, Sabado 10-15, Domingo cerrado.
+-- ------------------------------------------------------------
+INSERT INTO business_hours (id_business, day_of_week, start_time, end_time, is_closed) VALUES
+    (2, 1, '10:00:00', '20:00:00', FALSE),
+    (2, 2, '10:00:00', '20:00:00', FALSE),
+    (2, 3, '10:00:00', '20:00:00', FALSE),
+    (2, 4, '10:00:00', '20:00:00', FALSE),
+    (2, 5, '10:00:00', '20:00:00', FALSE),
+    (2, 6, '10:00:00', '15:00:00', FALSE),
+    (2, 7, NULL, NULL, TRUE);
+
+-- ------------------------------------------------------------
+-- Impuestos del negocio 2 (id_tax 3-4).
+-- ------------------------------------------------------------
+INSERT INTO taxes (id_business, name, percentage, is_active) VALUES
+    (2, 'IVA21', 21.00, TRUE),
+    (2, 'IVA10', 10.00, TRUE);
+
+-- ------------------------------------------------------------
+-- Categorias de servicios del negocio 2 (id_category 4-7).
+-- ------------------------------------------------------------
+INSERT INTO service_categories (id_business, name, is_active) VALUES
+    (2, 'Manicura y pedicura',  TRUE),
+    (2, 'Tratamientos faciales', TRUE),
+    (2, 'Masajes',              TRUE),
+    (2, 'Depilacion',           TRUE);
+
+-- ------------------------------------------------------------
+-- Servicios del negocio 2 (id_service 6-16). Todos con IVA21 (id_tax 3)
+-- y la categoria correspondiente (4=manicura, 5=facial, 6=masaje,
+-- 7=depilacion). El id_service 16 se deja archivado (is_active FALSE)
+-- como servicio inactivo de demo (probar reactivar/archivar).
+-- ------------------------------------------------------------
+INSERT INTO services (id_business, id_category, id_tax, name, description, price, duration_minutes, is_active, deactivated_at) VALUES
+    (2, 4, 3, 'Manicura express',             'Limado y esmaltado rapido',               18.00,  30, TRUE,  NULL),
+    (2, 4, 3, 'Manicura semipermanente',      'Esmaltado de larga duracion',             28.00,  45, TRUE,  NULL),
+    (2, 4, 3, 'Pedicura spa',                 'Pedicura completa con exfoliacion',       35.00,  60, TRUE,  NULL),
+    (2, 5, 3, 'Limpieza facial profunda',     'Higiene facial con extraccion',           45.00,  60, TRUE,  NULL),
+    (2, 5, 3, 'Tratamiento antiedad',         'Tratamiento facial reafirmante',          70.00,  75, TRUE,  NULL),
+    (2, 5, 3, 'Peeling facial',               'Exfoliacion quimica renovadora',          55.00,  50, TRUE,  NULL),
+    (2, 6, 3, 'Masaje relajante',             'Masaje corporal de relajacion',           40.00,  50, TRUE,  NULL),
+    (2, 6, 3, 'Masaje descontracturante',     'Masaje terapeutico de espalda',           50.00,  60, TRUE,  NULL),
+    (2, 6, 3, 'Masaje con piedras calientes', 'Masaje con piedras volcanicas',           65.00,  75, TRUE,  NULL),
+    (2, 7, 3, 'Depilacion con cera',          'Depilacion media pierna con cera tibia',  20.00,  30, TRUE,  NULL),
+    (2, 7, 3, 'Depilacion facial',            'Depilacion de labio y ceja',              12.00,  20, FALSE, '2026-04-30 12:00:00');
+
+-- ------------------------------------------------------------
+-- Cabinas del negocio 2 (id_booth 3-5).
+-- ------------------------------------------------------------
+INSERT INTO booths (id_business, name, is_active) VALUES
+    (2, 'Cabina 1', TRUE),
+    (2, 'Cabina 2', TRUE),
+    (2, 'Cabina 3', TRUE);
+
+-- ------------------------------------------------------------
+-- Horarios laborales del staff del negocio 2:
+--   m5 admin@optima.com (EMPLEADO): Lun-Vie 10-14 + 16-20
+--   m6 Lucia (ADMIN, tambien atiende citas): Lun-Vie 10-15
+--   m7 Javier: Lun-Vie 11-15 + 16-20, Sabado 10-15
+--   m8 Sofia:  Mar-Sab 10-14 + 15-19
+-- ------------------------------------------------------------
+INSERT INTO employee_schedules (id_membership, day_of_week, start_time, end_time) VALUES
+    -- admin@optima.com como empleado del negocio 2 (membership=5)
+    (5, 1, '10:00:00', '14:00:00'), (5, 1, '16:00:00', '20:00:00'),
+    (5, 2, '10:00:00', '14:00:00'), (5, 2, '16:00:00', '20:00:00'),
+    (5, 3, '10:00:00', '14:00:00'), (5, 3, '16:00:00', '20:00:00'),
+    (5, 4, '10:00:00', '14:00:00'), (5, 4, '16:00:00', '20:00:00'),
+    (5, 5, '10:00:00', '14:00:00'), (5, 5, '16:00:00', '20:00:00'),
+    -- Lucia Fernandez (membership=6)
+    (6, 1, '10:00:00', '15:00:00'),
+    (6, 2, '10:00:00', '15:00:00'),
+    (6, 3, '10:00:00', '15:00:00'),
+    (6, 4, '10:00:00', '15:00:00'),
+    (6, 5, '10:00:00', '15:00:00'),
+    -- Javier Moreno (membership=7)
+    (7, 1, '11:00:00', '15:00:00'), (7, 1, '16:00:00', '20:00:00'),
+    (7, 2, '11:00:00', '15:00:00'), (7, 2, '16:00:00', '20:00:00'),
+    (7, 3, '11:00:00', '15:00:00'), (7, 3, '16:00:00', '20:00:00'),
+    (7, 4, '11:00:00', '15:00:00'), (7, 4, '16:00:00', '20:00:00'),
+    (7, 5, '11:00:00', '15:00:00'), (7, 5, '16:00:00', '20:00:00'),
+    (7, 6, '10:00:00', '15:00:00'),
+    -- Sofia Romero (membership=8)
+    (8, 2, '10:00:00', '14:00:00'), (8, 2, '15:00:00', '19:00:00'),
+    (8, 3, '10:00:00', '14:00:00'), (8, 3, '15:00:00', '19:00:00'),
+    (8, 4, '10:00:00', '14:00:00'), (8, 4, '15:00:00', '19:00:00'),
+    (8, 5, '10:00:00', '14:00:00'), (8, 5, '15:00:00', '19:00:00'),
+    (8, 6, '10:00:00', '14:00:00'), (8, 6, '15:00:00', '19:00:00');
+
+-- ------------------------------------------------------------
+-- Mas clientes del negocio 1 (id_client 7-12). El id 12 queda archivado
+-- (is_active FALSE) como cliente inactivo de demo.
+-- ------------------------------------------------------------
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active, deactivated_at) VALUES
+    (1, 'Raquel Ortega',   'raquel.ortega@email.com',   '600222006', 'Viene cada 3 semanas',      TRUE,  NULL),
+    (1, 'David Castro',    'david.castro@email.com',    '600222007', NULL,                        TRUE,  NULL),
+    (1, 'Elena Vidal',    'elena.vidal@email.com',     '600222008', 'Prefiere a Maria',          TRUE,  NULL),
+    (1, 'Sergio Ramos',    'sergio.ramos@email.com',    '600222009', NULL,                        TRUE,  NULL),
+    (1, 'Marta Gil',       'marta.gil@email.com',       '600222010', 'Paga siempre con tarjeta',  TRUE,  NULL),
+    (1, 'Cliente Antiguo', 'cliente.antiguo@email.com', '600222011', 'Cuenta dada de baja',       FALSE, '2026-03-10 09:00:00');
+
+-- ------------------------------------------------------------
+-- Clientes del negocio 2 (id_client 13-21; el id 1 ya existe). El id 21
+-- queda archivado (is_active FALSE) como cliente inactivo de demo.
+-- ------------------------------------------------------------
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active, deactivated_at) VALUES
+    (2, 'Cristina Mora',  'cristina.mora@email.com',  '600333002', 'Piel sensible',           TRUE,  NULL),
+    (2, 'Alberto Diaz',   'alberto.diaz@email.com',   '600333003', NULL,                      TRUE,  NULL),
+    (2, 'Nuria Pascual',  'nuria.pascual@email.com',  '600333004', 'Bono de 5 masajes',       TRUE,  NULL),
+    (2, 'Hugo Serrano',   'hugo.serrano@email.com',   '600333005', NULL,                      TRUE,  NULL),
+    (2, 'Patricia Leon',  'patricia.leon@email.com',  '600333006', 'Alergica a la parafina',  TRUE,  NULL),
+    (2, 'Andres Gomez',   'andres.gomez@email.com',   '600333007', NULL,                      TRUE,  NULL),
+    (2, 'Lorena Campos',  'lorena.campos@email.com',  '600333008', 'Cita recurrente mensual', TRUE,  NULL),
+    (2, 'Ivan Herrero',   'ivan.herrero@email.com',   '600333009', NULL,                      TRUE,  NULL),
+    (2, 'Cliente Baja',   'cliente.baja@email.com',   '600333010', 'Cuenta dada de baja',     FALSE, '2026-04-05 18:00:00');
+
+-- ------------------------------------------------------------
+-- Citas del negocio 1 (id_appointment 5-17). Repartidas alrededor de
+-- 2026-05-21 (hoy): pasadas COMPLETED/CANCELLED/NO_SHOW, de hoy y de
+-- esta semana CONFIRMED/IN_PROGRESS/PENDING, y futuras PENDING/CONFIRMED.
+-- id_status: 1=PENDING 2=CONFIRMED 3=IN_PROGRESS 4=COMPLETED 5=CANCELLED
+-- 6=NO_SHOW. Las citas no activas (4/5/6) van sin cabina (id_booth NULL).
+-- ------------------------------------------------------------
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes) VALUES
+    (1,  2, 2, NULL, 4, TRUE,  '2026-04-13 10:00:00', '2026-04-13 10:30:00', 'Corte de mantenimiento'),       -- 5
+    (1,  3, 4, NULL, 4, TRUE,  '2026-04-15 16:00:00', '2026-04-15 18:00:00', 'Tinte y corte'),                -- 6
+    (1,  4, 3, NULL, 4, FALSE, '2026-04-21 11:00:00', '2026-04-21 13:00:00', 'Completada, pendiente de cobro'),-- 7
+    (1,  5, 2, NULL, 5, FALSE, '2026-04-28 09:30:00', '2026-04-28 10:15:00', 'Anulada por el cliente'),       -- 8
+    (1,  6, 3, NULL, 6, FALSE, '2026-05-05 17:00:00', '2026-05-05 17:45:00', 'El cliente no se presento'),    -- 9
+    (1,  7, 4, NULL, 4, TRUE,  '2026-05-12 10:00:00', '2026-05-12 11:45:00', 'Peinado y corte para evento'),  -- 10
+    (1,  8, 2, 1,    3, FALSE, '2026-05-21 10:00:00', '2026-05-21 10:30:00', 'Cliente en sala'),              -- 11
+    (1,  9, 3, 2,    2, FALSE, '2026-05-21 11:00:00', '2026-05-21 12:30:00', 'Confirmada por telefono'),      -- 12
+    (1, 10, 4, 1,    1, FALSE, '2026-05-21 16:00:00', '2026-05-21 16:45:00', 'Pendiente de confirmar'),       -- 13
+    (1, 11, 2, 1,    2, FALSE, '2026-05-22 09:30:00', '2026-05-22 10:00:00', 'Primera visita'),               -- 14
+    (1,  2, 3, 2,    1, FALSE, '2026-05-22 12:00:00', '2026-05-22 13:00:00', 'Peinado para boda'),            -- 15
+    (1,  3, 2, 1,    2, FALSE, '2026-05-25 10:00:00', '2026-05-25 12:00:00', 'Reserva de mechas'),            -- 16
+    (1,  4, 4, 2,    1, FALSE, '2026-06-02 16:30:00', '2026-06-02 17:00:00', 'Solicitada por la web');        -- 17
+
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES
+    ( 5, 1, 15.00, 21.00),
+    ( 6, 3, 50.00, 21.00), ( 6, 1, 15.00, 21.00),
+    ( 7, 4, 60.00, 21.00),
+    ( 8, 2, 25.00, 21.00),
+    ( 9, 2, 25.00, 21.00),
+    (10, 5, 35.00, 21.00), (10, 2, 25.00, 21.00),
+    (11, 1, 15.00, 21.00),
+    (12, 3, 50.00, 21.00),
+    (13, 2, 25.00, 21.00),
+    (14, 1, 15.00, 21.00),
+    (15, 5, 35.00, 21.00),
+    (16, 4, 60.00, 21.00),
+    (17, 1, 15.00, 21.00);
+
+-- ------------------------------------------------------------
+-- Citas del negocio 2 (id_appointment 18-30). Mismo reparto temporal
+-- que el negocio 1. Las citas de hoy (2026-05-21) las atiende, entre
+-- otros, admin@optima.com como empleado (membership=5).
+-- ------------------------------------------------------------
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes) VALUES
+    (2, 13, 5, NULL, 4, TRUE,  '2026-04-14 10:00:00', '2026-04-14 10:45:00', 'Manicura quincenal'),         -- 18
+    (2, 14, 7, NULL, 4, TRUE,  '2026-04-16 11:00:00', '2026-04-16 12:00:00', 'Limpieza facial'),            -- 19
+    (2, 15, 5, NULL, 4, TRUE,  '2026-04-22 16:00:00', '2026-04-22 17:50:00', 'Sesion doble de masaje'),     -- 20
+    (2, 16, 8, NULL, 5, FALSE, '2026-04-29 12:00:00', '2026-04-29 13:00:00', 'Cancelada por la clienta'),   -- 21
+    (2,  1, 6, NULL, 4, TRUE,  '2026-05-06 10:30:00', '2026-05-06 12:15:00', 'Antiedad mas manicura'),      -- 22
+    (2, 17, 7, NULL, 6, FALSE, '2026-05-13 17:00:00', '2026-05-13 17:50:00', 'No acudio a la cita'),        -- 23
+    (2, 18, 5, 3,    3, FALSE, '2026-05-21 10:00:00', '2026-05-21 11:15:00', 'Sesion en curso'),            -- 24
+    (2, 19, 7, 4,    2, FALSE, '2026-05-21 12:00:00', '2026-05-21 13:00:00', 'Confirmada'),                 -- 25
+    (2, 20, 8, 5,    1, FALSE, '2026-05-21 16:30:00', '2026-05-21 17:00:00', 'Pendiente de confirmar'),     -- 26
+    (2, 13, 5, 3,    2, FALSE, '2026-05-22 11:00:00', '2026-05-22 11:30:00', 'Manicura rapida'),            -- 27
+    (2, 14, 8, 4,    1, FALSE, '2026-05-22 13:00:00', '2026-05-22 13:50:00', 'Reserva de peeling'),         -- 28
+    (2, 15, 8, 3,    2, FALSE, '2026-05-26 10:00:00', '2026-05-26 11:00:00', 'Masaje confirmado'),          -- 29
+    (2,  1, 5, 5,    1, FALSE, '2026-06-03 17:00:00', '2026-06-03 18:15:00', 'Solicitada por la web');      -- 30
+
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES
+    (18,  7, 28.00, 21.00),
+    (19,  9, 45.00, 21.00),
+    (20, 13, 50.00, 21.00), (20, 12, 40.00, 21.00),
+    (21,  8, 35.00, 21.00),
+    (22, 10, 70.00, 21.00), (22,  6, 18.00, 21.00),
+    (23, 12, 40.00, 21.00),
+    (24, 14, 65.00, 21.00),
+    (25,  9, 45.00, 21.00),
+    (26, 15, 20.00, 21.00),
+    (27,  6, 18.00, 21.00),
+    (28, 11, 55.00, 21.00),
+    (29, 13, 50.00, 21.00),
+    (30, 10, 70.00, 21.00);
+
+-- ------------------------------------------------------------
+-- Bloqueos de agenda 2026 (dias completos):
+--   negocio 1: vacaciones de Carlos (membership=4).
+--   negocio 2: mantenimiento de la Cabina 3 (booth=5).
+-- chk_block_target: un bloqueo lleva id_membership O id_booth, no ambos.
+-- ------------------------------------------------------------
+INSERT INTO schedule_blocks (id_business, id_membership, id_booth, start_date, end_date, reason) VALUES
+    (1, 4,    NULL, '2026-06-08', '2026-06-12', 'Vacaciones'),
+    (2, NULL, 5,    '2026-06-15', '2026-06-16', 'Mantenimiento de cabina');
+
+-- ------------------------------------------------------------
+-- Ausencia puntual (por horas) en el negocio 2: Sofia (membership=8)
+-- tiene una cita medica la manana del 2026-05-27.
+-- ------------------------------------------------------------
+INSERT INTO employee_absences (id_membership, start_datetime, end_datetime, reason)
+VALUES (8, '2026-05-27 10:00:00', '2026-05-27 14:00:00', 'Cita medica');
 
 
 DROP USER IF EXISTS 'optima_user'@'%';
