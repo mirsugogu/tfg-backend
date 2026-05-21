@@ -202,7 +202,9 @@ export default function Calendario() {
     let cancelled = false
     const { from, to } = rangeFor(view, cursor)
     setLoading(true)
-    const params = { from, to, size: 200, sort: 'startDateTime,asc' }
+    // size 100: el backend cappea Pageable en 100 (spring.data.web.pageable
+    // .max-page-size). Un rango con mas de 100 citas se veria parcial.
+    const params = { from, to, size: 100, sort: 'startDateTime,asc' }
     if (employeeFilter) params.membershipId = employeeFilter
     api.get(`/api/businesses/${bId}/appointments`, { params })
       .then((r) => { if (!cancelled) setAppointments(r.data.content ?? []) })
@@ -309,7 +311,7 @@ export default function Calendario() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto print:p-0">
+    <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8 print:p-0">
 
       {/* Estilos de impresión */}
       <style>{`
@@ -320,14 +322,14 @@ export default function Calendario() {
         }
       `}</style>
 
-      <div className="mb-6 flex items-start justify-between gap-4 no-print">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4 no-print">
         <div>
           <h1 className="text-3xl font-bold text-[#1e3a5f] tracking-tight">Calendario</h1>
           <p className="text-sm text-slate-500 mt-1.5 font-medium">
             Pulsa una cita para ver el detalle, o un hueco libre para crear una nueva.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={refetch}
@@ -405,7 +407,7 @@ export default function Calendario() {
             {booths.map((b) => (<option key={b.id} value={b.id}>{b.name}</option>))}
           </select>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mr-0.5">Estado</span>
             {[
               { key: '',            label: 'Todos' },

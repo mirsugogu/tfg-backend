@@ -331,7 +331,7 @@ export default function Catalogo() {
      ============================================================ */
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8">
 
       {/* Header */}
       <div className="mb-7 flex items-start justify-between gap-4">
@@ -507,7 +507,7 @@ export default function Catalogo() {
           {/* Body */}
           {servLoading ? (
             view === 'grid' ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="card-grid">
                 {[...Array(4)].map((_, i) => (
                   <div key={i} className="h-44 bg-white rounded-2xl border border-slate-100 animate-pulse" />
                 ))}
@@ -613,7 +613,7 @@ export default function Catalogo() {
           </div>
 
           {catLoading ? (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="card-grid">
               {[...Array(3)].map((_, i) => (
                 <div key={i} className="h-24 bg-white rounded-2xl border border-slate-100 animate-pulse" />
               ))}
@@ -635,7 +635,7 @@ export default function Catalogo() {
               />
             )
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="card-grid">
               {categories.map((c) => {
                 const color = catColor(c.id)
                 const count = countsByCat.get(c.id) ?? 0
@@ -945,7 +945,7 @@ function ServiceCard({ service, taxes, isAdmin, archived, onOpen, onEdit, onArch
 
 function FlatGrid({ list, taxes, isAdmin, archived, onOpen, onEdit, onArchive, onReactivate }) {
   return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="card-grid">
       {list.map((s) => (
         <ServiceCard
           key={s.id}
@@ -999,7 +999,7 @@ function GroupedView({ list, categories, taxes, isAdmin, archived, onOpen, onEdi
                 {group.length} servicio{group.length === 1 ? '' : 's'}
               </span>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="card-grid">
               {group.map((s) => (
                 <ServiceCard
                   key={s.id}

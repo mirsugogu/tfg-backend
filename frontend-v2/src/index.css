@@ -6,6 +6,44 @@
 }
 
 /*
+ * Rejillas responsive de la app. Se definen como clases propias y NO con
+ * variantes Tailwind (sm:/lg:/2xl:/3xl:...) por una limitacion real de
+ * Tailwind v4: los breakpoints custom y las variantes arbitrarias
+ * `min-[...]` se emiten en el CSS ANTES que los integrados (sm..2xl), asi
+ * que `2xl` ganaba siempre la cascada y las rejillas se quedaban clavadas
+ * en 4 columnas por encima de 2200px (en una pantalla 2K/4K no reflúian).
+ * Con media queries propias, en orden ascendente y dentro de un mismo
+ * @layer, la cascada es correcta por construccion: gana la ultima que
+ * cumple. Van en `@layer components` para que una utilidad Tailwind
+ * (p.ej. `gap-6`) las pueda seguir sobreescribiendo si hiciera falta.
+ */
+@layer components {
+  /* Tarjetas de clientes, empleados, servicios, categorias y cabinas:
+     reflujo 1 -> 2 -> 3 -> 4 -> 5 -> 6 columnas. */
+  .card-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  @media (min-width:  640px) { .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1024px) { .card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (min-width: 1536px) { .card-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  @media (min-width: 2200px) { .card-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+  @media (min-width: 3000px) { .card-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+
+  /* Lista de citas: tarjetas anchas horizontales. En 1 sola columna se
+     estiraban a 3000+ px en 4K dejando un hueco enorme entre los datos y
+     el importe; en 2K/4K pasan a 2 y 3 columnas. */
+  .appt-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  @media (min-width: 2200px) { .appt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 3000px) { .appt-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+}
+
+/*
  * NOTA: NO se añade un reset propio `* { margin:0; padding:0 }` aquí.
  * Iría sin capa CSS y, en Tailwind v4, el CSS sin capa gana a las
  * @layer — anularía TODAS las utilidades de espaciado (p-*, m-*,

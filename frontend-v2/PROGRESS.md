@@ -1,6 +1,6 @@
 # Frontend v2 — Progreso
 
-> **Snapshot**: 2026-05-20, tras integrar el bundle de mejoras de UI/UX.
+> **Snapshot**: 2026-05-21, tras el layout fluido full-width y su verificación 2K/4K.
 > **Objetivo**: SPA del SaaS Óptima, adaptada al backend real (auditado en
 > `docs/audit/`).
 > **Para retomarlo en otra sesión**: lee esta página entera. El backend
@@ -216,9 +216,53 @@ recuperar ni recrear, chocaba con el `UNIQUE`).
 - Verificado: ciclo completo (crear → archivar → ver en Archivados →
   restaurar) en los 6 recursos, con Playwright y smoke de API.
 
+### Layout fluido full-width + verificación 2K/4K (2026-05-21)
+
+Las 7 pantallas de datos (Dashboard, Clientes, Empleados, Catálogo, Citas,
+Calendario, Configuración) pasaron de `max-w-7xl mx-auto` a un layout fluido
+full-width (`px-4 sm:px-6 lg:px-8 xl:px-10 py-8`, sin tope de ancho). Perfil
+y la pestaña Negocio de Configuración siguen acotadas (`max-w-5xl`, son
+formularios y no deben estirar sus campos). Verificado con Playwright a
+**390 / 1440 / 2560 / 3840 px**; la verificación encontró y corrigió **2 bugs
+de layout** (solo frontend):
+
+- **Rejillas de tarjetas clavadas en 4 columnas** por encima de 2200 px. El
+  `min-[2200px]:grid-cols-5` que la versión anterior añadió no se aplicaba:
+  Tailwind v4 emite las variantes custom y arbitrarias `min-[...]` **antes**
+  que los breakpoints integrados, así que `2xl:grid-cols-4` ganaba siempre
+  la cascada. Solución: las rejillas se definen como clases propias
+  `.card-grid` y `.appt-grid` en `index.css` (`@layer components`) con media
+  queries en orden ascendente — cascada correcta por construcción.
+  `.card-grid` refluye **1→2→3→4→5→6** columnas (clientes, empleados,
+  servicios, categorías, cabinas).
+- **Lista de Citas estirada** a ~3470 px de ancho en 4K (una sola columna),
+  con un hueco enorme entre los datos y el importe. Solución: `.appt-grid`,
+  refluye **1→2→3** columnas en 2K/4K.
+
+Resultado: sin overflow ni recortes a 390 px, aspecto intacto a 1440 px y, en
+2K/4K, el contenido llena la pantalla con las rejillas reflu­yendo. Las 12
+pantallas cargan sin errores de consola y Archivar/Reactivar sigue
+funcionando (ciclo completo verificado). `vite build` verde.
+
+### Revisión quirúrgica del proyecto (2026-05-21)
+
+Auditoría línea a línea de backend + frontend con 8 agentes en paralelo +
+pruebas dinámicas. Informe completo en **`docs/REVISION_QUIRURGICA.md`** (67
+hallazgos: 39 backend solo documentados — no se tocó el backend — y 28
+frontend). Se **corrigieron 16 hallazgos de frontend**: 9 dependencias
+fantasma eliminadas de `package.json`, `App.css` muerto borrado, parseo
+defensivo del JWT/`localStorage` en `AuthContext`, IDs únicos de `Toast`,
+asociación `label`↔control en `Input/Select/Textarea`, accesibilidad del
+`Modal` (`role=dialog`, foco), doble-fetch de `usePagedFetch`, código muerto
+de `BusinessSwitcher`, y varios bugs de páginas (entre ellos `Perfil` leía
+`b.roleName` cuando la API devuelve `role`). Verificado: `mvnw test` verde,
+`vite build` verde, E2E Playwright 30/30, smoke de API OK.
+
 **Pendiente**: solo el **commit** — el bundle, el drawer móvil, los 4 fixes
-de la QA y la feature Archivar/Reactivar siguen sin commitear. Las 8 mejoras
-de `BACKEND_REQUIRED.md` siguen siendo opcionales y no bloqueantes.
+de la QA, la feature Archivar/Reactivar, el layout fluido y los 16 fixes de
+la revisión quirúrgica siguen sin commitear. Las 8 mejoras de
+`BACKEND_REQUIRED.md` y los 39 hallazgos de backend de
+`docs/REVISION_QUIRURGICA.md` siguen siendo opcionales y no bloqueantes.
 
 ---
 

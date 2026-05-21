@@ -225,7 +225,7 @@ export default function Empleados() {
   /* ---------- Render ---------- */
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8">
 
       {/* Header */}
       <div className="mb-7 flex items-start justify-between gap-4">
@@ -329,7 +329,7 @@ export default function Empleados() {
       </div>
 
       {/* Cards grid */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="card-grid">
         {loading ? (
           [...Array(4)].map((_, i) => (
             <div key={i} className="h-40 bg-white rounded-2xl border border-slate-100 animate-pulse" />
@@ -577,15 +577,15 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
   } = usePagedFetch(`${empUrl}/absences`, { size: 10 })
 
   // ---- KPI del mes: citas + ingresos + horas ----
-  // Una sola llamada a /appointments filtrada por membershipId. Si la lista
-  // del backend supera 200 elementos en un mes ajusta el size; raro para
-  // un empleado individual.
+  // Una sola llamada a /appointments filtrada por membershipId. El backend
+  // cappea Pageable en 100; si un empleado superara 100 citas en un mes el
+  // KPI saldria parcial (improbable para un empleado individual).
   const [kpi, setKpi] = useState(null)
   useEffect(() => {
     const from = ymd(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
     const to   = ymd(new Date())
     api.get(`/api/businesses/${bId}/appointments`, {
-      params: { from, to, membershipId: emp.id, size: 200 },
+      params: { from, to, membershipId: emp.id, size: 100 },
     })
       .then((r) => {
         const list = r.data.content ?? []

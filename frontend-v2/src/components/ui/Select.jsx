@@ -1,14 +1,19 @@
+import { useId } from 'react'
 import { cn } from '@/lib/utils'
 import { ChevronDown } from 'lucide-react'
 
-export function Select({ label, error, className, children, ...props }) {
+export function Select({ label, error, className, children, id, ...props }) {
+  // useId asocia la <label> con el <select> (htmlFor/id) para accesibilidad.
+  const autoId = useId()
+  const fieldId = id ?? autoId
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{label}</label>
+        <label htmlFor={fieldId} className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{label}</label>
       )}
       <div className="relative">
         <select
+          id={fieldId}
           className={cn(
             'h-11 w-full appearance-none rounded-2xl border border-slate-200 bg-slate-50 px-3.5 pr-10 text-sm text-[#1f2c4a]',
             'transition-all duration-150',

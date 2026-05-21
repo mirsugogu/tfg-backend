@@ -248,7 +248,7 @@ export default function Citas() {
      ============================================================ */
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8">
 
       {/* Header */}
       <div className="mb-7 flex items-start justify-between gap-4">
@@ -444,7 +444,7 @@ export default function Citas() {
 
       {/* Listado */}
       {loading ? (
-        <div className="space-y-3">
+        <div className="appt-grid">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="h-24 rounded-2xl bg-white border border-slate-100 animate-pulse" />
           ))}
@@ -470,7 +470,9 @@ export default function Citas() {
       ) : view === 'day' ? (
         <DayGroupedList list={visible} onOpen={setDetailAppt} />
       ) : (
-        <div className="space-y-3">
+        // Rejilla en vez de lista vertical: en 2K/4K una sola columna estiraba
+        // cada tarjeta a 3000+ px dejando un hueco enorme entre datos e importe.
+        <div className="appt-grid">
           {visible.map((a) => (
             <AppointmentCard key={a.id} appointment={a} onClick={() => setDetailAppt(a)} />
           ))}
@@ -613,7 +615,7 @@ function DayGroupedList({ list, onOpen }) {
             <span className="text-xs text-slate-400">· {list.length} cita{list.length === 1 ? '' : 's'}</span>
             <div className="flex-1 h-px bg-slate-100" />
           </div>
-          <div className="space-y-3">
+          <div className="appt-grid">
             {list.map((a) => (
               <AppointmentCard key={a.id} appointment={a} onClick={() => onOpen(a)} />
             ))}

@@ -63,19 +63,19 @@ export default function Configuracion() {
   ]
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-[#1e3a5f] tracking-tight">Configuración</h1>
         <p className="text-sm text-slate-500 mt-1.5 font-medium">Gestiona los datos y parámetros de tu negocio</p>
       </div>
 
       <div className="mb-6 overflow-x-auto pb-1">
-        <div className="flex items-center gap-1 bg-slate-100 rounded-2xl p-1.5 w-fit">
+        <div className="flex items-center gap-1 bg-slate-100 rounded-2xl p-1.5 w-fit max-w-full overflow-x-auto">
           {tabs.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${
+              className={`flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all ${
                 tab === key
                   ? 'bg-white text-[#1e3a5f] shadow-[0_2px_8px_-2px_rgba(15,23,42,0.1)]'
                   : 'text-slate-500 hover:text-[#1e3a5f]'
@@ -186,7 +186,7 @@ function BusinessTab({ bId, isAdmin }) {
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([biz?.address, biz?.city, biz?.country].filter(Boolean).join(', '))}`
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 max-w-5xl">
       {!biz.isActive && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 flex flex-wrap items-center gap-3">
           <p className="text-sm text-amber-800 font-medium flex-1 min-w-[220px]">
@@ -805,7 +805,7 @@ function BoothsTab({ bId, isAdmin }) {
       />
 
       {loading ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="card-grid">
           {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-white rounded-2xl border border-slate-100 animate-pulse" />)}
         </div>
       ) : booths.length === 0 ? (
@@ -814,7 +814,7 @@ function BoothsTab({ bId, isAdmin }) {
         </p>
       ) : (
         <>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="card-grid">
             {booths.map((b) => (
               <div key={b.id} className="group bg-white rounded-2xl border border-slate-100 p-5 hover:border-blue-200 hover:shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)] transition">
                 <div className="flex items-center justify-between">

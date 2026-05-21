@@ -207,10 +207,10 @@ export default function Clientes() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8">
 
       {/* Header */}
-      <div className="mb-7 flex items-start justify-between gap-4">
+      <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-[#1e3a5f] tracking-tight">Clientes</h1>
           <p className="text-sm text-slate-500 mt-1.5 font-medium flex items-center gap-1.5">
@@ -222,7 +222,7 @@ export default function Clientes() {
                 : `${totalElements} cliente${totalElements === 1 ? '' : 's'} registrado${totalElements === 1 ? '' : 's'}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={refresh}
@@ -231,7 +231,7 @@ export default function Clientes() {
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
-          <Button onClick={openCreate} className="gap-2">
+          <Button onClick={openCreate} className="gap-2 shrink-0 whitespace-nowrap">
             <Plus size={16} /> Nuevo cliente
           </Button>
         </div>
@@ -456,7 +456,7 @@ export default function Clientes() {
       {view === 'cards' && (
         <>
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="card-grid">
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="h-32 bg-white rounded-2xl border border-slate-100/80 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)] p-5 animate-pulse" />
               ))}
@@ -483,7 +483,7 @@ export default function Clientes() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="card-grid">
                 {filtered.map((c) => (
                   <div
                     key={c.id}

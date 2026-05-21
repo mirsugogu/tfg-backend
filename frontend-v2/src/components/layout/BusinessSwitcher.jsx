@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Building2, ChevronDown, Check, Search, AlertCircle } from 'lucide-react'
+import { Building2, ChevronDown, Check, Search } from 'lucide-react'
 import { Modal } from '@/components/ui/Modal'
 import { useAuth } from '@/context/AuthContext'
 import { useCatalog } from '@/context/CatalogContext'
@@ -13,9 +13,13 @@ import api, { getErrorMessage } from '@/lib/api'
  *   - GET  /api/me/businesses              lista de memberships.
  *   - POST /api/auth/select-business/{id}  canjea por token tenant.
  *
- * Mejoras sobre la versión original:
- *   - Buscador inline en el modal cuando hay >5 negocios.
- *   - Badge "Dado de baja" si el negocio está soft-deleted.
+ * Mejora sobre la versión original: buscador inline en el modal cuando
+ * hay más de 5 negocios.
+ *
+ * Nota: GET /api/me/businesses devuelve MembershipSummaryResponse
+ * (membershipId, businessId, businessName, role). NO incluye estado
+ * activo/inactivo del negocio, así que aquí no se pinta ninguna insignia
+ * de "dado de baja" — la lista solo trae memberships activas.
  */
 export function BusinessSwitcher() {
   const { user, switchBusiness } = useAuth()
@@ -58,8 +62,6 @@ export function BusinessSwitcher() {
     }
   }
 
-  const currentInactive = current && current.isActive === false
-
   return (
     <div className="px-3 pt-4">
       <button
@@ -74,13 +76,8 @@ export function BusinessSwitcher() {
           <Building2 size={15} />
         </div>
         <div className="flex-1 min-w-0 text-left">
-          <p className="text-xs font-semibold text-white truncate flex items-center gap-1.5">
+          <p className="text-xs font-semibold text-white truncate">
             {current?.businessName || 'Mi negocio'}
-            {currentInactive && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40">
-                <AlertCircle size={9} /> Baja
-              </span>
-            )}
           </p>
           <p className="text-[10px] text-white/40 font-medium uppercase tracking-wider mt-0.5">
             {current ? roleLabel(current.role) : '—'}
@@ -109,12 +106,11 @@ export function BusinessSwitcher() {
             ) : (
               filtered.map((b) => {
                 const active = b.businessId === user?.businessId
-                const inactive = b.isActive === false
                 return (
                   <button
                     key={b.businessId}
                     onClick={() => handleSwitch(b.businessId)}
-                    disabled={switching || inactive}
+                    disabled={switching}
                     className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-all disabled:opacity-60 ${
                       active
                         ? 'border-blue-300 bg-blue-50/60'
@@ -125,13 +121,8 @@ export function BusinessSwitcher() {
                       <Building2 size={16} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[#1e3a5f] text-sm truncate flex items-center gap-1.5">
+                      <p className="font-semibold text-[#1e3a5f] text-sm truncate">
                         {b.businessName}
-                        {inactive && (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 ring-1 ring-rose-200">
-                            <AlertCircle size={9} /> Dado de baja
-                          </span>
-                        )}
                       </p>
                       <p className="text-xs text-slate-400">{roleLabel(b.role)}</p>
                     </div>

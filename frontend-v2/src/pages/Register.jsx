@@ -354,8 +354,8 @@ export default function Register() {
                       className="accent-[#1e3a5f] h-4 w-4 rounded mt-0.5"
                     />
                     <span>
-                      Acepto los <a href="#" className="font-semibold text-blue-600 hover:text-blue-700">términos y condiciones</a> y la{' '}
-                      <a href="#" className="font-semibold text-blue-600 hover:text-blue-700">política de privacidad</a>.
+                      Acepto los <a href="#" onClick={(e) => e.preventDefault()} className="font-semibold text-blue-600 hover:text-blue-700">términos y condiciones</a> y la{' '}
+                      <a href="#" onClick={(e) => e.preventDefault()} className="font-semibold text-blue-600 hover:text-blue-700">política de privacidad</a>.
                     </span>
                   </label>
                 </div>

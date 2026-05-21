@@ -57,13 +57,16 @@
     { "key": "categoryToDeleteId", "value": "", "type": "string" },
     { "key": "serviceId", "value": "", "type": "string" },
     { "key": "serviceId2", "value": "", "type": "string" },
+    { "key": "serviceToDeleteId", "value": "", "type": "string" },
     { "key": "appointmentId", "value": "", "type": "string" },
     { "key": "appointmentId2", "value": "", "type": "string" },
     { "key": "tokenEmployee", "value": "", "type": "string" },
     { "key": "regSuffix", "value": "", "type": "string" },
     { "key": "tokenRegistered", "value": "", "type": "string" },
     { "key": "boothId", "value": "", "type": "string" },
-    { "key": "boothToDeleteId", "value": "", "type": "string" }
+    { "key": "boothToDeleteId", "value": "", "type": "string" },
+    { "key": "blockId", "value": "", "type": "string" },
+    { "key": "blockToDeleteId", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -729,9 +732,19 @@
           "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/services/{{serviceId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","services","{{serviceId}}"]},"body":{"mode":"raw","raw":"{\"categoryId\":{{categoryId}},\"taxId\":{{taxId}},\"name\":\"Corte premium\",\"description\":\"Premium v2\",\"price\":25.00,\"durationMinutes\":45}"}}
         },
         {
+          "name": "POST serviceToDelete",
+          "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","pm.collectionVariables.set('serviceToDeleteId',pm.response.json().id);"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/services","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","services"]},"body":{"mode":"raw","raw":"{\"categoryId\":{{categoryId}},\"taxId\":{{taxId}},\"name\":\"Servicio para borrar-{{uniqSuffix}}\",\"price\":15.00,\"durationMinutes\":30}"}}
+        },
+        {
+          "name": "DELETE service (soft)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('204',()=>pm.response.to.have.status(204));"]}}],
+          "request": {"method":"DELETE","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/services/{{serviceToDeleteId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","services","{{serviceToDeleteId}}"]}}
+        },
+        {
           "name": "Reactivar service (desarchivar)",
           "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('isActive true',()=>pm.expect(pm.response.json().isActive).to.eql(true));"]}}],
-          "request": {"method":"PATCH","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/services/{{serviceId2}}/reactivate","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","services","{{serviceId2}}","reactivate"]}}
+          "request": {"method":"PATCH","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/services/{{serviceToDeleteId}}/reactivate","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","services","{{serviceToDeleteId}}","reactivate"]}}
         }
       ]
     },
@@ -837,6 +850,21 @@
           "name": "PATCH a estado inexistente -> 404",
           "event": [{"listen":"test","script":{"exec":["pm.test('404',()=>pm.response.to.have.status(404));"]}}],
           "request": {"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}/status","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId}}","status"]},"body":{"mode":"raw","raw":"{\"statusName\":\"INVENTADO\"}"}}
+        },
+        {
+          "name": "PATCH payment isPaid=true",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('isPaid true',()=>pm.expect(pm.response.json().isPaid).to.eql(true));"]}}],
+          "request": {"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}/payment","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId}}","payment"]},"body":{"mode":"raw","raw":"{\"isPaid\":true}"}}
+        },
+        {
+          "name": "PATCH payment isPaid=false (revertir)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('isPaid false',()=>pm.expect(pm.response.json().isPaid).to.eql(false));"]}}],
+          "request": {"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}/payment","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId}}","payment"]},"body":{"mode":"raw","raw":"{\"isPaid\":false}"}}
+        },
+        {
+          "name": "PATCH payment body vacio -> 400",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}/payment","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId}}","payment"]},"body":{"mode":"raw","raw":"{}"}}
         },
         {
           "name": "DELETE serviceId2 (soft, para test desactivado)",
@@ -1039,6 +1067,91 @@
           "name": "Reactivar booth (desarchivar)",
           "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('isActive true',()=>pm.expect(pm.response.json().isActive).to.eql(true));"]}}],
           "request": {"method":"PATCH","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths/{{boothToDeleteId}}/reactivate","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths","{{boothToDeleteId}}","reactivate"]}}
+        }
+      ]
+    },
+    {
+      "name": "17 - schedule_blocks",
+      "item": [
+        {
+          "name": "POST bloqueo global (festivo)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","const j=pm.response.json();","pm.collectionVariables.set('blockId',j.id);","pm.test('global: membershipId null',()=>pm.expect(j.membershipId).to.eql(null));","pm.test('global: boothId null',()=>pm.expect(j.boothId).to.eql(null));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/schedule-blocks","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","schedule-blocks"]},"body":{"mode":"raw","raw":"{\"startDate\":\"2027-12-25\",\"endDate\":\"2027-12-25\",\"reason\":\"Navidad\"}"}}
+        },
+        {
+          "name": "POST bloqueo por empleado (vacaciones)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","const j=pm.response.json();","pm.test('membershipId set',()=>pm.expect(j.membershipId).to.eql(Number(pm.collectionVariables.get('employeeUserId'))));","pm.test('boothId null',()=>pm.expect(j.boothId).to.eql(null));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/schedule-blocks","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","schedule-blocks"]},"body":{"mode":"raw","raw":"{\"membershipId\":{{employeeUserId}},\"startDate\":\"2027-08-01\",\"endDate\":\"2027-08-15\",\"reason\":\"Vacaciones empleado\"}"}}
+        },
+        {
+          "name": "POST bloqueo por cabina (mantenimiento)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","const j=pm.response.json();","pm.test('boothId set',()=>pm.expect(j.boothId).to.eql(Number(pm.collectionVariables.get('boothId'))));","pm.test('membershipId null',()=>pm.expect(j.membershipId).to.eql(null));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/schedule-blocks","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","schedule-blocks"]},"body":{"mode":"raw","raw":"{\"boothId\":{{boothId}},\"startDate\":\"2027-09-01\",\"endDate\":\"2027-09-03\",\"reason\":\"Mantenimiento cabina\"}"}}
+        },
+        {
+          "name": "POST startDate > endDate -> 400",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/schedule-blocks","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","schedule-blocks"]},"body":{"mode":"raw","raw":"{\"startDate\":\"2027-10-20\",\"endDate\":\"2027-10-10\",\"reason\":\"Fechas mal\"}"}}
+        },
+        {
+          "name": "POST startDate ausente -> 400",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/schedule-blocks","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","schedule-blocks"]},"body":{"mode":"raw","raw":"{\"endDate\":\"2027-10-10\",\"reason\":\"Falta inicio\"}"}}
+        },
+        {
+          "name": "POST membershipId inexistente -> 404",
+          "event": [{"listen":"test","script":{"exec":["pm.test('404',()=>pm.response.to.have.status(404));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/schedule-blocks","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","schedule-blocks"]},"body":{"mode":"raw","raw":"{\"membershipId\":9999,\"startDate\":\"2027-11-01\",\"endDate\":\"2027-11-02\",\"reason\":\"Empleado fantasma\"}"}}
+        },
+        {
+          "name": "GET list",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/schedule-blocks","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","schedule-blocks"]}}
+        },
+        {
+          "name": "GET by id",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('id coincide',()=>pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get('blockId'))));"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/schedule-blocks/{{blockId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","schedule-blocks","{{blockId}}"]}}
+        },
+        {
+          "name": "GET by id inexistente -> 404",
+          "event": [{"listen":"test","script":{"exec":["pm.test('404',()=>pm.response.to.have.status(404));"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/schedule-blocks/9999","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","schedule-blocks","9999"]}}
+        },
+        {
+          "name": "POST blockToDelete",
+          "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","pm.collectionVariables.set('blockToDeleteId',pm.response.json().id);"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/schedule-blocks","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","schedule-blocks"]},"body":{"mode":"raw","raw":"{\"startDate\":\"2027-12-31\",\"endDate\":\"2027-12-31\",\"reason\":\"Para borrar\"}"}}
+        },
+        {
+          "name": "DELETE schedule-block (hard)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('204',()=>pm.response.to.have.status(204));"]}}],
+          "request": {"method":"DELETE","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/schedule-blocks/{{blockToDeleteId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","schedule-blocks","{{blockToDeleteId}}"]}}
+        },
+        {
+          "name": "DELETE schedule-block ya borrado -> 404",
+          "event": [{"listen":"test","script":{"exec":["pm.test('404',()=>pm.response.to.have.status(404));"]}}],
+          "request": {"method":"DELETE","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/schedule-blocks/{{blockToDeleteId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","schedule-blocks","{{blockToDeleteId}}"]}}
+        }
+      ]
+    },
+    {
+      "name": "18 - availability",
+      "item": [
+        {
+          "name": "GET availability (date + serviceIds)",
+          "event": [{"listen":"prerequest","script":{"exec":["// Calcula el proximo lunes en fecha LOCAL para consultar disponibilidad","const now=new Date();","const pad=(n)=>String(n).padStart(2,'0');","const d=new Date(now);","d.setDate(now.getDate()+(((1-now.getDay()+7)%7)||7));","pm.collectionVariables.set('availDate',`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`);"]}},{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","const j=pm.response.json();","pm.test('devuelve slots array',()=>pm.expect(j.slots).to.be.an('array'));","pm.test('totalDurationMinutes presente',()=>pm.expect(j.totalDurationMinutes).to.exist);"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/availability?date={{availDate}}&serviceIds={{serviceId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","availability"],"query":[{"key":"date","value":"{{availDate}}"},{"key":"serviceIds","value":"{{serviceId}}"}]}}
+        },
+        {
+          "name": "GET availability filtrado por membershipId",
+          "event": [{"listen":"prerequest","script":{"exec":["const now=new Date();","const pad=(n)=>String(n).padStart(2,'0');","const d=new Date(now);","d.setDate(now.getDate()+(((1-now.getDay()+7)%7)||7));","pm.collectionVariables.set('availDate',`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`);"]}},{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('devuelve slots array',()=>pm.expect(pm.response.json().slots).to.be.an('array'));"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/availability?date={{availDate}}&serviceIds={{serviceId}}&membershipId={{employeeUserId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","availability"],"query":[{"key":"date","value":"{{availDate}}"},{"key":"serviceIds","value":"{{serviceId}}"},{"key":"membershipId","value":"{{employeeUserId}}"}]}}
+        },
+        {
+          "name": "GET availability sin serviceIds -> 400",
+          "event": [{"listen":"prerequest","script":{"exec":["const now=new Date();","const pad=(n)=>String(n).padStart(2,'0');","const d=new Date(now);","d.setDate(now.getDate()+(((1-now.getDay()+7)%7)||7));","pm.collectionVariables.set('availDate',`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`);"]}},{"listen":"test","script":{"exec":["pm.test('400 serviceIds obligatorio',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/availability?date={{availDate}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","availability"],"query":[{"key":"date","value":"{{availDate}}"}]}}
         }
       ]
     }

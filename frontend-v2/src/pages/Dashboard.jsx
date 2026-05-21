@@ -168,7 +168,7 @@ function StatusDonut({ buckets, total }) {
   const slices = []
   let deg = 0
   Object.keys(STATUS_LABELS).forEach((k) => {
-    const portion = total > 0 ? (buckets[k] / total) * 360 : 0
+    const portion = total > 0 ? ((buckets[k] ?? 0) / total) * 360 : 0
     if (portion > 0) slices.push(`${STATUS_COLORS[k]} ${deg}deg ${deg + portion}deg`)
     deg += portion
   })
@@ -204,9 +204,10 @@ function StatusDonut({ buckets, total }) {
   )
 }
 
-function TodayTimeline({ list, now, onSelect }) {
-  // Rango fijo 9-21 (12 h). Si tu negocio abre fuera de este rango, ajusta.
-  const DAY_START = 9, DAY_END = 21
+function TodayTimeline({ list, now, onSelect, dayStart = 9, dayEnd = 21 }) {
+  // El rango horario se deriva de business_hours (lo pasa el Dashboard);
+  // 9-21 es solo el fallback si el negocio no tiene horario configurado.
+  const DAY_START = dayStart, DAY_END = dayEnd
   const totalMin = (DAY_END - DAY_START) * 60
   const minutesFrom = (iso) => {
     const t = String(iso).slice(11, 16).split(':')
@@ -331,8 +332,9 @@ export default function Dashboard() {
     Promise.all([
       api.get(`/api/businesses/${bId}/clients?size=1`),
       api.get(`/api/businesses/${bId}/services?size=1`),
-      api.get(`/api/businesses/${bId}/appointments`, { params: { from: today, to: today, size: 200 } }),
-      api.get(`/api/businesses/${bId}/appointments`, { params: { from: monthStart, to: monthEnd, size: 500 } }),
+      // size 100: el backend cappea Pageable en 100 (spring max-page-size).
+      api.get(`/api/businesses/${bId}/appointments`, { params: { from: today, to: today, size: 100 } }),
+      api.get(`/api/businesses/${bId}/appointments`, { params: { from: monthStart, to: monthEnd, size: 100 } }),
       api.get(`/api/businesses/${bId}/hours`),
     ])
       .then(([c, s, t, m, h]) => {
@@ -371,6 +373,20 @@ export default function Dashboard() {
   const bookedMinutes = activeToday.reduce((acc, a) => acc + minutesBetween(a.startDateTime, a.endDateTime), 0)
   const occupancy = openMinutes > 0 ? Math.round((bookedMinutes / openMinutes) * 100) : 0
   const slotsTotal = openMinutes > 0 ? Math.round(openMinutes / 60) : null   // slots de 1 h aprox
+
+  // Rango horario del timeline de hoy: min apertura / max cierre de
+  // business_hours en toda la semana; 9-21 como fallback sin horario.
+  const timelineRange = useMemo(() => {
+    const open = hours.filter((h) => !h.isClosed && h.startTime && h.endTime)
+    if (open.length === 0) return { start: 9, end: 21 }
+    let s = 24, e = 0
+    open.forEach((h) => {
+      s = Math.min(s, parseInt(h.startTime.slice(0, 2), 10))
+      const [eh, em] = h.endTime.slice(0, 5).split(':').map(Number)
+      e = Math.max(e, em > 0 ? eh + 1 : eh)
+    })
+    return { start: s, end: e }
+  }, [hours])
 
   // Próxima cita
   const upcoming = useMemo(
@@ -426,7 +442,7 @@ export default function Dashboard() {
   const firstName = user?.fullName?.split(/\s+/)[0] || ''
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8">
 
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
@@ -496,7 +512,7 @@ export default function Dashboard() {
       <div className="grid lg:grid-cols-10 gap-6">
 
         {/* LEFT — Agenda de hoy */}
-        <div className="lg:col-span-7">
+        <div className="lg:col-span-7 min-w-0">
           <div className="bg-white rounded-2xl border border-slate-100/80 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)] flex flex-col">
 
             {/* Card header */}
@@ -505,12 +521,12 @@ export default function Dashboard() {
                 <div className="text-base font-bold text-[#1e3a5f] flex items-center gap-2"><CalendarDays size={16} /> Agenda de hoy</div>
                 <div className="text-xs text-slate-400 mt-0.5">{visibleToday.length} citas · vista cronológica</div>
               </div>
-              <div className="flex items-center gap-1 bg-slate-50 rounded-xl p-1">
+              <div className="flex items-center gap-1 bg-slate-50 rounded-xl p-1 overflow-x-auto max-w-full">
                 {STATUS_TABS.map(({ key, label }) => (
                   <button
                     key={key}
                     onClick={() => setFilter(key)}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition ${
+                    className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition ${
                       filter === key
                         ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]'
                         : 'text-slate-500 hover:text-[#1e3a5f]'
@@ -524,7 +540,10 @@ export default function Dashboard() {
 
             {/* Timeline */}
             {!loading && todayList.length > 0 && (
-              <TodayTimeline list={todayList} now={now} onSelect={setSelected} />
+              <TodayTimeline
+                list={todayList} now={now} onSelect={setSelected}
+                dayStart={timelineRange.start} dayEnd={timelineRange.end}
+              />
             )}
 
             {/* Table */}
@@ -621,7 +640,7 @@ export default function Dashboard() {
         </div>
 
         {/* RIGHT — sidebar */}
-        <div className="lg:col-span-3 space-y-5">
+        <div className="lg:col-span-3 space-y-5 min-w-0">
 
           {next && <NextAppointmentHero appt={next} mins={nextInMin} onOpen={() => setSelected(next)} />}
 

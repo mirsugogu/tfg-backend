@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import api, { getErrorMessage } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 
@@ -35,14 +35,19 @@ export function usePagedFetch(url, { size = 20, params } = {}) {
   // caller puede pasar { from: '...', to: '...' } sin preocuparse de la
   // identidad del objeto.
   const paramsKey = params ? JSON.stringify(params) : ''
-
-  // Reset a la pagina 0 cuando cambian los filtros.
-  useEffect(() => {
-    setPage(0)
-  }, [paramsKey])
+  // Recuerda los filtros del render anterior para detectar cuando cambian.
+  const prevParamsKey = useRef(paramsKey)
 
   useEffect(() => {
     if (!url) { setLoading(false); return }
+    // Si los filtros cambiaron y NO estabamos en la pagina 0, basta con
+    // resetear la pagina: el re-render que provoca setPage(0) reentra aqui
+    // y hace el fetch. Asi se evita la peticion desechada (page viejo +
+    // params nuevos) que la version anterior lanzaba siempre.
+    if (prevParamsKey.current !== paramsKey) {
+      prevParamsKey.current = paramsKey
+      if (page !== 0) { setPage(0); return }
+    }
     let cancelled = false
     setLoading(true)
     api.get(url, { params: { page, size, ...(params ?? {}) } })

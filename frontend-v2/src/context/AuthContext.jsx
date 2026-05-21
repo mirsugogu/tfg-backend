@@ -20,6 +20,45 @@ function decodeJwt(token) {
 }
 
 /**
+ * true si el JWT no se puede leer o si su claim `exp` ya ha pasado. Un
+ * token caducado o ilegible se trata como sesion invalida.
+ */
+function isJwtExpired(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now()
+  } catch {
+    return true
+  }
+}
+
+/** JSON.parse defensivo: ante un valor corrupto devuelve null en vez de lanzar. */
+function safeParse(raw) {
+  try {
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Lee el user persistido en localStorage de forma defensiva. Si el JSON
+ * esta corrupto, o el token esta caducado/malformado, limpia el storage y
+ * devuelve null. Evita dos problemas: (1) que un JSON.parse roto deje la
+ * app en blanco durante el render inicial del AuthProvider; (2) que un
+ * token caducado se acepte como sesion valida hasta el primer 401.
+ */
+function loadStoredUser() {
+  const u = safeParse(localStorage.getItem('optima_user'))
+  if (!u?.token || isJwtExpired(u.token)) {
+    localStorage.removeItem('optima_token')
+    localStorage.removeItem('optima_user')
+    return null
+  }
+  return u
+}
+
+/**
  * Persiste el user en localStorage y limpia los restos del flujo identity
  * (sessionStorage). Se llama dos veces durante un login con exito:
  *  1) inmediatamente despues de decodificar el JWT, para que el
@@ -57,19 +96,15 @@ async function enrichWithMe(baseUser) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('optima_user')
-    return saved ? JSON.parse(saved) : null
-  })
+  const [user, setUser] = useState(loadStoredUser)
   const [loading, setLoading] = useState(false)
 
   // Estado del flujo identity (multi-membership). Sobrevive a recargas
   // gracias a sessionStorage; se limpia al elegir negocio o al cerrar
   // sesion.
-  const [pendingBusinesses, setPendingBusinesses] = useState(() => {
-    const saved = sessionStorage.getItem('optima_pending_businesses')
-    return saved ? JSON.parse(saved) : null
-  })
+  const [pendingBusinesses, setPendingBusinesses] = useState(
+    () => safeParse(sessionStorage.getItem('optima_pending_businesses'))
+  )
   const [identityToken, setIdentityToken] = useState(
     () => sessionStorage.getItem('optima_identity_token') ?? null
   )

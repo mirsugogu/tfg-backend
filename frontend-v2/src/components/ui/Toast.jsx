@@ -4,6 +4,12 @@ import { cn } from '@/lib/utils'
 
 const ToastContext = createContext(null)
 
+// Contador monotónico para el id de cada toast. Antes se usaba Date.now(),
+// que colisiona si se emiten dos toasts en el mismo milisegundo (p. ej. un
+// Promise.allSettled que falla en varias ramas): React avisaba de `key`
+// duplicada y el setTimeout de cierre eliminaba ambos a la vez.
+let _toastSeq = 0
+
 const config = {
   success: {
     icon: <CheckCircle size={17} className="text-emerald-500 shrink-0 mt-px" />,
@@ -26,7 +32,7 @@ export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
 
   const toast = useCallback(({ type = 'success', message }) => {
-    const id = Date.now()
+    const id = ++_toastSeq
     setToasts((prev) => [...prev, { id, type, message }])
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000)
   }, [])
