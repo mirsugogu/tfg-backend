@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 60" fill="none">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="60" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1e3a5f"></stop>
+      <stop offset="1" stop-color="#0f1f3a"></stop>
+    </linearGradient>
+  </defs>
+  <rect width="60" height="60" rx="14" fill="url(#tile)"></rect>
+  <path d="M30 16 a14 14 0 0 1 0 28 a14 14 0 0 1 0 -28 z M30 22 a8 8 0 0 0 0 16 a8 8 0 0 0 0 -16 z" fill="#ffffff" fill-rule="evenodd"></path>
+  <circle cx="40" cy="12" r="3" fill="#22d3ee"></circle>
+  <text x="76" y="38" font-family="ui-sans-serif, system-ui, -apple-system, &#39;Segoe UI&#39;, Roboto, sans-serif" font-size="28" font-weight="800" fill="#1e3a5f" letter-spacing="-0.5">Optima</text>
+</svg>
