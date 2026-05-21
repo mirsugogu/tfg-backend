@@ -38,7 +38,7 @@ public interface BusinessServiceRepository extends JpaRepository<BusinessService
      * solo se le pide el id, que sale de la columna FK sin cargar la entidad.)
      */
     @EntityGraph(attributePaths = {"category", "tax"})
-    Page<BusinessService> findAllByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
+    Page<BusinessService> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
     /**
      * Lista paginada de servicios INACTIVOS (archivados) de un negocio.
@@ -49,7 +49,7 @@ public interface BusinessServiceRepository extends JpaRepository<BusinessService
      * el N+1 al aplanar category y tax en BusinessServiceResponse.
      */
     @EntityGraph(attributePaths = {"category", "tax"})
-    Page<BusinessService> findAllByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
+    Page<BusinessService> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
 
     /** Lookup tenant-safe por id+businessId. */
     Optional<BusinessService> findByIdAndBusinessId(Long id, Long businessId);

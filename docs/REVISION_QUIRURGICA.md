@@ -11,11 +11,12 @@ Auditoría línea a línea del backend (Spring Boot) y del frontend (`frontend-v
   `src/test/`, la infraestructura (`pom.xml`, `application.properties`, Docker), y
   los ~38 archivos del frontend `frontend-v2/src`.
 - **Total: 67 hallazgos.** 0 críticos. 3 altos. 7 medios. 39 bajos. 18 info.
-- **Backend: 39 hallazgos.** Ningún CRÍTICO. No hay bugs de seguridad ni de
-  concurrencia; el patrón dominante es N+1 evitable por falta de `@EntityGraph`
-  en varios listados, más desincronizaciones de comentarios/Javadoc.
-  Inicialmente solo documentados; tras la auditoría se autorizó corregirlos
-  punto por punto — el estado de cada uno se indica en la sección 3.
+- **Backend: 39 hallazgos** (0 críticos · 3 altos · 6 medios · 17 bajos ·
+  13 info). No hay bugs de seguridad ni de concurrencia; el patrón dominante
+  era N+1 evitable por falta de `@EntityGraph`, más comentarios desfasados.
+  **Resueltos los 26 accionables** (3 ALTA + 6 MEDIA + 17 BAJA), cada uno
+  aplicado y verificado (`mvnw test` + smokes en runtime); los 13 INFO se
+  verificaron correctos (sin acción). Estado por hallazgo en la sección 3.
 - **Frontend: 28 hallazgos — 16 CORREGIDOS en esta sesión, 12 documentados.**
   Ver sección 4.
 - **Veredicto**: el proyecto está sólido. El cruce schema↔entidades es impecable
@@ -66,29 +67,36 @@ Auditoría línea a línea del backend (Spring Boot) y del frontend (`frontend-v
   `mvnw test` verde (`TenantGuardFilterTest` incluido), y smoke: `/businesses/1`
   → 200, `/999` → 403, `/1abc` → 403 (antes 400).
 
-#### CMN-3 · BAJA · convención
-- **Archivo**: `common/security/TenantGuardFilter.java:52-54`
-- El Javadoc cita endpoints eliminados el 2026-05-14 (`GET /api/businesses`,
+#### CMN-3 · BAJA · convención · ✅ CORREGIDO (vía CMN-2)
+- **Archivo**: `common/security/TenantGuardFilter.java`
+- El Javadoc citaba endpoints eliminados el 2026-05-14 (`GET /api/businesses`,
   `/api/businesses/slug/{slug}`).
-- **Sugerencia**: actualizar los ejemplos del Javadoc.
+- **Resuelto**: la reescritura del bloque "URLs que matchea" hecha en CMN-2 ya
+  eliminó esas referencias (quitó el ejemplo `slug/abc` y el "catálogo público").
+  Sin cambios adicionales.
 
-#### CMN-4 · BAJA · convención
+#### CMN-4 · BAJA · convención · ✅ CORREGIDO (2026-05-21)
 - **Archivo**: `modules/auth/service/AuthService.java:31`
-- El Javadoc dice "3 endpoints"; `AuthController` expone 5 (forgot/reset las
+- El Javadoc decía "3 endpoints"; `AuthController` expone 5 (forgot/reset las
   sirve `PasswordResetService`).
-- **Sugerencia**: reformular el encabezado.
+- **Corrección aplicada**: encabezado reformulado — "Cubre 3 de los 5 endpoints
+  de AuthController; los otros 2 (forgot/reset-password) los sirve
+  PasswordResetService". Solo comentario.
 
-#### CMN-5 · BAJA · convención
-- **Archivo**: `common/security/RateLimitFilter.java:96`, `TenantGuardFilter.java:63`
-- Ambos filtros hacen `new ObjectMapper()` en vez de inyectar el bean de Spring.
-  Funciona (serializan un `record` plano), pero se desvía del patrón de
-  inyección por constructor del resto del proyecto.
-- **Sugerencia**: inyectar el `ObjectMapper` bean, o documentar la decisión.
+#### CMN-5 · BAJA · convención · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `common/security/RateLimitFilter.java`, `TenantGuardFilter.java`
+- Ambos filtros hacían `new ObjectMapper()` en vez de inyectar el bean de
+  Spring — se desviaban del patrón de inyección por constructor del proyecto.
+- **Corrección aplicada**: `@RequiredArgsConstructor` en ambos filtros + campo
+  `ObjectMapper` sin inicializar → Spring inyecta el bean. `TenantGuardFilterTest`
+  adaptado (`new TenantGuardFilter(new ObjectMapper())`). Verificado: `mvnw test`
+  verde (`contextLoads` confirma la inyección), 403 cross-tenant con su JSON OK.
 
-#### CMN-6 · BAJA · convención
+#### CMN-6 · BAJA · convención · ✅ CORREGIDO (2026-05-21)
 - **Archivo**: `common/utils/JwtUtil.java:58`
-- `@PostConstruct` lanza `RuntimeException` cruda si el secret mide <32 chars.
-- **Sugerencia**: usar `IllegalStateException` (fallo de configuración de bean).
+- `@PostConstruct` lanzaba `RuntimeException` cruda si el secret mide <32 chars.
+- **Corrección aplicada**: cambiado a `IllegalStateException` (fallo de
+  configuración de bean). Solo cambia el tipo de excepción.
 
 #### CMN-7 · INFO · inconsistencia
 - **Archivo**: `application.properties:16`
@@ -126,18 +134,26 @@ Auditoría línea a línea del backend (Spring Boot) y del frontend (`frontend-v
   contacto del negocio (`businesses.email`), no `users.email`. Solo comentarios.
   Verificado: `mvnw compile` → exit 0.
 
-#### BIZ-3 · BAJA · convención
-- **Archivo**: `TaxRepository.java:25,32`, `BoothRepository.java:30,37`
-- `business/` usa `findBy...` para devolver `Page<T>`; `catalog/` usa
-  `findAllBy...` para lo mismo. `ScheduleBlockRepository:33-35` documenta que lo
-  correcto es `findBy` cuando se devuelve `Page`. Inconsistencia entre módulos.
-- **Sugerencia**: unificar a `findBy...` (los de `business/` ya son correctos).
+#### BIZ-3 · BAJA · convención · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `ServiceCategoryRepository.java`, `BusinessServiceRepository.java`
+  (+ callers en sus services)
+- `catalog/` usaba `findAllBy...` para devolver `Page<T>`; la convención
+  (documentada en `ScheduleBlockRepository`) es `findBy` cuando se devuelve
+  `Page`. `business/` ya era correcto.
+- **Corrección aplicada**: renombrados los 4 finders paginados de catalog a
+  `findByBusinessIdAndIsActiveTrue/False` + sus 4 callers. Spring Data deriva
+  la query idéntica (`All` es solo prefijo) → cero cambio de comportamiento.
+  Verificado: `mvnw test` verde, `/services` y `/categories` (activos +
+  archivados) → 200.
 
-#### BIZ-4 · BAJA · inconsistencia
-- **Archivo**: `modules/business/service/BusinessService.java:88-96,142-149`
-- `createEntity`/`update` aplican `trim()` solo a `slug` y `email`; `name` y el
-  resto entran sin sanear. `TaxService`/`BoothService` sí hacen `trim()`.
-- **Sugerencia**: aplicar `trim()` a `name` (y campos de texto) por consistencia.
+#### BIZ-4 · BAJA · inconsistencia · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `modules/business/service/BusinessService.java`
+- `createEntity`/`update` aplicaban `trim()` solo a `slug` y `email`; `name`
+  entraba sin sanear. `TaxService`/`BoothService` sí trimean el nombre.
+- **Corrección aplicada**: `b.setName(request.name().trim())` en `createEntity`
+  y `update`. Solo `name` (es `@NotBlank` → nunca null); los campos opcionales
+  (`phone`, `address`…) admiten null y trimearlos exigiría null-checks — se
+  dejan, igual que en `TaxService`/`BoothService`.
 
 #### BIZ-5 · INFO · (sin acción) — `BusinessHour`/`isClosed` verificado correcto.
 #### BIZ-6 · INFO · (sin acción) — `RoleController` (catálogo global de solo lectura) verificado correcto.
@@ -162,24 +178,28 @@ Auditoría línea a línea del backend (Spring Boot) y del frontend (`frontend-v
   (acceso id-only). Javadoc obsoleto de los 2 DTOs corregido. Verificado:
   `mvnw test` verde, `/schedules` y `/absences` → 200 con `LEFT JOIN`.
 
-#### USR-2 · BAJA · rendimiento
-- **Archivo**: `MembershipRepository.java:66,109` (callers en `UserService.listMyBusinesses`)
-- `findAllByUserId` y `findAllByBusinessIdAndIsActiveTrue` (no paginados) no
-  llevan `@EntityGraph`; `MembershipSummaryResponse.from` accede a `business` y
-  `role` → N+1 de baja cardinalidad.
-- **Sugerencia**: `@EntityGraph(attributePaths = {"business","role"})`.
+#### USR-2 · BAJA · rendimiento · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `MembershipRepository.java:115`
+- `findAllByUserId` (alimenta `/api/me/businesses`) no llevaba `@EntityGraph`;
+  `MembershipSummaryResponse.from` accede a `business` y `role` → N+1 de baja
+  cardinalidad. (La otra mitad de USR-2, `findAllByBusinessIdAndIsActiveTrue`,
+  ya la cerró APP-1.)
+- **Corrección aplicada**: `@EntityGraph(attributePaths = {"business","role"})`
+  en `findAllByUserId`. Verificado: `mvnw test` verde, `/me/businesses` → 200,
+  SQL con `LEFT JOIN businesses` + `roles`.
 
 #### USR-3 · BAJA · (sin acción) — la asimetría create-valida-overlap /
 update-no-valida en ausencias es decisión consciente documentada en ambos
 servicios. Verificado.
 
-#### USR-4 · BAJA · inconsistencia
-- **Archivo**: `CreateEmployeeAbsenceRequest.java:27`
-- `@FutureOrPresent` en `startDateTime` impide registrar una ausencia ya
-  iniciada (p. ej. un empleado que enferma a media mañana). `UpdateEmployeeAbsenceRequest`
-  deliberadamente no lo lleva.
-- **Sugerencia**: valorar relajar `@FutureOrPresent` en el create, o dejarlo
-  como decisión explícita.
+#### USR-4 · BAJA · inconsistencia · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `CreateEmployeeAbsenceRequest.java`
+- `@FutureOrPresent` en `startDateTime` impedía registrar una ausencia ya
+  iniciada (un empleado que enferma a media mañana). `UpdateEmployeeAbsenceRequest`
+  ya no lo llevaba — asimetría.
+- **Corrección aplicada**: eliminado `@FutureOrPresent` (+ su import + Javadoc).
+  Ahora se puede registrar una ausencia en curso; create↔update alineados.
+  Verificado: `POST .../absences` con fecha pasada → 201 (antes 400).
 
 > **Verificado limpio**: cross-tenant correcto en todos los lookups, contraseñas
 > nunca expuestas en DTOs, mass-assignment cerrado (`UpdateUserRequest` solo
@@ -199,32 +219,38 @@ servicios. Verificado.
   `GET /services` → 200 (5 servicios), SQL con `LEFT JOIN service_categories`
   + `taxes` en una sola consulta.
 
-#### CAT-2 · BAJA · convención
-- **Archivo**: `BusinessServiceResponse.java:41`, `ServiceCategoryResponse.java`
-- El parámetro de `from()` se llama `s`/`c` (una letra).
-- **Sugerencia**: renombrar a `service`/`category`.
+#### CAT-2 · BAJA · convención · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `BusinessServiceResponse.java`, `ServiceCategoryResponse.java`
+- El parámetro de `from()` se llamaba `s`/`c` (una letra).
+- **Corrección aplicada**: renombrado a `service` / `category` (con sus usos).
+  Solo legibilidad; sin cambio de comportamiento.
 
-#### CAT-3 · BAJA · inconsistencia
-- **Archivo**: `BusinessServiceService.java:92-107,169-182`
-- `createService`/`updateService` resuelven categoría e impuesto sin comprobar
-  su `isActive`: se puede crear un servicio activo colgando de una categoría o
-  impuesto archivados. El Javadoc de `ServiceCategory.java:69-72` promete esa
-  exclusión, pero el código no la implementa.
-- **Sugerencia**: comprobar `isActive` de categoría/impuesto en create/update
-  (400 si están archivados), o corregir el Javadoc. *(Relacionado con FPG-9 del
-  frontend.)*
+#### CAT-3 · BAJA · inconsistencia · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `BusinessServiceService.java`
+- `createService`/`updateService` resolvían categoría e impuesto sin comprobar
+  su `isActive`: se podía crear un servicio colgando de una categoría/impuesto
+  archivados. El Javadoc de `ServiceCategory` prometía esa exclusión.
+- **Corrección aplicada (opción "A-fino")**: guard `isActive` en `createService`
+  (siempre) y en `updateService` solo si la categoría/impuesto **cambia**
+  (comparando el id del request con el actual) — así editar el precio de un
+  servicio cuya categoría se archivó después no queda bloqueado. Verificado:
+  `mvnw test` verde, `POST /services` con categoría archivada → 400.
 
-#### CAT-4 · BAJA · inconsistencia
-- **Archivo**: `BusinessServiceService.java:76`, `ServiceCategoryService.java:58`
+#### CAT-4 · BAJA · inconsistencia · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `BusinessServiceService.java`, `ServiceCategoryService.java`
 - `existsByBusinessIdAndNameIgnoreCase` cuenta también los archivados, así que
-  un recurso archivado bloquea el nombre (coherente con el `UNIQUE` de BD, pero
-  conviene que el mensaje 409 lo aclare).
-- **Sugerencia**: opcional — que el 409 sugiera revisar la vista "Archivados".
+  un recurso archivado bloquea el nombre con un 409 confuso.
+- **Corrección aplicada**: los 4 mensajes 409 de nombre duplicado (create+update
+  de servicio y de categoría) añaden "(revisa también los archivados)".
+  Verificado: el 409 devuelve el mensaje aclarado.
 
-#### CAT-5 · BAJA · inconsistencia
-- **Archivo**: `BusinessServiceService.java:114` vs `:161-186`; `ServiceCategoryService.java:73` vs `:115-122`
-- `update*` normaliza el nombre con `trim()`; `create*` no.
-- **Sugerencia**: aplicar `trim()` también en los `create`.
+#### CAT-5 · BAJA · inconsistencia · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `BusinessServiceService.java`, `ServiceCategoryService.java`
+- `update*` normalizaba el nombre con `trim()`; `create*` no.
+- **Corrección aplicada**: `createCategory`/`createService` calculan
+  `String name = request.name().trim()` al inicio y lo usan tanto en el chequeo
+  de duplicados como en el `setName` — así un `"  X  "` no se cuela ante un
+  `"X"` existente. Mismo patrón que ya tenían los `update*`.
 
 #### CAT-6 · INFO · inconsistencia
 - `createCategory` hace `setIsActive(true)` explícito; `createService` confía en
@@ -244,13 +270,14 @@ servicios. Verificado.
   (único caller verificado: `AvailabilityService:258`, solo necesita `user`).
   Verificado: `mvnw test` verde, `/availability` → 200, SQL con `LEFT JOIN users`.
 
-#### APP-2 · BAJA · bug
-- **Archivo**: `AppointmentValidator.java:245-256`
-- `validateAppointmentInterval` hace `minutes % interval` sin defender contra
-  `interval` nulo (NPE) o cero (ArithmeticException) → 500. El schema lo
-  protege hoy (`NOT NULL DEFAULT 30` + `CHECK`), pero el validator es un
-  `@Component` reutilizable que no debería asumirlo.
-- **Sugerencia**: validar `interval != null && interval > 0` al inicio.
+#### APP-2 · BAJA · bug · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `AppointmentValidator.java`
+- `validateAppointmentInterval` hacía `minutes % interval` sin defender contra
+  `interval` nulo (NPE) o cero (ArithmeticException) → 500 críptico.
+- **Corrección aplicada**: guard al inicio — si `interval` es null o ≤0, lanza
+  `500` con mensaje claro ("Error de configuración: el intervalo... no es
+  válido"). El schema sigue garantizándolo; el guard protege el `@Component`
+  reutilizable.
 
 #### APP-4 · BAJA · rendimiento
 - **Archivo**: `AppointmentController.java:91-98`
@@ -259,18 +286,21 @@ servicios. Verificado.
   `application.properties:35`). Correcto — se anota solo para que el tope quede
   documentado junto al endpoint.
 
-#### APP-6 · INFO · inconsistencia
-- **Archivo**: `AvailabilityController.java:67-68`
-- `GET /availability?date=...` no rechaza fechas pasadas, mientras
-  `CreateAppointmentRequest` sí lleva `@FutureOrPresent`. Trabajo inútil para un
-  `date` pasado.
-- **Sugerencia**: añadir `@FutureOrPresent` al `date` del endpoint.
+#### APP-6 · INFO · inconsistencia · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `AvailabilityController.java`
+- `GET /availability?date=...` no rechazaba fechas pasadas, mientras
+  `CreateAppointmentRequest` sí lleva `@FutureOrPresent`.
+- **Corrección aplicada**: `@FutureOrPresent` en el `date` del endpoint (+ su
+  import). Verificado: `/availability?date=2020-01-01` → 400,
+  `date=2026-05-28` → 200.
 
-#### APP-7 · INFO · convención
-- **Archivo**: `AppointmentService.java:86-110`, `AppointmentController.java:35,65`
-- El número de validaciones de `createAppointment` aparece como 14, 15 y 16 en
+#### APP-7 · INFO · convención · ✅ CORREGIDO (2026-05-21)
+- **Archivo**: `AppointmentService.java`, `AppointmentController.java`
+- El número de validaciones de `createAppointment` aparecía como 14, 15 y 16 en
   distintos comentarios.
-- **Sugerencia**: unificar el conteo.
+- **Corrección aplicada**: eliminado el conteo numérico de los 4 comentarios
+  (`AppointmentService` ×2, `AppointmentController` ×2) — ahora dicen "cadena de
+  validaciones" sin número, que no se desincroniza. Solo comentarios.
 
 #### APP-3, APP-5, APP-8 · INFO · (sin acción) — verificados sin desviación
 (mensajes de error, `try/catch` de doble reserva, `BookedService` con precios
@@ -312,12 +342,21 @@ Los únicos hallazgos son **huecos de cobertura de tests**:
   en `AppointmentServiceTest`. `markPayment` (trivial) se deja sin test. Solo
   código de test. Verificado: `mvnw test` → exit 0.
 
-#### SCH-6 · BAJA · cobertura-tests
-- `selectBusiness` no se testea con una membership inactiva.
+#### SCH-6 · BAJA · cobertura-tests · ✅ CORREGIDO (2026-05-21)
+- `selectBusiness` no se testeaba con una membership inactiva.
+- **Corrección aplicada**: nuevo test
+  `selectBusiness_lanza403_cuandoLaMembershipEstaInactiva` en `AuthServiceTest`
+  — membership existente pero `isActive=false` → 403 (cubre la rama que los 2
+  tests de select-business previos no tocaban). `mvnw test` verde.
 
-#### SCH-7 · BAJA · cobertura-tests
+#### SCH-7 · BAJA · cobertura-tests · ✅ CORREGIDO (2026-05-21)
 - Sin test de `PasswordResetService` ni de `UserService.create` (find-or-create
   del `User` por email, lógica delicada del refactor v16).
+- **Corrección aplicada**: nuevo `PasswordResetServiceTest` (5 tests:
+  anti-enumeration de `requestReset`, camino feliz de `requestReset` y
+  `consumeReset`, rechazos 400 por token inexistente/caducado) + nuevo
+  `UserServiceTest` (3 tests de `create`: email nuevo → crea identidad, email
+  existente → la reutiliza, ya-es-empleado → 409). `mvnw test` verde.
 
 #### SCH-1, SCH-2, SCH-3, SCH-8 · INFO · (sin acción) — verificaciones
 explícitas: `columnDefinition="TEXT"` consistente; los índices compuestos no se
@@ -423,8 +462,11 @@ funcionalmente correcto (el backend solo acepta `roleId`).
 - **Frontend ↔ API**: rutas, métodos, payloads y query params casan con los
   controllers (salvo FCO-2 y FPG-17, ya corregidos). Fechas sin sufijo `Z`.
 - **Tests**: `mvnw test` verde; `vite build` verde; E2E 30/30; smoke de API OK.
+- **Javadocs** (2026-05-21): tras aplicar los 26 fixes, los Javadoc y
+  comentarios de los ~30 archivos tocados se revisaron con un subagente; 3
+  desajustes menores de comentario corregidos.
 
 ---
 
-*Generado por la auditoría quirúrgica del 2026-05-21. El backend no se ha
-modificado; el frontend sí (16 correcciones, todas verificadas con build + E2E).*
+*Generado por la auditoría quirúrgica del 2026-05-21. Las correcciones
+aplicadas se marcan ✅ CORREGIDO en cada hallazgo; el resto quedan documentadas.*

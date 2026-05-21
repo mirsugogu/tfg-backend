@@ -59,8 +59,8 @@ public class BusinessServiceService {
      * Pasos:
      *   1. Valida que no exista otro servicio con ese nombre en el negocio (409).
      *   2. Verifica que el negocio existe (404).
-     *   3. Cross-tenant: la categoria pertenece a este negocio (404).
-     *   4. Cross-tenant: el impuesto pertenece a este negocio (404).
+     *   3. Cross-tenant: la categoria pertenece a este negocio y esta activa (404/400).
+     *   4. Cross-tenant: el impuesto pertenece a este negocio y esta activo (404/400).
      *   5. Persiste la entidad con isActive=true por defecto.
      *
      * @param businessId barrera multi-tenant: categoria, impuesto y unicidad
@@ -72,12 +72,14 @@ public class BusinessServiceService {
      */
     public BusinessServiceResponse createService(Long businessId, CreateServiceRequest request) {
 
+        String name = request.name().trim();
+
         // 1. Validar nombre duplicado en el mismo negocio
         if (serviceRepository.existsByBusinessIdAndNameIgnoreCase(
-                businessId, request.name())) {
+                businessId, name)) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
-                    "Ya existe un servicio con ese nombre en este negocio"
+                    "Ya existe un servicio con ese nombre en este negocio (revisa también los archivados)"
             );
         }
 
@@ -88,7 +90,7 @@ public class BusinessServiceService {
                         "No se encontró el negocio con ID: " + businessId
                 ));
 
-        // 3. Cross-tenant: la categoría pertenece a este negocio
+        // 3. Cross-tenant: la categoría pertenece a este negocio y está activa
         ServiceCategory category = categoryRepository
                 .findByIdAndBusinessId(request.categoryId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -96,8 +98,12 @@ public class BusinessServiceService {
                         "No se encontró la categoría con ID: " + request.categoryId()
                                 + " en el negocio con ID: " + businessId
                 ));
+        if (!category.getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "La categoría con ID: " + request.categoryId() + " está desactivada");
+        }
 
-        // 4. Cross-tenant: el impuesto pertenece a este negocio
+        // 4. Cross-tenant: el impuesto pertenece a este negocio y está activo
         Tax tax = taxRepository
                 .findByIdAndBusinessId(request.taxId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -105,13 +111,17 @@ public class BusinessServiceService {
                         "No se encontró el impuesto con ID: " + request.taxId()
                                 + " en el negocio con ID: " + businessId
                 ));
+        if (!tax.getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El impuesto con ID: " + request.taxId() + " está desactivado");
+        }
 
         // 5. Crear la entidad
         BusinessService newService = new BusinessService();
         newService.setBusiness(business);
         newService.setCategory(category);
         newService.setTax(tax);
-        newService.setName(request.name());
+        newService.setName(name);
         newService.setDescription(request.description());
         newService.setPrice(request.price());
         newService.setDurationMinutes(request.durationMinutes());
@@ -128,8 +138,8 @@ public class BusinessServiceService {
     @Transactional(readOnly = true)
     public Page<BusinessServiceResponse> getActiveServicesByBusiness(Long businessId, boolean active, Pageable pageable) {
         Page<BusinessService> page = active
-                ? serviceRepository.findAllByBusinessIdAndIsActiveTrue(businessId, pageable)
-                : serviceRepository.findAllByBusinessIdAndIsActiveFalse(businessId, pageable);
+                ? serviceRepository.findByBusinessIdAndIsActiveTrue(businessId, pageable)
+                : serviceRepository.findByBusinessIdAndIsActiveFalse(businessId, pageable);
         return page.map(BusinessServiceResponse::from);
     }
 
@@ -145,9 +155,9 @@ public class BusinessServiceService {
     /**
      * Actualiza los campos editables de un servicio: name, description,
      * price, durationMinutes, categoryId, taxId. La nueva categoría y el
-     * nuevo impuesto deben pertenecer al mismo negocio (validación
-     * cross-tenant idéntica a la del POST). No permite operar sobre un
-     * servicio desactivado.
+     * nuevo impuesto deben pertenecer al mismo negocio; si se cambian,
+     * además deben estar activos. No permite operar sobre un servicio
+     * desactivado.
      */
     public BusinessServiceResponse updateService(Long businessId, Long id, UpdateServiceRequest request) {
         BusinessService service = findOrThrow(businessId, id);
@@ -162,24 +172,36 @@ public class BusinessServiceService {
         if (!service.getName().equalsIgnoreCase(newName) &&
                 serviceRepository.existsByBusinessIdAndNameIgnoreCase(businessId, newName)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Ya existe un servicio con ese nombre en este negocio");
+                    "Ya existe un servicio con ese nombre en este negocio (revisa también los archivados)");
         }
 
-        // Cross-tenant: la nueva categoría pertenece a este negocio
+        // Cross-tenant: la nueva categoría pertenece a este negocio; si se
+        // cambia, además debe estar activa.
         ServiceCategory category = categoryRepository
                 .findByIdAndBusinessId(request.categoryId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "No se encontró la categoría con ID: " + request.categoryId()
                                 + " en el negocio con ID: " + businessId));
+        if (!request.categoryId().equals(service.getCategory().getId())
+                && !category.getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "La categoría con ID: " + request.categoryId() + " está desactivada");
+        }
 
-        // Cross-tenant: el nuevo impuesto pertenece a este negocio
+        // Cross-tenant: el nuevo impuesto pertenece a este negocio; si se
+        // cambia, además debe estar activo.
         Tax tax = taxRepository
                 .findByIdAndBusinessId(request.taxId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "No se encontró el impuesto con ID: " + request.taxId()
                                 + " en el negocio con ID: " + businessId));
+        if (!request.taxId().equals(service.getTax().getId())
+                && !tax.getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El impuesto con ID: " + request.taxId() + " está desactivado");
+        }
 
         service.setCategory(category);
         service.setTax(tax);

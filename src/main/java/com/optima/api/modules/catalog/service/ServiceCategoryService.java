@@ -54,10 +54,12 @@ public class ServiceCategoryService {
      */
     public ServiceCategoryResponse createCategory(Long businessId, CreateCategoryRequest request) {
 
+        String name = request.name().trim();
+
         // 1. Validar regla de negocio: no nombres duplicados en el mismo negocio
-        if (categoryRepository.existsByBusinessIdAndNameIgnoreCase(businessId, request.name())) {
+        if (categoryRepository.existsByBusinessIdAndNameIgnoreCase(businessId, name)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Ya existe una categoría con ese nombre en este negocio");
+                    "Ya existe una categoría con ese nombre en este negocio (revisa también los archivados)");
         }
 
         // 2. Buscar el negocio
@@ -70,7 +72,7 @@ public class ServiceCategoryService {
         // 3. Crear la entidad
         ServiceCategory category = new ServiceCategory();
         category.setBusiness(business);
-        category.setName(request.name());
+        category.setName(name);
         category.setIsActive(true);
 
         // 4. Guardar y devolver DTO
@@ -85,8 +87,8 @@ public class ServiceCategoryService {
     @Transactional(readOnly = true)
     public Page<ServiceCategoryResponse> getActiveCategories(Long businessId, boolean active, Pageable pageable) {
         Page<ServiceCategory> page = active
-                ? categoryRepository.findAllByBusinessIdAndIsActiveTrue(businessId, pageable)
-                : categoryRepository.findAllByBusinessIdAndIsActiveFalse(businessId, pageable);
+                ? categoryRepository.findByBusinessIdAndIsActiveTrue(businessId, pageable)
+                : categoryRepository.findByBusinessIdAndIsActiveFalse(businessId, pageable);
         return page.map(ServiceCategoryResponse::from);
     }
 
@@ -116,7 +118,7 @@ public class ServiceCategoryService {
         if (!category.getName().equalsIgnoreCase(newName) &&
                 categoryRepository.existsByBusinessIdAndNameIgnoreCase(businessId, newName)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Ya existe una categoría con ese nombre en este negocio");
+                    "Ya existe una categoría con ese nombre en este negocio (revisa también los archivados)");
         }
 
         category.setName(newName);

@@ -83,31 +83,32 @@ public class AppointmentService {
      *
      * QUE HACE EN UNA FRASE:
      * Recibe (clientId, membershipId, serviceIds[], boothId?, startDateTime, notes?),
-     * aplica 16 validaciones, persiste la cita en estado PENDING y crea un
-     * BookedService por cada servicio congelando precio y porcentaje de impuesto.
+     * aplica la cadena de validaciones de negocio, persiste la cita en estado
+     * PENDING y crea un BookedService por servicio congelando precio e impuesto.
      *
-     * Pasos (16 validaciones encadenadas):
+     * Pasos de validacion encadenados (la numeracion coincide con los
+     * comentarios del cuerpo del metodo):
      *    1. Verifica que el negocio existe (404 si no).
      *   1b. Negocio debe estar activo (400 si esta desactivado).
      *    2. Cross-tenant: cliente pertenece a este negocio (404 si no).
-     *    3. Cliente debe estar activo (400 si esta desactivado).
-     *    4. Cross-tenant: empleado pertenece a este negocio (404 si no).
-     *    5. Empleado debe estar activo (400 si esta desactivado).
-     *    6. Hora respeta el appointmentInterval del negocio (400 si no).
-     *    7. Cross-tenant: cada servicio pertenece al negocio (404 si no).
-     *    8. Cada servicio debe estar activo (400 si esta desactivado).
-     *    9. Calcula endDateTime sumando duraciones de los servicios.
-     *   9b. La cita cae en el horario de apertura del negocio (400 si el
+     *   2b. Cliente debe estar activo (400 si esta desactivado).
+     *    3. Cross-tenant: empleado (membership) pertenece al negocio (404 si no).
+     *   3b. Empleado debe estar activo (400 si esta desactivado).
+     *    4. La hora respeta el appointmentInterval del negocio (400 si no).
+     *    5. Cross-tenant: cada servicio pertenece al negocio y esta activo
+     *       (404 / 400 si esta desactivado).
+     *    6. Calcula endDateTime sumando las duraciones de los servicios.
+     *   6b. La cita cae en el horario de apertura del negocio (400 si el
      *       negocio esta cerrado ese dia o si la cita no encaja).
-     *   10. La cita encaja en el horario del empleado (400 si no o
+     *    7. La cita encaja en el horario del empleado (400 si no o
      *       si cruza medianoche).
-     *   11. No solapa con otra cita activa del empleado (409 si si).
-     *   12. No solapa con una ausencia registrada del empleado (409 si si).
-     *   13. Si lleva cabina: cross-tenant + activa + sin solapamiento
+     *    8. No solapa con otra cita activa del empleado (409 si si).
+     *   8a. No solapa con una ausencia registrada del empleado (409 si si).
+     *   8b. Si lleva cabina: cross-tenant + activa + sin solapamiento
      *       de cabina (404/400/409).
-     *   14. No choca con un bloqueo de agenda (global, por empleado
+     *   8c. No choca con un bloqueo de agenda (global, por empleado
      *       o por cabina) (409 si si).
-     *   15. Existe el estado PENDING en BD (500 si no, error de seed).
+     *    9. Existe el estado PENDING en BD (500 si no, error de seed).
      *
      * Por que precios CONGELADOS en BookedService: si manana el negocio
      * sube el precio de "Corte de pelo" de 15 a 20 EUR, las citas

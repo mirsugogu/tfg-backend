@@ -28,7 +28,8 @@ import java.util.Optional;
 /**
  * AuthService - Capa de logica del modulo auth.
  *
- * 3 endpoints:
+ * Cubre 3 de los 5 endpoints de AuthController; los otros 2
+ * (forgot-password y reset-password) los sirve PasswordResetService:
  *   [v16 membership] Login en 2 pasos:
  *     1) POST /api/auth/token (email + password). Caminos posibles:
  *        - 0 memberships activas       -> 401 (sin acceso a ningun negocio).

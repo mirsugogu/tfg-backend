@@ -6,6 +6,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
@@ -54,6 +55,7 @@ import java.util.regex.Pattern;
  *   /api/auth/token           -> NO matchea (login).
  */
 @Component
+@RequiredArgsConstructor
 public class TenantGuardFilter extends OncePerRequestFilter {
 
     /**
@@ -65,7 +67,7 @@ public class TenantGuardFilter extends OncePerRequestFilter {
     private static final Pattern BUSINESS_PATH =
             Pattern.compile("^/api/businesses/([^/]+)(/.*)?$");
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,

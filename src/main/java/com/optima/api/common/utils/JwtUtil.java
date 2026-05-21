@@ -55,7 +55,7 @@ public class JwtUtil {
     @PostConstruct
     public void init() {
         if (secretString == null || secretString.length() < 32) {
-            throw new RuntimeException("ERROR: La clave 'app.jwt.secret' debe tener al menos 32 caracteres.");
+            throw new IllegalStateException("La clave 'app.jwt.secret' debe tener al menos 32 caracteres.");
         }
         this.secretKey = Keys.hmacShaKeyFor(secretString.getBytes(StandardCharsets.UTF_8));
     }

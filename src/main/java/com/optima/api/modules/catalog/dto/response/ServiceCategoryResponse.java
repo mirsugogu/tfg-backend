@@ -23,14 +23,14 @@ public record ServiceCategoryResponse(
         LocalDateTime createdAt,
         LocalDateTime deactivatedAt
 ) {
-    public static ServiceCategoryResponse from(ServiceCategory c) {
+    public static ServiceCategoryResponse from(ServiceCategory category) {
         return new ServiceCategoryResponse(
-                c.getId(),
-                c.getBusiness().getId(),
-                c.getName(),
-                c.getIsActive(),
-                c.getCreatedAt(),
-                c.getDeactivatedAt()
+                category.getId(),
+                category.getBusiness().getId(),
+                category.getName(),
+                category.getIsActive(),
+                category.getCreatedAt(),
+                category.getDeactivatedAt()
         );
     }
 }

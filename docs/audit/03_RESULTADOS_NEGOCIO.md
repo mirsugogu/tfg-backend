@@ -32,6 +32,23 @@
 > predecía y la auditoría original NO obtuvo. El resto de hallazgos se da
 > por cerrado según el mensaje de su commit.
 
+> **🔧 ACTUALIZACIÓN 2026-05-21 — el proyecto evolucionó tras esta auditoría.**
+> Cambios posteriores que afectan a este lote, ya reflejados en
+> `00_MAPA_REAL.md` y `01_PLAN_PRUEBAS.md`:
+>
+> - **Feature Archivar/Reactivar (2026-05-20)**: 6 endpoints nuevos
+>   `PATCH .../{recurso}/{id}/reactivate` (sección G nueva en el plan, casos
+>   G.021–G.038) y el parámetro `?active=true|false` en los 6 listados.
+> - **Revisión quirúrgica (2026-05-21)** — informe en
+>   `docs/REVISION_QUIRURGICA.md`: 26 hallazgos de backend corregidos y
+>   verificados. Cambios de comportamiento que tocan este lote: **APP-6**
+>   (`GET /availability` con fecha pasada → 400, antes 200) y **CAT-3**
+>   (crear o editar un servicio con categoría o impuesto archivados → 400).
+>
+> **Re-verificación 2026-05-21**: `mvnw test` → **30/30 verde**; E2E
+> Playwright del frontend → **30/30**; smoke de API y collection Postman v4
+> → OK. Sin regresiones.
+
 ---
 
 ## 0. Fixtures detectadas en seed v20 vs el plan

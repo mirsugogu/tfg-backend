@@ -1,5 +1,6 @@
 package com.optima.api.common.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
@@ -29,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class TenantGuardFilterTest {
 
-    private final TenantGuardFilter filter = new TenantGuardFilter();
+    private final TenantGuardFilter filter = new TenantGuardFilter(new ObjectMapper());
 
     @AfterEach
     void clearContext() {

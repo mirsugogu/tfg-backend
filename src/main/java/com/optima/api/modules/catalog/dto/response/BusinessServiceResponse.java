@@ -38,21 +38,21 @@ public record BusinessServiceResponse(
         LocalDateTime createdAt,
         LocalDateTime deactivatedAt
 ) {
-    public static BusinessServiceResponse from(BusinessService s) {
+    public static BusinessServiceResponse from(BusinessService service) {
         return new BusinessServiceResponse(
-                s.getId(),
-                s.getBusiness().getId(),
-                s.getCategory().getId(),
-                s.getCategory().getName(),
-                s.getTax().getId(),
-                s.getTax().getName(),
-                s.getName(),
-                s.getDescription(),
-                s.getPrice(),
-                s.getDurationMinutes(),
-                s.getIsActive(),
-                s.getCreatedAt(),
-                s.getDeactivatedAt()
+                service.getId(),
+                service.getBusiness().getId(),
+                service.getCategory().getId(),
+                service.getCategory().getName(),
+                service.getTax().getId(),
+                service.getTax().getName(),
+                service.getName(),
+                service.getDescription(),
+                service.getPrice(),
+                service.getDurationMinutes(),
+                service.getIsActive(),
+                service.getCreatedAt(),
+                service.getDeactivatedAt()
         );
     }
 }

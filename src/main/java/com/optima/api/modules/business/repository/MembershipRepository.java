@@ -111,6 +111,11 @@ public interface MembershipRepository extends JpaRepository<Membership, Long> {
      * Lista todas las memberships del usuario (sin filtrar negocio). El
      * login la usa para decidir si devuelve identity token o tenant token
      * directo, y el endpoint /api/me/businesses la expone al cliente.
+     *
+     * Lleva @EntityGraph(business, role): MembershipSummaryResponse.from()
+     * lee business.name y role.name por fila; sin el grafo cada membership
+     * dispararia 2 selects LAZY extra (N+1 de baja cardinalidad).
      */
+    @EntityGraph(attributePaths = {"business", "role"})
     List<Membership> findAllByUserId(Long userId);
 }

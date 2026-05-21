@@ -25,7 +25,7 @@ import java.time.LocalDate;
  * - Recibe: CRUD HTTP de citas. Requiere JWT (todos los endpoints).
  * - Le precede: JwtAuthFilter + TenantGuardFilter (cross-tenant via path).
  * - Llama a: AppointmentService (delega TODA la logica, incluidas las
- *   14 validaciones encadenadas en createAppointment).
+ *   validaciones encadenadas de createAppointment).
  * - Devuelve: AppointmentResponse (incluye lista de bookedServices con
  *   precios e impuestos congelados).
  *
@@ -59,7 +59,7 @@ public class AppointmentController {
      * El businessId se toma del path; el body trae cliente, empleado,
      * servicios, cabina opcional y horario.
      *
-     * AppointmentService aplica 14 validaciones encadenadas: negocio
+     * AppointmentService aplica una cadena de validaciones: negocio
      * existe, cliente/empleado/servicios activos del negocio, intervalo
      * respetado, empleado trabaja ese dia, no cruza medianoche, no
      * solapa con otra cita activa, cabina (si la lleva) activa y libre,

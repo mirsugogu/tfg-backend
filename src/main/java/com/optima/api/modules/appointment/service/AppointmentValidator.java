@@ -244,6 +244,14 @@ public class AppointmentValidator {
      */
     public void validateAppointmentInterval(LocalDateTime startDateTime,
                                             Integer interval) {
+        if (interval == null || interval <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Error de configuración: el intervalo de cita del negocio "
+                            + "no es válido (" + interval + ")"
+            );
+        }
+
         int minutes = startDateTime.getMinute();
 
         if (minutes % interval != 0) {

@@ -22,14 +22,14 @@ import java.util.Optional;
 public interface ServiceCategoryRepository extends JpaRepository<ServiceCategory, Long> {
 
     /** Lista paginada de categorias activas (excluye soft-deleted) de un negocio. */
-    Page<ServiceCategory> findAllByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
+    Page<ServiceCategory> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
     /**
      * Lista paginada de categorias INACTIVAS (archivadas) de un negocio.
      * Alimenta la vista "Archivados" del listado de categorias, desde la
      * que se reactivan.
      */
-    Page<ServiceCategory> findAllByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
+    Page<ServiceCategory> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
 
     /** Lookup tenant-safe por id+businessId. */
     Optional<ServiceCategory> findByIdAndBusinessId(Long id, Long businessId);

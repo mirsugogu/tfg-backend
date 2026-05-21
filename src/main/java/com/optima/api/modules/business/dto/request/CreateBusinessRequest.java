@@ -8,9 +8,11 @@ import jakarta.validation.constraints.Size;
  * CreateBusinessRequest - DTO de entrada para crear un negocio.
  *
  * COMUNICACION:
- * - Lo deserializa Jackson desde el body JSON de POST /api/businesses.
+ * - Lo deserializa Jackson desde el body JSON de POST /api/businesses
+ *   y, anidado en RegisterRequest, de POST /api/auth/register.
  * - Lo valida @Valid en BusinessController.create.
- * - Lo consume BusinessService.create.
+ * - Lo consume BusinessService.create (y BusinessService.createEntity
+ *   desde AuthService.register en el auto-registro).
  *
  * Validaciones:
  *   name                @NotBlank, max 150 chars.

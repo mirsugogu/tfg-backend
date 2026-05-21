@@ -1,6 +1,6 @@
 # Diagramas del TFG Optima — prosa para la memoria escrita
 
-Este documento acompaña a los 25 diagramas del FigJam de la defensa y reúne
+Este documento acompaña a los 40 diagramas del FigJam de la defensa y reúne
 la prosa académica que justifica cada uno. Está pensado para copiarse
 directamente en la memoria del TFG, ajustando tono y referencias bibliográficas
 según la sección final donde se integre.
@@ -129,16 +129,18 @@ por ejemplo) en caso de fallo intermedio.
 Diagrama detallado del flujo más complejo del proyecto:
 `POST /api/businesses/{businessId}/appointments`. Tras superar Bean Validation
 y `TenantGuardFilter`, el servicio recorre doce pasos dentro de una única
-transacción: cargar y validar `Business`, `Membership`, `Client`, `Booth`
-opcional y `BusinessService`s; comprobar el horario de apertura
-(`validateBusinessHours`); excluir ausencias del empleado
-(`validateNoEmployeeAbsence`); detectar solapes con otras citas del mismo
-empleado bajo pessimistic lock (`validateNoEmployeeOverlap`); detectar
-solapes de la cabina si hay (`validateNoBoothOverlap`); comprobar bloqueos
-globales / por empleado / por cabina (`validateNoScheduleBlock`); congelar el
-precio y el porcentaje de impuesto en `applied_price` y
-`applied_tax_percentage`; finalmente persistir `Appointment` y los
-`BookedService`s. Cada validación tiene su código HTTP de salida: 400 para
+transacción: cargar y validar `Business`, `Client`, `Membership`, `Booth`
+opcional y `BusinessService`s; validar que la hora de inicio respeta el
+intervalo del negocio (`validateAppointmentInterval`); comprobar el horario
+de apertura del negocio (`validateBusinessHours`); comprobar que la cita
+encaja en el horario del empleado (`validateEmployeeSchedule`); detectar
+solapes con otras citas del mismo empleado bajo pessimistic lock
+(`validateNoOverlap`); excluir ausencias del empleado
+(`validateNoEmployeeAbsence`); detectar solapes de la cabina si hay
+(`validateNoBoothOverlap`); comprobar bloqueos globales / por empleado / por
+cabina (`validateNoScheduleBlock`); congelar el precio y el porcentaje de
+impuesto en `applied_price` y `applied_tax_percentage`; finalmente persistir
+`Appointment` y los `BookedService`s. Cada validación tiene su código HTTP de salida: 400 para
 datos inválidos, 409 para conflictos de calendario.
 
 La decisión que respalda es delegar la lógica de validación a un componente
@@ -630,13 +632,19 @@ que enforza la exclusividad (#32).
 
 ## 37. @EntityGraph anti-N+1
 
-Optimización aplicada a los listados de citas para evitar el patrón N+1
-clásico de JPA. Sin optimización, listar 20 citas con cuatro relaciones
-lazy (`client`, `membership`, `status`, `booth`) genera 1+80 queries
-(`SELECT FROM appointments` + 4 selects por cada cita). La anotación
+Optimización aplicada a los listados paginados para evitar el patrón N+1
+clásico de JPA. El caso más ilustrativo es el de las citas: sin
+optimización, listar 20 citas con cuatro relaciones lazy (`client`,
+`membership`, `status`, `booth`) genera 1+80 queries (`SELECT FROM
+appointments` + 4 selects por cada cita). La anotación
 `@EntityGraph(attributePaths = {"client", "membership",
 "membership.user", "status", "booth"})` en el método del repository
-fuerza un `LEFT JOIN FETCH` que carga todo en una sola query. Para
+fuerza un `LEFT JOIN FETCH` que carga todo en una sola query. El mismo
+patrón se aplica hoy a seis repositorios —`AppointmentRepository`,
+`MembershipRepository`, `BusinessServiceRepository`,
+`ScheduleBlockRepository`, `EmployeeAbsenceRepository` y
+`EmployeeScheduleRepository`—, ya que todos sus Response DTO aplanan
+relaciones `@ManyToOne` que dispararían un select lazy por fila. Para
 `BookedService` se usa adicionalmente *batch fetch* con un IN sobre los
 IDs de citas.
 
@@ -646,22 +654,28 @@ un endpoint que el frontend llama al pintar el calendario diario, la
 diferencia entre 81 y 1 queries cambia perceptiblemente la latencia
 percibida por el usuario.
 
-## 38. GlobalExceptionHandler (13 handlers)
+## 38. GlobalExceptionHandler (16 handlers)
 
 Estructura del manejo centralizado de excepciones vía
 `@RestControllerAdvice` en `common/exception/GlobalExceptionHandler.java`.
-Los 13 handlers cubren toda la superficie HTTP: la excepción semántica
-del propio dominio (`ResponseStatusException`), las de validación
-(`MethodArgumentNotValidException`, `ConstraintViolationException`), las
+Los 16 métodos `@ExceptionHandler` cubren toda la superficie HTTP: la
+excepción semántica del propio dominio (`ResponseStatusException`), las de
+validación de entrada (`MethodArgumentNotValidException` para el
+`@RequestBody`; `ConstraintViolationException` para path y query params;
+`MethodArgumentTypeMismatchException`; `PropertyReferenceException` para un
+`sort` inexistente; `NumberFormatException` / `ConversionFailedException`;
+`MissingServletRequestParameterException`; `IllegalArgumentException`), las
 de protocolo HTTP (`HttpMessageNotReadableException`,
 `HttpRequestMethodNotSupportedException`,
-`HttpMediaTypeNotSupportedException`, `NoResourceFoundException`,
-`MissingServletRequestParameterException`), las de seguridad
-(`AccessDeniedException`, `AuthenticationException`), la de integridad
-(`DataIntegrityViolationException`), y el catch-all (`Exception`) que
+`HttpMediaTypeNotSupportedException`, `NoResourceFoundException`), la de
+seguridad de método (`AccessDeniedException`, lanzada por `@PreAuthorize`),
+las de persistencia (`EntityNotFoundException`,
+`DataIntegrityViolationException`), y el catch-all (`Exception`) que
 registra con `log.error` y devuelve 500. Todas serializan a un record
 `ErrorResponse` con cuatro campos (`timestamp`, `status`, `error`,
-`message`).
+`message`). Los rechazos de autenticación (token ausente o inválido) no
+pasan por aquí: los resuelve el `AuthenticationEntryPoint` configurado en
+`SecurityConfig`.
 
 La decisión que respalda es enforcear una única forma de respuesta de
 error en toda la API. El frontend solo necesita conocer la estructura
@@ -671,16 +685,19 @@ inesperadas filtren stack traces de Spring al usuario.
 
 ## 39. Arquitectura de testing (H2 in-memory)
 
-Topología de la suite de tests del proyecto. `mvnw test` ejecuta 16 tests
-sin necesidad de Docker porque
+Topología de la suite de tests del proyecto. `mvnw test` ejecuta 21 tests
+repartidos en 7 clases sin necesidad de Docker porque
 `src/test/resources/application.properties` apunta a una BD H2 en memoria
 con `MODE=MySQL` (lo que permite emular tipos y constraints de MySQL) y
 `ddl-auto=create-drop` (Hibernate recrea el schema en cada test).
-Cobertura mínima: `AuthServiceTest` (7 casos cubriendo los dos caminos
-del login + select-business OK/403), `AppointmentServiceTest` (overlap y
-validaciones cross-tenant), `AvailabilityServiceTest` (caso límite con
-negocio cerrado) y `ApiApplicationTests.contextLoads` (sanity check del
-contexto de Spring).
+La cobertura cruza varias capas: `AuthServiceTest` (7 casos cubriendo los
+dos caminos del login + select-business OK/403), `AppointmentServiceTest`
+(overlap, ausencias y validaciones cross-tenant), `AvailabilityServiceTest`
+(caso límite con negocio cerrado), `AppointmentValidatorTest` (reglas de
+validación de citas), `TenantGuardFilterTest` (aislamiento cross-tenant del
+filtro de seguridad), `AppointmentControllerWebMvcTest` (un `@WebMvcTest`
+que ejercita la capa web aislada) y `ApiApplicationTests.contextLoads`
+(sanity check del contexto de Spring).
 
 La decisión que respalda es separar el contrato de tests del entorno de
 desarrollo. La compañera puede ejecutar `mvnw test` en cualquier máquina

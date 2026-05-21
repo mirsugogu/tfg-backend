@@ -517,8 +517,8 @@
       "name": "08 - employee_absences [AUDIT 5.1, 5.3]",
       "item": [
         {
-          "name": "[AUDIT 5.1] start en pasado -> 400",
-          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));","pm.test('msg @FutureOrPresent',()=>pm.expect(pm.response.json().message).to.include('pasado'));"]}}],
+          "name": "[AUDIT 5.1] start en pasado -> 201 (USR-4: sin @FutureOrPresent)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","pm.test('ausencia con fecha pasada aceptada (USR-4)',()=>pm.expect(pm.response.json().id).to.exist);"]}}],
           "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/users/{{employeeUserId}}/absences","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","users","{{employeeUserId}}","absences"]},"body":{"mode":"raw","raw":"{\"startDateTime\":\"2024-01-01T09:00:00\",\"endDateTime\":\"2024-01-02T09:00:00\",\"reason\":\"Pasado\"}"}}
         },
         {

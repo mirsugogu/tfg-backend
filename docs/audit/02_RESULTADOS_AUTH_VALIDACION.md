@@ -21,6 +21,25 @@
 > posterior) ya recoge ese mismo `@Positive` en español
 > (`"debe ser mayor que 0"`, tests F.012 e I.017).
 
+> **🔧 ACTUALIZACIÓN 2026-05-21 — el proyecto evolucionó tras esta auditoría.**
+> Cambios posteriores que afectan a este lote, ya reflejados en
+> `00_MAPA_REAL.md` y `01_PLAN_PRUEBAS.md`:
+>
+> - **Feature Archivar/Reactivar (2026-05-20)**: 6 endpoints nuevos
+>   `PATCH .../{recurso}/{id}/reactivate` y el parámetro `?active=true|false`
+>   en los 6 listados de recursos soft-delete.
+> - **Revisión quirúrgica (2026-05-21)** — informe en
+>   `docs/REVISION_QUIRURGICA.md`: 26 hallazgos accionables de backend
+>   corregidos y verificados (3 ALTA + 6 MEDIA + 17 BAJA). Cambios de
+>   comportamiento que tocan este lote: **CMN-2** (`businessId` no numérico
+>   en el path → 403, antes 400) y **USR-4** (`CreateEmployeeAbsenceRequest`
+>   ya no exige fecha futura → el caso C.14.001 pasa de 400 a 201).
+>
+> **Re-verificación 2026-05-21**: `mvnw test` → **30/30 verde** (la suite
+> creció de 16 a 30 tests); smoke de API y collection Postman v4 → OK. Sin
+> regresiones; los hallazgos de mejora del audit (N+1, etc.) quedaron
+> cerrados por la revisión quirúrgica.
+
 ---
 
 ## 1. Resumen ejecutivo del lote

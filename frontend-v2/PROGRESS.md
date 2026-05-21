@@ -248,21 +248,23 @@ funcionando (ciclo completo verificado). `vite build` verde.
 
 Auditoría línea a línea de backend + frontend con 8 agentes en paralelo +
 pruebas dinámicas. Informe completo en **`docs/REVISION_QUIRURGICA.md`** (67
-hallazgos: 39 backend solo documentados — no se tocó el backend — y 28
-frontend). Se **corrigieron 16 hallazgos de frontend**: 9 dependencias
+hallazgos, 0 críticos). Se **corrigieron 16 hallazgos de frontend**: 9 dependencias
 fantasma eliminadas de `package.json`, `App.css` muerto borrado, parseo
 defensivo del JWT/`localStorage` en `AuthContext`, IDs únicos de `Toast`,
 asociación `label`↔control en `Input/Select/Textarea`, accesibilidad del
 `Modal` (`role=dialog`, foco), doble-fetch de `usePagedFetch`, código muerto
 de `BusinessSwitcher`, y varios bugs de páginas (entre ellos `Perfil` leía
-`b.roleName` cuando la API devuelve `role`). Verificado: `mvnw test` verde,
+`b.roleName` cuando la API devuelve `role`). En backend se corrigieron
+después los 26 hallazgos accionables (3 ALTA + 6 MEDIA + 17 BAJA) — ver
+`docs/REVISION_QUIRURGICA.md`. Verificado: `mvnw test` verde,
 `vite build` verde, E2E Playwright 30/30, smoke de API OK.
 
-**Pendiente**: solo el **commit** — el bundle, el drawer móvil, los 4 fixes
-de la QA, la feature Archivar/Reactivar, el layout fluido y los 16 fixes de
-la revisión quirúrgica siguen sin commitear. Las 8 mejoras de
-`BACKEND_REQUIRED.md` y los 39 hallazgos de backend de
-`docs/REVISION_QUIRURGICA.md` siguen siendo opcionales y no bloqueantes.
+**Pendiente**: el frontend (bundle, drawer móvil, QA, Archivar/Reactivar,
+layout fluido y los 16 fixes de la revisión) ya está commiteado; quedan sin
+trackear solo los **4 logos** de `public/`. Las 8 mejoras de
+`BACKEND_REQUIRED.md` siguen siendo opcionales y no bloqueantes; los 26
+hallazgos accionables de backend de la revisión quirúrgica sí se corrigieron
+todos (ver `docs/REVISION_QUIRURGICA.md`).
 
 ---
 

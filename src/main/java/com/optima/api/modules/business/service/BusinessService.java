@@ -85,7 +85,7 @@ public class BusinessService {
         }
 
         Business b = new Business();
-        b.setName(request.name());
+        b.setName(request.name().trim());
         b.setSlug(slug);
         b.setEmail(email);
         b.setPhone(request.phone());
@@ -139,7 +139,7 @@ public class BusinessService {
                 "El intervalo de cita debe ser 15, 30, 45 o 60 minutos");
         }
 
-        b.setName(request.name());
+        b.setName(request.name().trim());
         b.setEmail(email);
         b.setPhone(request.phone());
         b.setAddress(request.address());

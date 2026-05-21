@@ -34,11 +34,12 @@ import static org.mockito.Mockito.when;
  * Tests unitarios de AuthService.
  *
  * [v16 membership] Cubre el login en 2 pasos:
- *   - Camino feliz con 1 sola membership activa -> tenant token.
- *   - Camino feliz con varias memberships -> identity token + lista.
- *   - Fallos: email inexistente, password incorrecto, sin memberships.
- * Todos los fallos devuelven 401 con el mismo mensaje para no filtrar
- * informacion al atacante.
+ *   - Paso 1 (login): 1 membership -> tenant token; varias -> identity
+ *     token + lista; fallos (email inexistente, password incorrecto,
+ *     sin memberships activas) -> 401 con el mismo mensaje para no
+ *     filtrar informacion al atacante.
+ *   - Paso 2 (select-business): membership activa -> tenant token;
+ *     sin membership o membership inactiva -> 403.
  */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -210,5 +211,28 @@ class AuthServiceTest {
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(e -> ((ResponseStatusException) e).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void selectBusiness_lanza403_cuandoLaMembershipEstaInactiva() {
+        // La membership existe pero esta desactivada (isActive=false):
+        // selectBusiness debe rechazar con 403, igual que si no existiera.
+        Membership inactiveMembership = new Membership();
+        inactiveMembership.setId(102L);
+        inactiveMembership.setUser(user);
+        inactiveMembership.setBusiness(business);
+        inactiveMembership.setRole(role);
+        inactiveMembership.setIsActive(false);
+
+        when(userRepository.findById(10L)).thenReturn(Optional.of(user));
+        when(membershipRepository.findByUserIdAndBusinessId(10L, 1L))
+                .thenReturn(Optional.of(inactiveMembership));
+
+        assertThatThrownBy(() -> authService.selectBusiness(10L, 1L))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(e -> ((ResponseStatusException) e).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+
+        verify(jwtUtil, never()).generateTenantToken(anyString(), anyLong(), anyLong(), anyString());
     }
 }

@@ -224,6 +224,11 @@ Endpoints con `ADMIN`:
 | B.3.012 | B | EMPLOYEE no puede crear schedule | `tkE(B1)` + POST /…/users/{id}/schedules | 403 | ALTA |
 | B.3.013 | B | EMPLOYEE no puede crear absence | `tkE(B1)` + POST /…/users/{id}/absences | 403 | ALTA |
 | B.3.014 | B | EMPLOYEE no puede crear schedule-block | `tkE(B1)` + POST /…/schedule-blocks | 403 | ALTA |
+| B.3.015 | B | EMPLOYEE no puede reactivate tax | `tkE(B1)` + PATCH /…/taxes/{id}/reactivate | 403 | ALTA |
+| B.3.016 | B | EMPLOYEE no puede reactivate booth | `tkE(B1)` + PATCH /…/booths/{id}/reactivate | 403 | ALTA |
+| B.3.017 | B | EMPLOYEE no puede reactivate categoría | `tkE(B1)` + PATCH /…/categories/{id}/reactivate | 403 | ALTA |
+| B.3.018 | B | EMPLOYEE no puede reactivate servicio | `tkE(B1)` + PATCH /…/services/{id}/reactivate | 403 | ALTA |
+| B.3.019 | B | EMPLOYEE no puede reactivate user (membership) | `tkE(B1)` + PATCH /…/users/{id}/reactivate | 403 | ALTA |
 
 ### B.4 Endpoints sin `@PreAuthorize` (ADMIN y EMPLOYEE permitidos)
 
@@ -237,6 +242,7 @@ Endpoints con `ADMIN`:
 | B.4.006 | B | EMPLOYEE puede PATCH appointment payment | `tkE(B1)` + PATCH /…/appointments/{id}/payment | 200 | ALTA |
 | B.4.007 | B | EMPLOYEE puede GET availability | `tkE(B1)` + GET /…/availability | 200 | ALTA |
 | B.4.008 | B | EMPLOYEE puede GET listados de configuración | `tkE(B1)` + GET /…/taxes, /…/categories, /…/services, /…/booths, /…/hours, /…/users, /…/schedule-blocks | 200 todos (lectura tenant-scoped abierta a ambos roles) | ALTA |
+| B.4.009 | B | EMPLOYEE puede reactivate cliente | `tkE(B1)` + PATCH /…/clients/{id}/reactivate | 200 (ClientController.reactivate sin `@PreAuthorize`, coherente con su DELETE) | ALTA |
 
 ### B.5 permitAll (catálogos globales y auth)
 
@@ -248,7 +254,7 @@ Endpoints con `ADMIN`:
 | B.5.004 | B | GET /swagger-ui.html sin token | — | 200 (permitAll) | INFO |
 | B.5.005 | B | GET /v3/api-docs sin token | — | 200 + JSON OpenAPI | INFO |
 
-**Subtotal B: 47 pruebas.**
+**Subtotal B: 53 pruebas.**
 
 ---
 
@@ -365,6 +371,12 @@ Esta sección cubre los 28 Request DTOs del mapa. Como `LoginRequest`, `Register
 | C.7.014 | C | durationMinutes=10000 | duration muy alto | 201 (no hay max) — anotar como informativo | INFO |
 | C.7.015 | C | description ausente | sin field | 201 | BAJA |
 | C.7.016 | C | description muy largo | description = "x"*10000 | 201 si DB acepta TEXT, 500 si CHARACTER VARYING limitado | INFO |
+| C.7.017 | C | CREATE con categoría archivada | POST service con `categoryId` de una categoría con isActive=false (de B1) | 400 `"La categoría con ID: X está desactivada"` (`BusinessServiceService.createService` valida `category.getIsActive()`) | ALTA |
+| C.7.018 | C | CREATE con impuesto archivado | POST service con `taxId` de un impuesto con isActive=false (de B1) | 400 `"El impuesto con ID: X está desactivado"` | ALTA |
+| C.7.019 | C | UPDATE cambiando a categoría archivada | PUT service con `categoryId` distinto al actual y archivado | 400 `"La categoría con ID: X está desactivada"` (la validación de archivado en update solo salta si el `categoryId` cambia) | ALTA |
+| C.7.020 | C | UPDATE cambiando a impuesto archivado | PUT service con `taxId` distinto al actual y archivado | 400 `"El impuesto con ID: X está desactivado"` | ALTA |
+| C.7.021 | C | UPDATE conservando la categoría ya archivada | PUT service cuyo `categoryId` es el mismo que ya tenía, estando esa categoría archivada | 200 (el chequeo de archivado NO salta cuando el `categoryId` no cambia; documentar comportamiento) | INFO |
+| C.7.022 | C | UPDATE conservando el impuesto ya archivado | PUT service cuyo `taxId` es el mismo que ya tenía, estando ese impuesto archivado | 200 (mismo motivo que C.7.021; documentar) | INFO |
 
 ### C.8 CreateClientRequest / UpdateClientRequest
 
@@ -445,7 +457,7 @@ Esta sección cubre los 28 Request DTOs del mapa. Como `LoginRequest`, `Register
 
 | ID | Bloque | Endpoint/Caso | Input | Esperado | Sev |
 |---|---|---|---|---|---|
-| C.14.001 | C | startDateTime en pasado (Create) | start = "2020-01-01T00:00" | 400 `@FutureOrPresent` | MEDIA |
+| C.14.001 | C | startDateTime en pasado (Create) | start = "2020-01-01T00:00" | 201 (`@FutureOrPresent` se eliminó de `CreateEmployeeAbsenceRequest`: un admin puede registrar una ausencia ya iniciada) | BAJA |
 | C.14.002 | C | startDateTime ahora (Create) | start = now (within 1s) | 201 | BAJA |
 | C.14.003 | C | startDateTime futuro | start = now+1d | 201 | BAJA |
 | C.14.004 | C | endDateTime <= startDateTime | start=now+1d, end=now+1d-1h | 400 (CHECK chk_absence_times) | ALTA |
@@ -500,7 +512,7 @@ Esta sección cubre los 28 Request DTOs del mapa. Como `LoginRequest`, `Register
 |---|---|---|---|---|---|
 | C.18.001 | C | businessId=0 | GET /api/businesses/0 | 400 `@Positive` → handler `ConstraintViolationException` | MEDIA |
 | C.18.002 | C | businessId=-1 | GET /api/businesses/-1 | 400 | MEDIA |
-| C.18.003 | C | businessId="abc" | GET /api/businesses/abc | 400 `MethodArgumentTypeMismatchException` | MEDIA |
+| C.18.003 | C | businessId="abc" | GET /api/businesses/abc con `tk*` | 403 — `TenantGuardFilter` matchea `^/api/businesses/([^/]+)(/.*)?$`, falla al parsear el segmento a Long y rechaza con `"Identificador de negocio no válido"` ANTES de llegar al controller (ya no es 400 `MethodArgumentTypeMismatchException`) | MEDIA |
 | C.18.004 | C | businessId enorme | GET /api/businesses/99999999999999999999 | 400 (overflow Long) | BAJA |
 | C.18.005 | C | businessId con leading zeros | /api/businesses/01 | 200 o 400 (Spring acepta) | INFO |
 | C.18.006 | C | path múltiples positivos | /api/businesses/1/users/0/schedules | 400 `@Positive` en userId | MEDIA |
@@ -519,7 +531,7 @@ Esta sección cubre los 28 Request DTOs del mapa. Como `LoginRequest`, `Register
 | C.19.007 | C | POST user con `passwordHash:"$2a$10$…"` | `{… ,"passwordHash":"$2a$"}` | 201 + el hash se genera en server desde `password`, NO se acepta el del body | CRIT |
 | C.19.008 | C | UPDATE user con campos extra | PUT user con `{roleId:2, "fullName":"hax", "email":"hax@x.com"}` | 200, sólo roleId cambia; fullName/email intactos | ALTA |
 
-**Subtotal C: 168 pruebas.**
+**Subtotal C: 174 pruebas.**
 
 ---
 
@@ -691,14 +703,15 @@ Cubre la tabla `VALID_TRANSITIONS` completa + transiciones inválidas explícita
 | F.025 | F | serviceIds con servicio de otro negocio | serviceIds=[<B2>] con `tkA(B1)` | 404 o 200 vacío; documentar | INFO |
 | F.026 | F | Día completo: paso del intervalo | business interval=30 → comprobar que los slots devueltos son cada 30 min | inspeccionar lista | ALTA |
 | F.027 | F | Duración total > resto de horario | servicios suman 5h, queda 1h al final → último slot debe quedar fuera | inspeccionar lista | ALTA |
+| F.028 | F | date en el pasado | `?date=2020-01-01&serviceIds=1` | 400 — el parámetro `date` ganó `@FutureOrPresent` en `AvailabilityController` (`"La fecha no puede estar en el pasado"`); no tiene sentido consultar disponibilidad de un día ya pasado | MEDIA |
 
-**Subtotal F: 27 pruebas.**
+**Subtotal F: 28 pruebas.**
 
 ---
 
 ## G. Soft delete y reactivación
 
-Según AGENTS.md, soft delete está en: `businesses`, `users`, `memberships`, `clients`, `taxes`, `service_categories`, `services`. Solo `Business` tiene endpoint `/reactivate`.
+Según AGENTS.md, soft delete está en: `businesses`, `users`, `memberships`, `clients`, `taxes`, `service_categories`, `services`. Desde el 2026-05-20 los 6 recursos soft-delete tenant-scoped (taxes, booths, categories, services, clients, users) exponen `PATCH .../{id}/reactivate` además del `Business.reactivate` ya existente; los 6 listados aceptan `?active=true|false`.
 
 | ID | Bloque | Endpoint/Caso | Input | Esperado | Sev |
 |---|---|---|---|---|---|
@@ -722,8 +735,26 @@ Según AGENTS.md, soft delete está en: `businesses`, `users`, `memberships`, `c
 | G.018 | G | POST appointment con booth desactivada | boothId con isActive=false | 400 (paso 13) | ALTA |
 | G.019 | G | DELETE recurso ya desactivado | DELETE /…/taxes/{ya-desactivado} | 204 idempotente o 400 `"ya está desactivado"`; documentar | INFO |
 | G.020 | G | Listado con `?includeInactive=true` (si existe) | GET /…/clients?includeInactive=true | 404 / 200 ignorando param; documentar (no se mencionó query param en el mapa) | INFO |
+| G.021 | G | PATCH reactivate tax archivado | DELETE /…/taxes/{id} + PATCH /…/taxes/{id}/reactivate con `tkA(B1)` | 200 + TaxResponse con isActive=true, deactivatedAt=null | ALTA |
+| G.022 | G | PATCH reactivate tax ya activo | PATCH /…/taxes/{id}/reactivate sobre un impuesto activo | 400 (el service rechaza reactivar un recurso ya activo) | MEDIA |
+| G.023 | G | PATCH reactivate booth archivada | DELETE /…/booths/{id} + PATCH /…/booths/{id}/reactivate con `tkA(B1)` | 200 + BoothResponse con isActive=true, deactivatedAt=null | ALTA |
+| G.024 | G | PATCH reactivate booth ya activa | PATCH /…/booths/{id}/reactivate sobre una cabina activa | 400 | MEDIA |
+| G.025 | G | PATCH reactivate categoría archivada | DELETE /…/categories/{id} + PATCH /…/categories/{id}/reactivate con `tkA(B1)` | 200 + ServiceCategoryResponse con isActive=true | ALTA |
+| G.026 | G | PATCH reactivate categoría ya activa | PATCH /…/categories/{id}/reactivate sobre una categoría activa | 400 | MEDIA |
+| G.027 | G | PATCH reactivate servicio archivado | DELETE /…/services/{id} + PATCH /…/services/{id}/reactivate con `tkA(B1)` | 200 + BusinessServiceResponse con isActive=true | ALTA |
+| G.028 | G | PATCH reactivate servicio ya activo | PATCH /…/services/{id}/reactivate sobre un servicio activo | 400 | MEDIA |
+| G.029 | G | PATCH reactivate cliente archivado | DELETE /…/clients/{id} + PATCH /…/clients/{id}/reactivate con `tkA(B1)` | 200 + ClientResponse con isActive=true, deactivatedAt=null (cierra el gap documentado en G.008) | ALTA |
+| G.030 | G | PATCH reactivate cliente ya activo | PATCH /…/clients/{id}/reactivate sobre un cliente activo | 400 | MEDIA |
+| G.031 | G | PATCH reactivate empleado (membership) archivado | DELETE /…/users/{id} + PATCH /…/users/{id}/reactivate con `tkA(B1)` | 200 + UserResponse con isActive=true | ALTA |
+| G.032 | G | PATCH reactivate empleado ya activo | PATCH /…/users/{id}/reactivate sobre una membership activa | 400 | MEDIA |
+| G.033 | G | GET taxes archivados | GET /…/taxes?active=false (con ≥1 impuesto archivado) | 200 + sólo impuestos con isActive=false; `?active=true` o ausente devuelve sólo activos | ALTA |
+| G.034 | G | GET booths archivadas | GET /…/booths?active=false | 200 + sólo cabinas archivadas; `?active=true`/ausente = sólo activas | ALTA |
+| G.035 | G | GET categorías archivadas | GET /…/categories?active=false | 200 + sólo categorías archivadas; `?active=true`/ausente = sólo activas | ALTA |
+| G.036 | G | GET servicios archivados | GET /…/services?active=false | 200 + sólo servicios archivados; `?active=true`/ausente = sólo activos | ALTA |
+| G.037 | G | GET clientes archivados | GET /…/clients?active=false | 200 + sólo clientes archivados; `?active=true`/ausente = sólo activos | ALTA |
+| G.038 | G | GET empleados archivados | GET /…/users?active=false | 200 + sólo memberships archivadas; `?active=true`/ausente = sólo activas | ALTA |
 
-**Subtotal G: 20 pruebas.**
+**Subtotal G: 38 pruebas.**
 
 ---
 
@@ -1111,12 +1142,12 @@ Casos en los que el bug podría meterse por la vía JPA si la validación de ser
 | Bloque | Nombre | Pruebas |
 |---|---|---|
 | A | Autenticación | 78 |
-| B | Autorización | 47 |
-| C | Validación de DTOs | 168 |
+| B | Autorización | 53 |
+| C | Validación de DTOs | 174 |
 | D | Reglas de negocio appointment | 49 |
 | E | State machine | 40 |
-| F | Availability | 27 |
-| G | Soft delete y reactivación | 20 |
+| F | Availability | 28 |
+| G | Soft delete y reactivación | 38 |
 | H | Edge cases temporales | 12 |
 | I | Paginación, filtros, ordenación | 20 |
 | J | Mensajes de error | 15 |
@@ -1125,7 +1156,7 @@ Casos en los que el bug podría meterse por la vía JPA si la validación de ser
 | M | Preparación frontend (CORS, códigos HTTP) | 12 |
 | N | Seguridad (inyección + vectores) | 69 |
 | O | Otros (CHECK/UNIQUE/FK SQL, datos congelados, UTF-8, Swagger) | 49 |
-| **TOTAL** | | **622** |
+| **TOTAL** | | **653** |
 
 ### Z.2 Estimación de tiempo por bloque (ejecución manual)
 
@@ -1135,7 +1166,7 @@ Asumiendo Postman + curl + SQL Workbench abiertos en paralelo. No incluye fix de
 |---|---|---|
 | A | 4–5 h | Los rate limits (A.6.001-009) tardan wall-clock por refill de buckets (logreseteo manual entre tests o esperar). |
 | B | 2 h | Cambiar token entre tests; construir tokens manipulados con `jwt.io`. |
-| C | 5–6 h | 137 casos; muchos son edits de un campo del body Postman. |
+| C | 5–6 h | 174 casos; muchos son edits de un campo del body Postman. |
 | D | 4–5 h | Incluye preparar fixtures (cliente desactivado, empleado desactivado, schedule_blocks, absences) y curl paralelo para D.2. |
 | E | 2 h | 40 transiciones; reusar appointment recreando estado via SQL `UPDATE`. |
 | F | 2 h | Preparar día con citas + absences + blocks + booths. |
@@ -1188,7 +1219,7 @@ Asumiendo Postman + curl + SQL Workbench abiertos en paralelo. No incluye fix de
 
 Tras ejecutar este plan se generan:
 
-1. **`docs/audit/02_RESULTADOS_PRUEBAS.md`**: tabla con `ID | Resultado | Observaciones` para los 622 casos.
+1. **`docs/audit/02_RESULTADOS_PRUEBAS.md`**: tabla con `ID | Resultado | Observaciones` para los 653 casos.
 2. **`docs/audit/03_HALLAZGOS.md`**: bugs encontrados, agrupados por severidad, con repro mínimo.
 3. **`docs/audit/04_INFORME_FINAL.md`**: resumen ejecutivo "listo para frontend / no listo y por qué", con la decisión final.
 
@@ -1201,9 +1232,9 @@ Tras ejecutar este plan se generan:
 Conteo real obtenido contando filas de tabla con ID `<Bloque>.<…>` (regex `^\| [A-O]\.[0-9]+`):
 
 ```
-A: 78  B: 47  C: 168  D: 49  E: 40  F: 27  G: 20  H: 12
+A: 78  B: 53  C: 174  D: 49  E: 40  F: 28  G: 38  H: 12
 I: 20  J: 15  K: 10   L: 6   M: 12  N: 69  O: 49
-TOTAL: 622
+TOTAL: 653
 ```
 
 Si futuras revisiones añaden o quitan filas, re-ejecutar el conteo y actualizar Z.1.

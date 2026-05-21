@@ -2,6 +2,7 @@ package com.optima.api.modules.appointment.controller;
 
 import com.optima.api.modules.appointment.dto.response.AvailabilityResponse;
 import com.optima.api.modules.appointment.service.AvailabilityService;
+import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -65,6 +66,7 @@ public class AvailabilityController {
             @PathVariable @Positive Long businessId,
 
             @RequestParam
+            @FutureOrPresent(message = "La fecha no puede estar en el pasado")
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
 
             @RequestParam
