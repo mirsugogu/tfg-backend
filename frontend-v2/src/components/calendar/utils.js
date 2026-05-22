@@ -55,11 +55,16 @@ const PALETTE_BY_NAME = Object.fromEntries(PALETTES.map((p) => [p.name, p]))
 export const paletteByName = (name) => PALETTE_BY_NAME[name] || null
 
 /*
- * Devuelve los estilos del evento según el modo "Color por". En modo
+ * Devuelve los estilos del evento según el modo "Color por". Excepción:
+ * las citas terminales (CANCELLED / NO_SHOW) ignoran el modo y van
+ * siempre apagadas, para no camuflarse entre las activas. En modo
  * 'employee', si el empleado tiene color asignado a mano (appt.employeeColor,
  * de memberships.color) se usa ese; si no, cae al color automatico por id.
  */
 export const styleFor = (appt, colorBy) => {
+  // Terminales: apagadas siempre, sea cual sea "Color por".
+  if (appt.statusName === 'CANCELLED' || appt.statusName === 'NO_SHOW')
+    return STATUS_STYLES[appt.statusName]
   if (colorBy === 'status')   return STATUS_STYLES[appt.statusName] || STATUS_STYLES.PENDING
   if (colorBy === 'employee') return paletteByName(appt.employeeColor) || PALETTES[(appt.membershipId ?? 0) % PALETTES.length]
   if (colorBy === 'booth')    return appt.boothId ? PALETTES[(appt.boothId) % PALETTES.length] : GRAY_PALETTE

@@ -77,6 +77,7 @@ export function PositionedEvent({ appt, onClick, col, cols, colorBy, dayStart, h
   const widthPct = 100 / cols
   const s = styleFor(appt, colorBy)
   const isInProgress = appt.statusName === 'IN_PROGRESS'
+  const isTerminal = appt.statusName === 'CANCELLED' || appt.statusName === 'NO_SHOW'
   // El bloque no tiene texto: title + aria-label conservan la info para el
   // hover y para lectores de pantalla.
   const label = `${appt.clientName} · ${apptHHMM(appt.startDateTime)}–${apptHHMM(appt.endDateTime)} · ${appt.userFullName}${appt.boothName ? ' · ' + appt.boothName : ''}`
@@ -89,7 +90,7 @@ export function PositionedEvent({ appt, onClick, col, cols, colorBy, dayStart, h
         top: `${topPx}px`, height: `${heightPx}px`,
         left: `${col * widthPct}%`, width: `${widthPct}%`,
       }}
-      className={`absolute ${s.dot} ring-1 ring-black/10 overflow-hidden transition hover:brightness-110 ${isInProgress ? 'animate-pulse' : ''}`}
+      className={`absolute ${s.dot} ring-1 ring-black/10 overflow-hidden transition hover:brightness-110 ${isInProgress ? 'animate-pulse' : ''} ${isTerminal ? 'opacity-60' : ''}`}
     />
   )
 }
@@ -105,6 +106,7 @@ export function PositionedEvent({ appt, onClick, col, cols, colorBy, dayStart, h
 export function EventChip({ appt, onClick, colorBy, variant = 'list' }) {
   const s = styleFor(appt, colorBy)
   const isInProgress = appt.statusName === 'IN_PROGRESS'
+  const isTerminal = appt.statusName === 'CANCELLED' || appt.statusName === 'NO_SHOW'
   const label = `${appt.clientName} · ${apptHHMM(appt.startDateTime)}–${apptHHMM(appt.endDateTime)} · ${appt.userFullName}${appt.boothName ? ' · ' + appt.boothName : ''}`
 
   if (variant === 'grid') {
@@ -113,7 +115,7 @@ export function EventChip({ appt, onClick, colorBy, variant = 'list' }) {
         onClick={(e) => { e.stopPropagation(); onClick(appt) }}
         title={label}
         aria-label={label}
-        className={`w-full ${s.bg} ${s.hover} ${s.text} px-1.5 py-1 text-[10px] font-bold tabular-nums text-left leading-tight transition ${isInProgress ? 'ring-1 ring-cyan-400 animate-pulse' : ''}`}
+        className={`w-full ${s.bg} ${s.hover} ${s.text} px-1.5 py-1 text-[10px] font-bold tabular-nums text-left leading-tight transition ${isInProgress ? 'ring-1 ring-cyan-400 animate-pulse' : ''} ${isTerminal ? 'line-through opacity-60' : ''}`}
       >
         {apptHHMM(appt.startDateTime)}
       </button>
@@ -124,7 +126,7 @@ export function EventChip({ appt, onClick, colorBy, variant = 'list' }) {
     <button
       onClick={(e) => { e.stopPropagation(); onClick(appt) }}
       title={label}
-      className={`w-full flex items-center gap-1.5 ${s.bg} ${s.hover} ${s.text} text-[11px] font-medium rounded-md px-1.5 py-1 text-left transition ${isInProgress ? 'ring-1 ring-cyan-300 animate-pulse' : ''}`}
+      className={`w-full flex items-center gap-1.5 ${s.bg} ${s.hover} ${s.text} text-[11px] font-medium rounded-md px-1.5 py-1 text-left transition ${isInProgress ? 'ring-1 ring-cyan-300 animate-pulse' : ''} ${isTerminal ? 'line-through opacity-60' : ''}`}
     >
       <span className={`w-0.5 self-stretch ${s.bar} rounded-full shrink-0`} />
       <span className="truncate flex-1">{appt.clientName}</span>
