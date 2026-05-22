@@ -54,14 +54,12 @@ export default function Calendario() {
   const [colorBy, setColorBy] = useState(() => localStorage.getItem('optima_cal_colorby') || 'status')
   useEffect(() => { localStorage.setItem('optima_cal_colorby', colorBy) }, [colorBy])
 
-  const [employeeFilter, setEmployeeFilter] = useState(() => localStorage.getItem('optima_cal_emp') || '')
-  useEffect(() => { localStorage.setItem('optima_cal_emp', employeeFilter) }, [employeeFilter])
-
-  const [boothFilter, setBoothFilter] = useState(() => localStorage.getItem('optima_cal_booth') || '')
-  useEffect(() => { localStorage.setItem('optima_cal_booth', boothFilter) }, [boothFilter])
-
-  const [statusFilter, setStatusFilter] = useState(() => localStorage.getItem('optima_cal_status') || '')
-  useEffect(() => { localStorage.setItem('optima_cal_status', statusFilter) }, [statusFilter])
+  // Filtros de CONTENIDO (qué citas se ven): NO se persisten. Si sobreviven al
+  // cierre de sesión, un filtro olvidado hace "desaparecer" citas reales — p. ej.
+  // una cita nueva (nace en PENDING) con el filtro pegado en otro estado.
+  const [employeeFilter, setEmployeeFilter] = useState('')
+  const [boothFilter, setBoothFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
 
   // Agrupación del Día/Semana: 'time' (cronologica) | 'booth' | 'employee'
   const [groupBy, setGroupBy] = useState(() => localStorage.getItem('optima_cal_groupby') || 'booth')
