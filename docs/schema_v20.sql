@@ -155,6 +155,8 @@ CREATE TABLE memberships (
                             id_role       BIGINT   NOT NULL,
                             is_active     BOOLEAN  NOT NULL DEFAULT TRUE,
                             created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            -- [v21] color del empleado en el calendario (nombre de la paleta fija); NULL = automatico
+                            color         VARCHAR(20) NULL,
                             CONSTRAINT fk_membership_user
                                 FOREIGN KEY (id_user) REFERENCES users(id_user),
                             CONSTRAINT fk_membership_business

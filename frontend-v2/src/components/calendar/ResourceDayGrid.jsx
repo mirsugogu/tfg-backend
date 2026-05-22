@@ -6,7 +6,7 @@
  */
 import { useMemo } from 'react'
 import {
-  PALETTES, GRAY_PALETTE,
+  PALETTES, GRAY_PALETTE, paletteByName,
   keyOf, isSameDay, layoutEvents, openRangesFor,
 } from './utils'
 import { HourColumn, HourSlots, NowLine, PositionedEvent, EventChip } from './cells'
@@ -50,9 +50,8 @@ export function ResourceDayGrid({
             <HourColumn dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} />
             <div className="relative flex-1 grid" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(140px, 1fr))` }}>
               {columns.map((col) => {
-                const palette = col.accent >= 0
-                  ? PALETTES[col.accent % PALETTES.length]
-                  : GRAY_PALETTE
+                const palette = paletteByName(col.color)
+                  || (col.accent >= 0 ? PALETTES[col.accent % PALETTES.length] : GRAY_PALETTE)
                 const laidOut = layoutEvents(col.events)
                 return (
                   <div key={col.id} className="relative border-r-2 border-slate-300 last:border-r-0">
@@ -128,7 +127,7 @@ function ResourceDayAside({ columns, dayEvents, colorBy, onSelectEvent }) {
           {dayEvents.length === 0 ? (
             <p className="text-sm text-slate-400">Sin citas este día.</p>
           ) : columns.map((col) => {
-            const palette = col.accent >= 0 ? PALETTES[col.accent % PALETTES.length] : GRAY_PALETTE
+            const palette = paletteByName(col.color) || (col.accent >= 0 ? PALETTES[col.accent % PALETTES.length] : GRAY_PALETTE)
             return (
               <div key={col.id} className="flex items-center justify-between text-sm">
                 <span className="flex items-center gap-2 min-w-0">

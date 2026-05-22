@@ -137,7 +137,7 @@ public class UserService {
     }
 
     /**
-     * Actualiza el rol del empleado dentro de ESTE negocio.
+     * Actualiza el rol y el color del empleado dentro de ESTE negocio.
      *
      * [v16 membership] Solo toca la membership (rol). Los datos globales
      * de la identidad (fullName, email, phone) se actualizan desde
@@ -165,6 +165,7 @@ public class UserService {
                         "No se encontró el rol con ID: " + request.roleId()));
 
         m.setRole(role);
+        m.setColor(request.color());
         return UserResponse.from(membershipRepository.save(m));
     }
 

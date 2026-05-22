@@ -9,7 +9,7 @@
  *   Fila 2 — sub-columnas de recurso (C1, C2, ..., Sin)
  */
 import {
-  PALETTES, GRAY_PALETTE, DAYS_ES_SHORT,
+  PALETTES, GRAY_PALETTE, DAYS_ES_SHORT, paletteByName,
   keyOf, isSameDay, layoutEvents, openRangesFor, startOfWeek,
 } from './utils'
 import { HourColumn, HourSlots, NowLine, PositionedEvent } from './cells'
@@ -84,7 +84,7 @@ export function WeekResourceGrid({
                   style={{ top: 40, gridTemplateColumns: `repeat(${nCols}, minmax(0, 1fr))` }}
                 >
                   {cols.map((c) => {
-                    const palette = c.accent >= 0 ? PALETTES[c.accent % PALETTES.length] : GRAY_PALETTE
+                    const palette = paletteByName(c.color) || (c.accent >= 0 ? PALETTES[c.accent % PALETTES.length] : GRAY_PALETTE)
                     return (
                       <div
                         key={c.id}

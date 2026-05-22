@@ -34,7 +34,17 @@ const AVATAR_COLORS = [
 ]
 const avatarColor = (id) => AVATAR_COLORS[(id ?? 0) % AVATAR_COLORS.length]
 
-const empty = { fullName: '', email: '', phone: '', password: '', roleId: '' }
+const empty = { fullName: '', email: '', phone: '', password: '', roleId: '', color: '' }
+
+// Paleta fija para el color del empleado en el calendario. Los nombres
+// coinciden con PALETTES de components/calendar/utils.js; varias personas
+// pueden compartir color a proposito.
+const COLOR_OPTIONS = [
+  { name: 'cyan', cls: 'bg-cyan-500' }, { name: 'amber', cls: 'bg-amber-500' },
+  { name: 'emerald', cls: 'bg-emerald-500' }, { name: 'indigo', cls: 'bg-indigo-500' },
+  { name: 'pink', cls: 'bg-pink-500' }, { name: 'sky', cls: 'bg-sky-500' },
+  { name: 'violet', cls: 'bg-violet-500' }, { name: 'teal', cls: 'bg-teal-500' },
+]
 const emptySchedule = { dayOfWeek: '1', startTime: '09:00', endTime: '18:00' }
 const emptyAbsence = { startDateTime: '', endDateTime: '', reason: '' }
 
@@ -146,6 +156,7 @@ export default function Empleados() {
       phone:    e.phone || '',
       password: '',
       roleId:   e.roleId,
+      color:    e.color || '',
     })
     setModal('edit')
   }
@@ -179,10 +190,13 @@ export default function Empleados() {
         })
         toast({ type: 'success', message: 'Empleado creado correctamente.' })
       } else {
-        // Backend solo acepta roleId (mass-assignment protegido). Para
-        // cambiar nombre/email/teléfono, el propio usuario debe editarlo en /perfil.
-        await api.put(`/api/businesses/${bId}/users/${selected.id}`, { roleId: Number(form.roleId) })
-        toast({ type: 'success', message: 'Rol actualizado.' })
+        // El PUT gobierna la "pieza local" de la membership: rol + color.
+        // Nombre/email/teléfono son de la identidad: se editan en /perfil.
+        await api.put(`/api/businesses/${bId}/users/${selected.id}`, {
+          roleId: Number(form.roleId),
+          color: form.color || null,
+        })
+        toast({ type: 'success', message: 'Cambios guardados.' })
       }
       closeModal()
       refresh()
@@ -450,10 +464,36 @@ export default function Empleados() {
               <option key={r.id} value={r.id}>{roleLabel(r.name)}</option>
             ))}
           </Select>
+          {modal === 'edit' && (
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Color en el calendario</label>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, color: '' }))}
+                  title="Sin color — el calendario usa uno automático"
+                  className={`h-8 px-2 rounded-lg border-2 text-[10px] font-bold text-slate-500 transition ${form.color === '' ? 'border-[#1e3a5f]' : 'border-slate-200 hover:border-slate-300'}`}
+                >
+                  Auto
+                </button>
+                {COLOR_OPTIONS.map(({ name, cls }) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, color: name }))}
+                    title={name}
+                    aria-label={`Color ${name}`}
+                    className={`h-8 w-8 rounded-lg ${cls} ring-2 ring-offset-2 transition ${form.color === name ? 'ring-[#1e3a5f]' : 'ring-transparent hover:ring-slate-300'}`}
+                  />
+                ))}
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5">Para diferenciar sus citas de un vistazo. Varios empleados pueden compartir color.</p>
+            </div>
+          )}
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
             <Button onClick={handleSave} loading={saving} className="flex-1">
-              {modal === 'create' ? 'Crear empleado' : 'Guardar rol'}
+              {modal === 'create' ? 'Crear empleado' : 'Guardar cambios'}
             </Button>
           </div>
         </div>
@@ -905,7 +945,7 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
                   <UserMinus size={15} /> Desactivar
                 </Button>
                 <Button onClick={onEditRole} className="flex-1 gap-2">
-                  <Pencil size={15} /> Cambiar rol
+                  <Pencil size={15} /> Editar
                 </Button>
               </>
             )}

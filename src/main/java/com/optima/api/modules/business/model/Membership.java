@@ -86,6 +86,17 @@ public class Membership {
     private Boolean isActive = true;
 
     /**
+     * Color asignado a este empleado dentro de este negocio, para
+     * distinguir sus citas de un vistazo en el calendario. Nullable: si
+     * no se asigna, el frontend cae a un color automatico. El valor es el
+     * nombre de un color de la paleta fija (cyan, amber, emerald, indigo,
+     * pink, sky, violet, teal). Varias memberships pueden compartir color
+     * a proposito (p. ej. dos empleados que hacen el mismo trabajo).
+     */
+    @Column(name = "color")
+    private String color;
+
+    /**
      * Fecha y hora en que se creo la membresia (rellenado por @PrePersist).
      */
     @Column(name = "created_at", nullable = false, updatable = false)

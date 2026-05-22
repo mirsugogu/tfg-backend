@@ -144,12 +144,24 @@ export default function Calendario() {
 
   const refetch = useCallback(() => setReloadFlag((v) => v + 1), [])
 
-  // Filtros client-side (estado + cabina)
-  const filtered = useMemo(() => appointments.filter((a) => {
-    if (statusFilter && a.statusName !== statusFilter) return false
-    if (boothFilter && String(a.boothId ?? '') !== boothFilter) return false
-    return true
-  }), [appointments, statusFilter, boothFilter])
+  // Mapa membershipId -> color asignado al empleado (memberships.color).
+  // "Color por Empleado" pinta las citas con el color que el admin haya
+  // elegido; los empleados sin color caen al automatico.
+  const empColorMap = useMemo(
+    () => new Map(employees.map((e) => [e.id, e.color])),
+    [employees],
+  )
+
+  // Filtros client-side (estado + cabina). Ademas anexa employeeColor a
+  // cada cita para que styleFor pueda usar el color asignado del empleado.
+  const filtered = useMemo(() => appointments
+    .filter((a) => {
+      if (statusFilter && a.statusName !== statusFilter) return false
+      if (boothFilter && String(a.boothId ?? '') !== boothFilter) return false
+      return true
+    })
+    .map((a) => ({ ...a, employeeColor: empColorMap.get(a.membershipId) ?? null })),
+    [appointments, statusFilter, boothFilter, empColorMap])
 
   // Agrupado por día
   const eventsByDay = useMemo(() => {
@@ -254,6 +266,7 @@ export default function Calendario() {
       name: e.fullName,
       short: (e.fullName || '').trim().split(/\s+/).map((s) => s[0]).slice(0, 2).join(''),
       accent: e.id,
+      color: e.color,
     })),
     [employees],
   )

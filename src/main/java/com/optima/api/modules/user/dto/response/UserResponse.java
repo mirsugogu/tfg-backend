@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
  *     /api/businesses/{businessId}/users/{id} usan este valor.
  *   - `userId` = id de la identidad subyacente (User), util para enlazar
  *     varias memberships del mismo email.
- *   - `businessId`, `roleId`, `roleName` = atributos de la membership.
+ *   - `businessId`, `roleId`, `roleName`, `color` = atributos de la membership.
  *   - `fullName`, `email`, `phone` = atributos de la identidad.
  *   - `isActive`, `createdAt` = de la membership (cuando el empleado entro
  *     en este negocio).
@@ -34,6 +34,7 @@ public record UserResponse(
         String fullName,
         String email,
         String phone,
+        String color,
         Boolean isActive,
         LocalDateTime createdAt
 ) {
@@ -48,6 +49,7 @@ public record UserResponse(
                 u.getFullName(),
                 u.getEmail(),
                 u.getPhone(),
+                m.getColor(),
                 m.getIsActive(),
                 m.getCreatedAt()
         );

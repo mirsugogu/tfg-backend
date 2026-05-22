@@ -23,14 +23,14 @@ export const HOUR_PX = { comfortable: 64, compact: 40 }
  * de los chips de estado.
  */
 export const PALETTES = [
-  { bg: 'bg-cyan-100',    text: 'text-cyan-800',    bar: 'bg-cyan-600',    ring: 'ring-cyan-400',    hover: 'hover:bg-cyan-200',    dot: 'bg-cyan-500' },
-  { bg: 'bg-amber-100',   text: 'text-amber-800',   bar: 'bg-amber-600',   ring: 'ring-amber-400',   hover: 'hover:bg-amber-200',   dot: 'bg-amber-500' },
-  { bg: 'bg-emerald-100', text: 'text-emerald-800', bar: 'bg-emerald-600', ring: 'ring-emerald-400', hover: 'hover:bg-emerald-200', dot: 'bg-emerald-500' },
-  { bg: 'bg-indigo-100',  text: 'text-indigo-800',  bar: 'bg-indigo-600',  ring: 'ring-indigo-400',  hover: 'hover:bg-indigo-200',  dot: 'bg-indigo-500' },
-  { bg: 'bg-pink-100',    text: 'text-pink-800',    bar: 'bg-pink-600',    ring: 'ring-pink-400',    hover: 'hover:bg-pink-200',    dot: 'bg-pink-500' },
-  { bg: 'bg-sky-100',     text: 'text-sky-800',     bar: 'bg-sky-600',     ring: 'ring-sky-400',     hover: 'hover:bg-sky-200',     dot: 'bg-sky-500' },
-  { bg: 'bg-violet-100',  text: 'text-violet-800',  bar: 'bg-violet-600',  ring: 'ring-violet-400',  hover: 'hover:bg-violet-200',  dot: 'bg-violet-500' },
-  { bg: 'bg-teal-100',    text: 'text-teal-800',    bar: 'bg-teal-600',    ring: 'ring-teal-400',    hover: 'hover:bg-teal-200',    dot: 'bg-teal-500' },
+  { name: 'cyan',    bg: 'bg-cyan-100',    text: 'text-cyan-800',    bar: 'bg-cyan-600',    ring: 'ring-cyan-400',    hover: 'hover:bg-cyan-200',    dot: 'bg-cyan-500' },
+  { name: 'amber',   bg: 'bg-amber-100',   text: 'text-amber-800',   bar: 'bg-amber-600',   ring: 'ring-amber-400',   hover: 'hover:bg-amber-200',   dot: 'bg-amber-500' },
+  { name: 'emerald', bg: 'bg-emerald-100', text: 'text-emerald-800', bar: 'bg-emerald-600', ring: 'ring-emerald-400', hover: 'hover:bg-emerald-200', dot: 'bg-emerald-500' },
+  { name: 'indigo',  bg: 'bg-indigo-100',  text: 'text-indigo-800',  bar: 'bg-indigo-600',  ring: 'ring-indigo-400',  hover: 'hover:bg-indigo-200',  dot: 'bg-indigo-500' },
+  { name: 'pink',    bg: 'bg-pink-100',    text: 'text-pink-800',    bar: 'bg-pink-600',    ring: 'ring-pink-400',    hover: 'hover:bg-pink-200',    dot: 'bg-pink-500' },
+  { name: 'sky',     bg: 'bg-sky-100',     text: 'text-sky-800',     bar: 'bg-sky-600',     ring: 'ring-sky-400',     hover: 'hover:bg-sky-200',     dot: 'bg-sky-500' },
+  { name: 'violet',  bg: 'bg-violet-100',  text: 'text-violet-800',  bar: 'bg-violet-600',  ring: 'ring-violet-400',  hover: 'hover:bg-violet-200',  dot: 'bg-violet-500' },
+  { name: 'teal',    bg: 'bg-teal-100',    text: 'text-teal-800',    bar: 'bg-teal-600',    ring: 'ring-teal-400',    hover: 'hover:bg-teal-200',    dot: 'bg-teal-500' },
 ]
 
 /*
@@ -49,10 +49,19 @@ export const STATUS_STYLES = {
 }
 export const GRAY_PALETTE = { bg:'bg-slate-200', text:'text-slate-600', bar:'bg-slate-500', ring:'ring-slate-400', hover:'hover:bg-slate-300', dot:'bg-slate-500' }
 
-/* Devuelve los estilos del evento según el modo "Color por". */
+/* Paleta por nombre ('cyan', 'amber'…); null si el nombre no existe — el
+ * llamador decide el fallback. */
+const PALETTE_BY_NAME = Object.fromEntries(PALETTES.map((p) => [p.name, p]))
+export const paletteByName = (name) => PALETTE_BY_NAME[name] || null
+
+/*
+ * Devuelve los estilos del evento según el modo "Color por". En modo
+ * 'employee', si el empleado tiene color asignado a mano (appt.employeeColor,
+ * de memberships.color) se usa ese; si no, cae al color automatico por id.
+ */
 export const styleFor = (appt, colorBy) => {
   if (colorBy === 'status')   return STATUS_STYLES[appt.statusName] || STATUS_STYLES.PENDING
-  if (colorBy === 'employee') return PALETTES[(appt.membershipId ?? 0) % PALETTES.length]
+  if (colorBy === 'employee') return paletteByName(appt.employeeColor) || PALETTES[(appt.membershipId ?? 0) % PALETTES.length]
   if (colorBy === 'booth')    return appt.boothId ? PALETTES[(appt.boothId) % PALETTES.length] : GRAY_PALETTE
   return STATUS_STYLES[appt.statusName] || STATUS_STYLES.PENDING
 }
