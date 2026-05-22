@@ -883,12 +883,14 @@ function BoothsTab({ bId, isAdmin }) {
 
 function BlocksTab({ bId, isAdmin }) {
   const toast = useToast()
-  const [pageSize, setPageSize] = useState(() => parseInt(localStorage.getItem('optima_cfg_blocks_size') || '20', 10))
-  useEffect(() => { localStorage.setItem('optima_cfg_blocks_size', String(pageSize)) }, [pageSize])
   const [typeFilter, setTypeFilter] = useState('ALL')
 
-  const { items: blocks, page, totalPages, totalElements, loading, setPage, refresh } =
-    usePagedFetch(bId ? `/api/businesses/${bId}/schedule-blocks` : null, { size: pageSize })
+  // Sin paginación: esta pestaña agrupa los bloqueos en secciones (En curso /
+  // Próximos / Pasados). Paginar descuadraría el recuento de cada sección
+  // frente al total. size=100 es el tope del backend, de sobra para los
+  // bloqueos de agenda de un negocio.
+  const { items: blocks, totalElements, loading, refresh } =
+    usePagedFetch(bId ? `/api/businesses/${bId}/schedule-blocks` : null, { size: 100 })
 
   const [employees, setEmployees] = useState([])
   const [booths, setBooths]       = useState([])
@@ -1011,13 +1013,9 @@ function BlocksTab({ bId, isAdmin }) {
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
         <span className="text-xs text-slate-500">{totalElements} bloqueo{totalElements === 1 ? '' : 's'}</span>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-slate-500">Mostrar</span>
-          <select value={pageSize} onChange={(e) => { setPageSize(parseInt(e.target.value, 10)); setPage(0) }} className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-[#1e3a5f] focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition">
-            <option value={10}>10</option><option value={20}>20</option><option value={50}>50</option>
-          </select>
-          {isAdmin && <Button onClick={openCreate} className="gap-2" size="sm"><Plus size={14} /> Nuevo bloqueo</Button>}
-        </div>
+        {isAdmin && (
+          <Button onClick={openCreate} className="ml-auto gap-2" size="sm"><Plus size={14} /> Nuevo bloqueo</Button>
+        )}
       </div>
 
       {loading ? (
@@ -1056,12 +1054,6 @@ function BlocksTab({ bId, isAdmin }) {
               <div className="space-y-2">{sections.past.map((b) => <BlockCard key={b.id} b={b} kind="past" />)}</div>
             </div>
           )}
-        </div>
-      )}
-
-      {totalPages > 1 && (
-        <div className={`mt-6 ${CARD} overflow-hidden`}>
-          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onChange={setPage} />
         </div>
       )}
 

@@ -9,7 +9,13 @@ import { useToast } from '@/components/ui/Toast'
 import api, { getErrorMessage } from '@/lib/api'
 import { toHms, hhmm, formatDateLong } from '@/lib/format'
 
-const todayStr = () => new Date().toISOString().slice(0, 10)
+// Fecha de hoy en 'YYYY-MM-DD' usando la hora LOCAL. Con
+// new Date().toISOString() se usaría UTC y la fecha podría saltar al día
+// anterior/siguiente según la zona horaria (en España, de 00:00 a ~02:00).
+const todayStr = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 const emptyForm = { clientId: '', membershipId: '', boothId: '', serviceIds: [], date: todayStr(), notes: '' }
 
 /** Indicador visual de los 3 pasos del asistente. */

@@ -255,7 +255,7 @@ function TodayTimeline({ list, now, onSelect, dayStart = 9, dayEnd = 21 }) {
             {label}
           </span>
         ))}
-        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-rose-500" /> Ahora · {hhmm(now.toISOString())}</span>
+        <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-rose-500" /> Ahora · {now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
       </div>
     </div>
   )

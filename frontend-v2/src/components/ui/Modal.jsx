@@ -6,11 +6,20 @@ export function Modal({ open, onClose, title, children, size = 'md' }) {
   const titleId = useId()
   const panelRef = useRef(null)
 
+  // El componente padre recrea `onClose` en cada render (p. ej.
+  // `onClose={() => setModal(null)}`). Lo guardamos en un ref para leerlo
+  // desde el efecto de abajo SIN incluirlo en sus dependencias: si
+  // estuviera en las deps, el efecto se re-ejecutaría en cada render del
+  // padre — y como un formulario re-renderiza en cada pulsación de tecla,
+  // el `panelRef.current.focus()` robaría el foco al <input> letra a letra.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
+
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
     if (!open) return
     // Cerrar con la tecla Escape, igual que los drawers laterales.
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
+    const onKey = (e) => { if (e.key === 'Escape') onCloseRef.current?.() }
     window.addEventListener('keydown', onKey)
     // Accesibilidad: al abrir, recuerda el elemento que tenía el foco y
     // muévelo al diálogo; al cerrar, restáuralo. Sin esto el foco se queda
@@ -22,7 +31,9 @@ export function Modal({ open, onClose, title, children, size = 'md' }) {
       window.removeEventListener('keydown', onKey)
       if (prevFocus instanceof HTMLElement) prevFocus.focus()
     }
-  }, [open, onClose])
+    // Dependencia SOLO `open`: el efecto debe correr al abrir/cerrar el
+    // modal, nunca en cada render del padre (ver comentario del ref arriba).
+  }, [open])
 
   if (!open) return null
 
@@ -41,11 +52,14 @@ export function Modal({ open, onClose, title, children, size = 'md' }) {
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cn(
-          'relative w-full rounded-2xl bg-white shadow-[0_20px_60px_-10px_rgba(15,23,42,0.25)] animate-in fade-in zoom-in-95 duration-200 focus:outline-none',
+          // max-h + flex-col: el panel nunca supera el 90% del alto de la
+          // ventana; si el contenido es más alto, el cuerpo hace scroll en
+          // lugar de salirse de la pantalla (crítico en móvil y pantallas bajas).
+          'relative flex max-h-[90vh] w-full flex-col rounded-2xl bg-white shadow-[0_20px_60px_-10px_rgba(15,23,42,0.25)] animate-in fade-in zoom-in-95 duration-200 focus:outline-none',
           sizes[size]
         )}
       >
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
           <h2 id={titleId} className="text-base font-bold text-[#1e3a5f] tracking-tight">{title}</h2>
           <button
             onClick={onClose}
@@ -55,7 +69,10 @@ export function Modal({ open, onClose, title, children, size = 'md' }) {
             <X size={17} />
           </button>
         </div>
-        <div className="px-6 py-5">{children}</div>
+        {/* min-h-0 permite que este bloque encoja dentro del flex y, con
+            overflow-y-auto, el contenido largo hace scroll sin tapar la
+            cabecera ni dejar los botones fuera de la pantalla. */}
+        <div className="min-h-0 overflow-y-auto px-6 py-5">{children}</div>
       </div>
     </div>
   )

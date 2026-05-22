@@ -41,9 +41,17 @@ const CAT_PALETTE = [
 ]
 const catColor = (id) => CAT_PALETTE[((id ?? 1) - 1) % CAT_PALETTE.length]
 
-const taxPercentage = (taxes, id) => Number(taxes.find((t) => t.id === id)?.percentage ?? 0)
-const priceWithVat = (service, taxes) =>
-  Number(service.price) * (1 + taxPercentage(taxes, service.taxId) / 100)
+// Si el impuesto del servicio no está en la lista (p. ej. fue archivado, y
+// GET /taxes solo devuelve los activos) devolvemos null en vez de asumir 0 %:
+// así la UI muestra "IVA no disponible" / "—" en lugar de un total inventado.
+const taxPercentage = (taxes, id) => {
+  const pct = taxes.find((t) => t.id === id)?.percentage
+  return pct == null ? null : Number(pct)
+}
+const priceWithVat = (service, taxes) => {
+  const pct = taxPercentage(taxes, service.taxId)
+  return pct == null ? null : Number(service.price) * (1 + pct / 100)
+}
 
 /* ============================================================
    CATÁLOGO
@@ -934,7 +942,9 @@ function ServiceCard({ service, taxes, isAdmin, archived, onOpen, onEdit, onArch
         <div>
           <div className="text-base font-extrabold text-blue-600 tabular-nums">{fmtEur(service.price)}</div>
           <div className="text-[10px] text-slate-400 tabular-nums">
-            {service.taxName} · {fmtEur(totalWithVat)} con IVA
+            {totalWithVat == null
+              ? 'IVA no disponible'
+              : `${service.taxName} · ${fmtEur(totalWithVat)} con IVA`}
           </div>
         </div>
         <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500 transition" />
@@ -1068,7 +1078,7 @@ function ServicesTable({ list, taxes, isAdmin, archived, onOpen, onEdit, onArchi
                   </td>
                   <td className="px-2 py-3.5 text-right font-bold text-blue-600 tabular-nums">{fmtEur(s.price)}</td>
                   <td className="px-2 py-3.5 text-right hidden md:table-cell text-xs text-slate-500 tabular-nums">
-                    {fmtEur(totalWithVat)}
+                    {totalWithVat == null ? '—' : fmtEur(totalWithVat)}
                     <div className="text-[10px] text-slate-400">{s.taxName}</div>
                   </td>
                   <td className="px-6 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
@@ -1143,7 +1153,9 @@ function ServiceDrawer({ service, taxes, isAdmin, archived, onClose, onEdit, onA
               <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Precio base</div>
               <div className="text-2xl font-extrabold text-[#1e3a5f] mt-1 tabular-nums">{fmtEur(service.price)}</div>
               <div className="text-xs text-emerald-600 mt-0.5 font-semibold tabular-nums">
-                + {service.taxName} · {fmtEur(totalWithVat)} con IVA
+                {totalWithVat == null
+                  ? 'IVA no disponible'
+                  : `+ ${service.taxName} · ${fmtEur(totalWithVat)} con IVA`}
               </div>
             </div>
             <div className="rounded-xl border border-slate-100 px-4 py-3">

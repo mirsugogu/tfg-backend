@@ -21,7 +21,7 @@ import { totalBooked } from '@/lib/format'
    ============================================================ */
 
 const DAYS_SHORT = ['', 'L', 'M', 'X', 'J', 'V', 'S', 'D']
-const DAYS_FULL = ['', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo']
+const DAYS_FULL = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 const ACTIVE_STATUSES = ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
 
 const AVATAR_COLORS = [
@@ -236,7 +236,7 @@ export default function Empleados() {
             {loading
               ? '…'
               : isArchived
-                ? `${totalElements} usuario${totalElements === 1 ? '' : 's'} archivado${totalElements === 1 ? '' : 's'}`
+                ? `${totalElements} usuario${totalElements === 1 ? '' : 's'} desactivado${totalElements === 1 ? '' : 's'}`
                 : `${totalElements} usuario${totalElements === 1 ? '' : 's'} en plantilla`}
           </p>
         </div>
@@ -293,7 +293,7 @@ export default function Empleados() {
 
         {/* Vista activos / archivados */}
         <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
-          {[{ key: 'active', label: 'Activos' }, { key: 'archived', label: 'Archivados' }].map(({ key, label }) => (
+          {[{ key: 'active', label: 'Activos' }, { key: 'archived', label: 'Desactivados' }].map(({ key, label }) => (
             <button key={key} type="button" onClick={() => setView(key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                 view === key ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-[#1e3a5f]'
@@ -343,7 +343,7 @@ export default function Empleados() {
             ) : isArchived ? (
               <EmptyState
                 icon={Users}
-                title="No hay empleados archivados"
+                title="No hay empleados desactivados"
                 description="Los empleados que desactives aparecerán aquí para que puedas reactivarlos."
               />
             ) : (
@@ -975,20 +975,20 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
         size="sm"
       >
         <div className="space-y-4">
+          {/* Sin 'min': el backend acepta ausencias con inicio en el pasado
+              (caso real: a las 14:00 registras una baja que empezó a las 8:00).
+              handleAbsSave ya valida que el fin sea posterior al inicio. */}
           <Input
             label="Inicio *"
             type="datetime-local"
             value={absenceForm.startDateTime}
-            min={absenceModal === 'create' ? new Date().toISOString().slice(0, 16) : undefined}
             onChange={(e) => setAbsenceForm((p) => ({ ...p, startDateTime: e.target.value }))}
           />
           <Input
             label="Fin *"
             type="datetime-local"
             value={absenceForm.endDateTime}
-            min={absenceModal === 'create'
-              ? (absenceForm.startDateTime || new Date().toISOString().slice(0, 16))
-              : absenceForm.startDateTime || undefined}
+            min={absenceForm.startDateTime || undefined}
             onChange={(e) => setAbsenceForm((p) => ({ ...p, endDateTime: e.target.value }))}
           />
           <Input
