@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ChevronLeft, ChevronRight, Plus, RefreshCw, Printer,
-  Users as UsersIcon, MapPin as MapPinIcon, Palette,
+  Palette, SlidersHorizontal, X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { AppointmentWizard } from '@/components/appointments/AppointmentWizard'
@@ -12,113 +12,30 @@ import { useToast } from '@/components/ui/Toast'
 import api, { getErrorMessage } from '@/lib/api'
 import { totalBooked } from '@/lib/format'
 
-/* ============================================================
-   CONSTANTES Y HELPERS
-   ============================================================ */
-
-const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-const DAYS_ES_SHORT = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
-const VIEW_MODES = ['Mes','Semana','Día']
-
-// Defaults — luego se ajustan dinámicamente desde business_hours
-const DEFAULT_DAY_START = 8
-const DEFAULT_DAY_END   = 21
-
-// Densidad: px por hora
-const HOUR_PX = { comfortable: 64, compact: 40 }
-
-// Paleta determinista para "Color por" Empleado / Cabina
-const PALETTES = [
-  { bg: 'bg-cyan-50',     text: 'text-cyan-700',     bar: 'bg-cyan-500',     ring: 'ring-cyan-200',     hover: 'hover:bg-cyan-100',     dot: 'bg-cyan-500' },
-  { bg: 'bg-amber-50',    text: 'text-amber-700',    bar: 'bg-amber-500',    ring: 'ring-amber-200',    hover: 'hover:bg-amber-100',    dot: 'bg-amber-500' },
-  { bg: 'bg-emerald-50',  text: 'text-emerald-700',  bar: 'bg-emerald-500',  ring: 'ring-emerald-200',  hover: 'hover:bg-emerald-100',  dot: 'bg-emerald-500' },
-  { bg: 'bg-indigo-50',   text: 'text-indigo-700',   bar: 'bg-indigo-500',   ring: 'ring-indigo-200',   hover: 'hover:bg-indigo-100',   dot: 'bg-indigo-500' },
-  { bg: 'bg-pink-50',     text: 'text-pink-700',     bar: 'bg-pink-500',     ring: 'ring-pink-200',     hover: 'hover:bg-pink-100',     dot: 'bg-pink-500' },
-  { bg: 'bg-sky-50',      text: 'text-sky-700',      bar: 'bg-sky-500',      ring: 'ring-sky-200',      hover: 'hover:bg-sky-100',      dot: 'bg-sky-500' },
-  { bg: 'bg-violet-50',   text: 'text-violet-700',   bar: 'bg-violet-500',   ring: 'ring-violet-200',   hover: 'hover:bg-violet-100',   dot: 'bg-violet-500' },
-  { bg: 'bg-teal-50',     text: 'text-teal-700',     bar: 'bg-teal-500',     ring: 'ring-teal-200',     hover: 'hover:bg-teal-100',     dot: 'bg-teal-500' },
-]
-
-// Por estado: 6 colores fijos (los de antes)
-const STATUS_STYLES = {
-  PENDING:     { bg:'bg-amber-50',   text:'text-amber-700',   bar:'bg-amber-500',   ring:'ring-amber-200',   hover:'hover:bg-amber-100',  dot:'bg-amber-500' },
-  CONFIRMED:   { bg:'bg-blue-50',    text:'text-blue-700',    bar:'bg-blue-500',    ring:'ring-blue-200',    hover:'hover:bg-blue-100',   dot:'bg-blue-500' },
-  IN_PROGRESS: { bg:'bg-cyan-50',    text:'text-cyan-700',    bar:'bg-cyan-500',    ring:'ring-cyan-200',    hover:'hover:bg-cyan-100',   dot:'bg-cyan-500' },
-  COMPLETED:   { bg:'bg-emerald-50', text:'text-emerald-700', bar:'bg-emerald-500', ring:'ring-emerald-200', hover:'hover:bg-emerald-100',dot:'bg-emerald-500' },
-  CANCELLED:   { bg:'bg-slate-100',  text:'text-slate-500',   bar:'bg-slate-400',   ring:'ring-slate-200',   hover:'hover:bg-slate-200',  dot:'bg-slate-400' },
-  NO_SHOW:     { bg:'bg-rose-50',    text:'text-rose-600',    bar:'bg-rose-400',    ring:'ring-rose-200',    hover:'hover:bg-rose-100',   dot:'bg-rose-400' },
-}
-const GRAY = { bg:'bg-slate-100', text:'text-slate-500', bar:'bg-slate-400', ring:'ring-slate-200', hover:'hover:bg-slate-200', dot:'bg-slate-400' }
-
-// Devuelve los estilos del evento según el modo "Color por"
-const styleFor = (appt, colorBy) => {
-  if (colorBy === 'status')   return STATUS_STYLES[appt.statusName] || STATUS_STYLES.PENDING
-  if (colorBy === 'employee') return PALETTES[(appt.membershipId ?? 0) % PALETTES.length]
-  if (colorBy === 'booth')    return appt.boothId ? PALETTES[(appt.boothId) % PALETTES.length] : GRAY
-  return STATUS_STYLES[appt.statusName] || STATUS_STYLES.PENDING
-}
-
-// helpers fecha
-const pad2 = (n) => String(n).padStart(2, '0')
-const keyOf = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
-const isSameDay = (a, b) =>
-  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-const startOfWeek = (d) => {
-  const dow = (d.getDay() + 6) % 7
-  const r = new Date(d); r.setDate(d.getDate() - dow); r.setHours(0, 0, 0, 0); return r
-}
-const buildMonthGrid = (year, month) => {
-  const first = new Date(year, month, 1)
-  const dow = (first.getDay() + 6) % 7
-  const start = new Date(year, month, 1 - dow)
-  return Array.from({ length: 42 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d })
-}
-const rangeFor = (view, cursor) => {
-  if (view === 'Mes') {
-    const cells = buildMonthGrid(cursor.getFullYear(), cursor.getMonth())
-    return { from: keyOf(cells[0]), to: keyOf(cells[41]) }
-  }
-  if (view === 'Semana') {
-    const ws = startOfWeek(cursor); const we = new Date(ws); we.setDate(ws.getDate() + 6)
-    return { from: keyOf(ws), to: keyOf(we) }
-  }
-  return { from: keyOf(cursor), to: keyOf(cursor) }
-}
-
-// helpers cita
-const apptDate = (a) => a.startDateTime.slice(0, 10)
-const apptHHMM = (iso) => iso.slice(11, 16)
-const minutesOf = (iso) => { const [h, m] = iso.slice(11, 16).split(':'); return Number(h) * 60 + Number(m) }
-const apptDuration = (a) => Math.max(15, minutesOf(a.endDateTime) - minutesOf(a.startDateTime))
-
-const layoutEvents = (events) => {
-  const items = events
-    .map((a) => { const startMin = minutesOf(a.startDateTime); return { a, startMin, endMin: startMin + apptDuration(a) } })
-    .sort((x, y) => x.startMin - y.startMin || x.endMin - y.endMin)
-  const groups = []
-  let current = [], currentEnd = -1
-  items.forEach((it) => {
-    if (it.startMin < currentEnd) { current.push(it); currentEnd = Math.max(currentEnd, it.endMin) }
-    else { if (current.length) groups.push(current); current = [it]; currentEnd = it.endMin }
-  })
-  if (current.length) groups.push(current)
-  const out = []
-  groups.forEach((group) => {
-    const cols = []
-    group.forEach((it) => {
-      let placed = -1
-      for (let i = 0; i < cols.length; i++) if (cols[i] <= it.startMin) { cols[i] = it.endMin; placed = i; break }
-      if (placed === -1) { cols.push(it.endMin); placed = cols.length - 1 }
-      it.col = placed
-    })
-    group.forEach((it) => { it.cols = cols.length; out.push(it) })
-  })
-  return out
-}
+import {
+  MONTHS_ES, DAYS_ES_SHORT, VIEW_MODES,
+  DEFAULT_DAY_START, DEFAULT_DAY_END, HOUR_PX,
+  PALETTES, GRAY_PALETTE, STATUS_STYLES,
+  pad2, keyOf, isSameDay, startOfWeek, buildMonthGrid, rangeFor,
+  apptDate, minutesOf, apptDuration, layoutEvents, openRangesFor,
+} from '@/components/calendar/utils'
+import {
+  HourColumn, HourSlots, NowLine, PositionedEvent, EventChip,
+} from '@/components/calendar/cells'
+import { ResourceDayGrid }  from '@/components/calendar/ResourceDayGrid'
+import { WeekResourceGrid } from '@/components/calendar/WeekResourceGrid'
 
 /* ============================================================
    CALENDARIO
    ============================================================ */
+
+/** Abreviatura de cabina para las cabeceras de columna: "Cabina 3" → "C3";
+ *  si el nombre no encaja, las 3 primeras letras en mayúsculas. Usa
+ *  String.match en vez del estado global frágil `RegExp.$1`. */
+const boothShort = (name) => {
+  const m = (name || '').match(/^cabina\s*(\d+)$/i)
+  return m ? `C${m[1]}` : (name || '').slice(0, 3).toUpperCase()
+}
 
 export default function Calendario() {
   const { user } = useAuth()
@@ -145,6 +62,10 @@ export default function Calendario() {
 
   const [statusFilter, setStatusFilter] = useState(() => localStorage.getItem('optima_cal_status') || '')
   useEffect(() => { localStorage.setItem('optima_cal_status', statusFilter) }, [statusFilter])
+
+  // Agrupación del Día/Semana: 'time' (cronologica) | 'booth' | 'employee'
+  const [groupBy, setGroupBy] = useState(() => localStorage.getItem('optima_cal_groupby') || 'booth')
+  useEffect(() => { localStorage.setItem('optima_cal_groupby', groupBy) }, [groupBy])
 
   /* ---- Estado base ---- */
   const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()) })
@@ -178,10 +99,11 @@ export default function Calendario() {
     })
   }, [bId])
 
-  // Rango horario dinámico desde business_hours (max apertura entre todos los días abiertos).
-  // Si no hay horario configurado, defaults 8-21.
+  // Rango horario dinámico de la rejilla. Cubre el horario del negocio Y
+  // todas las citas cargadas: así ninguna cita queda fuera de la rejilla
+  // (p. ej. una cita que empieza después de la hora de cierre). Sin ningún
+  // dato, defaults 8-21.
   const { dayStart, dayEnd } = useMemo(() => {
-    if (!businessHours.length) return { dayStart: DEFAULT_DAY_START, dayEnd: DEFAULT_DAY_END }
     let minStart = 24, maxEnd = 0
     businessHours.forEach((h) => {
       if (h.isClosed || !h.startTime || !h.endTime) return
@@ -192,13 +114,20 @@ export default function Calendario() {
       if (s < minStart) minStart = s
       if (e > maxEnd)   maxEnd   = e
     })
+    // Extiende el rango para que toda cita cargada tenga celdas de rejilla.
+    appointments.forEach((a) => {
+      const s = minutesOf(a.startDateTime) / 60
+      const e = minutesOf(a.endDateTime) / 60
+      if (s < minStart) minStart = s
+      if (e > maxEnd)   maxEnd   = e
+    })
     if (minStart === 24 || maxEnd === 0) return { dayStart: DEFAULT_DAY_START, dayEnd: DEFAULT_DAY_END }
     return { dayStart: Math.floor(minStart), dayEnd: Math.ceil(maxEnd) }
-  }, [businessHours])
+  }, [businessHours, appointments])
 
   // Carga de citas del rango visible
   useEffect(() => {
-    if (!bId) return
+    if (!bId) { setLoading(false); return }
     let cancelled = false
     const { from, to } = rangeFor(view, cursor)
     setLoading(true)
@@ -238,7 +167,6 @@ export default function Calendario() {
     const considered = filtered.filter((a) => a.statusName !== 'CANCELLED' && a.statusName !== 'NO_SHOW')
     const revenue = considered.reduce((acc, a) => acc + parseFloat(totalBooked(a.bookedServices)), 0)
     const minutesBusy = considered.reduce((acc, a) => acc + apptDuration(a), 0)
-    // ocupación: minutos ocupados / minutos abiertos en el rango
     const r = rangeFor(view, cursor)
     const start = new Date(`${r.from}T00:00:00`)
     const end   = new Date(`${r.to}T23:59:59`)
@@ -309,6 +237,26 @@ export default function Calendario() {
   } else if (view === 'Día') {
     headerText = cursor.toLocaleDateString('es-ES', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })
   }
+
+  /* ---- Recursos para vistas agrupadas ---- */
+  const boothResources = useMemo(
+    () => booths.map((b) => ({
+      id: b.id,
+      name: b.name,
+      short: b.short || boothShort(b.name),
+      accent: b.id,
+    })),
+    [booths],
+  )
+  const employeeResources = useMemo(
+    () => employees.map((e) => ({
+      id: e.id,
+      name: e.fullName,
+      short: (e.fullName || '').trim().split(/\s+/).map((s) => s[0]).slice(0, 2).join(''),
+      accent: e.id,
+    })),
+    [employees],
+  )
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8 print:p-0">
@@ -388,74 +336,19 @@ export default function Calendario() {
           <span className="text-[10px] text-slate-400 hidden md:inline">←/→ navegar · T hoy · M/W/D vista</span>
         </div>
 
-        {/* Toolbar fila 2: filtros y opciones (oculta al imprimir) */}
-        <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-slate-100 bg-slate-50/40 no-print">
-          <select
-            value={employeeFilter}
-            onChange={(e) => setEmployeeFilter(e.target.value)}
-            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-[#1e3a5f] focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition"
-          >
-            <option value="">Todos los empleados</option>
-            {employees.map((e) => (<option key={e.id} value={e.id}>{e.fullName}</option>))}
-          </select>
-          <select
-            value={boothFilter}
-            onChange={(e) => setBoothFilter(e.target.value)}
-            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-[#1e3a5f] focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition"
-          >
-            <option value="">Todas las cabinas</option>
-            {booths.map((b) => (<option key={b.id} value={b.id}>{b.name}</option>))}
-          </select>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mr-0.5">Estado</span>
-            {[
-              { key: '',            label: 'Todos' },
-              { key: 'PENDING',     label: 'Pend.',   dot: 'bg-amber-500' },
-              { key: 'CONFIRMED',   label: 'Conf.',   dot: 'bg-blue-500' },
-              { key: 'IN_PROGRESS', label: 'Curso',   dot: 'bg-cyan-500' },
-              { key: 'COMPLETED',   label: 'Compl.',  dot: 'bg-emerald-500' },
-              { key: 'CANCELLED',   label: 'Canc.',   dot: 'bg-slate-400' },
-              { key: 'NO_SHOW',     label: 'No show', dot: 'bg-rose-500' },
-            ].map(({ key, label, dot }) => (
-              <button
-                key={key || 'ALL'}
-                onClick={() => setStatusFilter(key)}
-                className={`text-[11px] font-semibold px-2.5 py-1 rounded-full transition inline-flex items-center gap-1 ${
-                  statusFilter === key
-                    ? 'bg-[#1e3a5f] text-white'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:border-blue-300'
-                }`}
-              >
-                {dot && <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />}
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="ml-auto flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold inline-flex items-center gap-1"><Palette size={12} /> Color por</span>
-            <select
-              value={colorBy}
-              onChange={(e) => setColorBy(e.target.value)}
-              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-[#1e3a5f] focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition"
-            >
-              <option value="status">Estado</option>
-              <option value="employee">Empleado</option>
-              <option value="booth">Cabina</option>
-            </select>
-            <div className="inline-flex items-center bg-slate-100 rounded-lg p-1">
-              <button
-                onClick={() => setDensity('comfortable')}
-                className={`px-2 py-1 rounded-md text-[11px] font-semibold transition ${density === 'comfortable' ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-[#1e3a5f]'}`}
-              >Cómodo</button>
-              <button
-                onClick={() => setDensity('compact')}
-                className={`px-2 py-1 rounded-md text-[11px] font-semibold transition ${density === 'compact' ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-[#1e3a5f]'}`}
-              >Compacto</button>
-            </div>
-          </div>
-        </div>
+        {/* Toolbar fila 2: filtros (popover) + agrupar + densidad */}
+        <FiltersBar
+          employees={employees}
+          booths={booths}
+          employeeFilter={employeeFilter}    setEmployeeFilter={setEmployeeFilter}
+          boothFilter={boothFilter}          setBoothFilter={setBoothFilter}
+          statusFilter={statusFilter}        setStatusFilter={setStatusFilter}
+          colorBy={colorBy}                  setColorBy={setColorBy}
+          density={density}                  setDensity={setDensity}
+          view={view}
+          groupBy={groupBy}                  setGroupBy={setGroupBy}
+          statusLabel={statusLabel}
+        />
 
         {loading ? (
           <div className="p-16 text-center text-slate-400 text-sm">Cargando agenda…</div>
@@ -463,7 +356,26 @@ export default function Calendario() {
           <MonthGrid
             cursor={cursor} today={today} eventsByDay={eventsByDay} colorBy={colorBy}
             onCellClick={onCellClick} onSelectEvent={setDetailAppt} onOpenDay={onOpenDay}
-            now={now}
+          />
+        ) : view === 'Semana' && groupBy === 'booth' ? (
+          <WeekResourceGrid
+            cursor={cursor} today={today} eventsByDay={eventsByDay} colorBy={colorBy}
+            onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
+            dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
+            businessHours={businessHours} now={now}
+            resources={boothResources}
+            resourceFor={(a) => a.boothId}
+            unassignedShort="S/C"
+          />
+        ) : view === 'Semana' && groupBy === 'employee' ? (
+          <WeekResourceGrid
+            cursor={cursor} today={today} eventsByDay={eventsByDay} colorBy={colorBy}
+            onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
+            dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
+            businessHours={businessHours} now={now}
+            resources={employeeResources}
+            resourceFor={(a) => a.membershipId}
+            unassignedShort="S/E"
           />
         ) : view === 'Semana' ? (
           <WeekGrid
@@ -471,6 +383,26 @@ export default function Calendario() {
             onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
             dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
             businessHours={businessHours} now={now}
+          />
+        ) : groupBy === 'booth' ? (
+          <ResourceDayGrid
+            cursor={cursor} eventsByDay={eventsByDay} colorBy={colorBy}
+            onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
+            dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
+            businessHours={businessHours} now={now}
+            resources={boothResources}
+            resourceFor={(a) => a.boothId}
+            unassignedLabel="Sin cabina"
+          />
+        ) : groupBy === 'employee' ? (
+          <ResourceDayGrid
+            cursor={cursor} eventsByDay={eventsByDay} colorBy={colorBy}
+            onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
+            dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
+            businessHours={businessHours} now={now}
+            resources={employeeResources}
+            resourceFor={(a) => a.membershipId}
+            unassignedLabel="Sin empleado"
           />
         ) : (
           <DayGrid
@@ -501,127 +433,15 @@ export default function Calendario() {
 }
 
 /* ============================================================
-   SUBCOMPONENTES
+   SUBCOMPONENTES DE VISTAS CRONOLÓGICAS
    ============================================================ */
 
 function StatTile({ label, value, tone }) {
-  const tones = {
-    default: 'text-[#1e3a5f]',
-    success: 'text-emerald-600',
-    cyan:    'text-cyan-600',
-  }
+  const tones = { default: 'text-[#1e3a5f]', success: 'text-emerald-600', cyan: 'text-cyan-600' }
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-4">
       <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{label}</div>
       <div className={`text-2xl font-extrabold mt-1 tabular-nums ${tones[tone] || tones.default}`}>{value}</div>
-    </div>
-  )
-}
-
-function EventChip({ appt, onClick, colorBy }) {
-  const s = styleFor(appt, colorBy)
-  const isInProgress = appt.statusName === 'IN_PROGRESS'
-  const tooltip = `${appt.clientName} · ${apptHHMM(appt.startDateTime)}–${apptHHMM(appt.endDateTime)} · ${appt.userFullName}${appt.boothName ? ' · ' + appt.boothName : ''}`
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onClick(appt) }}
-      title={tooltip}
-      className={`w-full flex items-center gap-1.5 ${s.bg} ${s.hover} ${s.text} text-[11px] font-medium rounded-md px-1.5 py-1 text-left transition ${isInProgress ? 'ring-1 ring-cyan-300 animate-pulse' : ''}`}
-    >
-      <span className={`w-0.5 self-stretch ${s.bar} rounded-full shrink-0`} />
-      <span className="truncate flex-1">{appt.clientName}</span>
-      <span className="text-[10px] opacity-70 hidden xl:inline">{apptHHMM(appt.startDateTime)}</span>
-    </button>
-  )
-}
-
-function PositionedEvent({ appt, onClick, col, cols, colorBy, dayStart, hourPx }) {
-  const topPx = ((minutesOf(appt.startDateTime) - dayStart * 60) / 60) * hourPx
-  const heightPx = Math.max(22, (apptDuration(appt) / 60) * hourPx - 4)
-  const widthPct = 100 / cols
-  const s = styleFor(appt, colorBy)
-  const isInProgress = appt.statusName === 'IN_PROGRESS'
-  const tooltip = `${appt.clientName} · ${apptHHMM(appt.startDateTime)}–${apptHHMM(appt.endDateTime)} · ${appt.userFullName}${appt.boothName ? ' · ' + appt.boothName : ''}`
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onClick(appt) }}
-      title={tooltip}
-      style={{
-        top: `${topPx}px`, height: `${heightPx}px`,
-        left: `calc(${col * widthPct}% + 2px)`, width: `calc(${widthPct}% - 4px)`,
-      }}
-      className={`absolute ${s.bg} ${s.hover} ${s.text} ring-1 ${s.ring} rounded-lg pl-2.5 pr-2 py-1 text-left overflow-hidden transition shadow-[0_2px_8px_-4px_rgba(15,23,42,0.15)] ${isInProgress ? 'animate-pulse' : ''}`}
-    >
-      <span className={`absolute left-0 top-0 bottom-0 w-1 ${s.bar} rounded-l-lg`} />
-      <div className="text-[11px] font-semibold truncate leading-tight">{appt.clientName}</div>
-      {heightPx > 40 && (<div className="text-[10px] opacity-75 truncate leading-tight">{appt.userFullName}</div>)}
-      <div className="text-[10px] opacity-70 leading-tight">
-        {apptHHMM(appt.startDateTime)} – {apptHHMM(appt.endDateTime)}
-      </div>
-    </button>
-  )
-}
-
-function HourColumn({ withHeader = true, dayStart, dayEnd, hourPx }) {
-  const hours = []
-  for (let h = dayStart; h < dayEnd; h++) hours.push(h)
-  return (
-    <div className="w-14 shrink-0 border-r border-slate-100 bg-white">
-      {withHeader && <div className="h-10 border-b border-slate-100" />}
-      {hours.map((h) => (
-        <div key={h} style={{ height: hourPx }} className="relative">
-          <span className="absolute -top-2 right-1.5 text-[10px] font-semibold text-slate-400 bg-white px-1">
-            {pad2(h)}:00
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function HourSlots({ dayKey, onSlotClick, dayStart, dayEnd, hourPx, closedRanges }) {
-  const hours = []
-  for (let h = dayStart; h < dayEnd; h++) hours.push(h)
-  const isClosed = (h) => closedRanges.some(([s, e]) => h < s || h >= e)
-  return (
-    <>
-      {hours.map((h) => {
-        const closed = isClosed(h)
-        return (
-          <div
-            key={h}
-            onClick={() => !closed && onSlotClick(dayKey, h)}
-            style={{ height: hourPx }}
-            className={`border-b border-slate-100 relative ${closed ? 'bg-slate-50/80 cursor-not-allowed' : 'hover:bg-blue-50/40 cursor-pointer'}`}
-            title={closed ? 'Fuera de horario' : 'Crear cita a esta hora'}
-          >
-            <div className="absolute left-0 right-0 border-t border-dashed border-slate-100" style={{ top: hourPx / 2 }} />
-          </div>
-        )
-      })}
-    </>
-  )
-}
-
-// Devuelve los rangos abiertos del día (puede haber un solo rango por now)
-const openRangesFor = (businessHours, date) => {
-  const dow = date.getDay() === 0 ? 7 : date.getDay()
-  const h = businessHours.find((x) => x.dayOfWeek === dow)
-  if (!h || h.isClosed || !h.startTime || !h.endTime) return []
-  const [sh, sm] = h.startTime.slice(0, 5).split(':').map(Number)
-  const [eh, em] = h.endTime.slice(0, 5).split(':').map(Number)
-  return [[sh + sm / 60, eh + em / 60]]
-}
-
-function NowLine({ now, dayStart, dayEnd, hourPx }) {
-  const minutes = now.getHours() * 60 + now.getMinutes() - dayStart * 60
-  const total = (dayEnd - dayStart) * 60
-  if (minutes < 0 || minutes > total) return null
-  const top = (minutes / 60) * hourPx
-  return (
-    <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top }}>
-      <div className="absolute -left-1 -top-1.5 w-3 h-3 rounded-full bg-rose-500 shadow" />
-      <div className="h-0.5 bg-rose-500" />
     </div>
   )
 }
@@ -662,7 +482,7 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
                 <Plus size={13} className="opacity-0 group-hover:opacity-60 text-blue-500" />
               </div>
               <div className="mt-1.5 space-y-1">
-                {shown.map((a) => <EventChip key={a.id} appt={a} onClick={onSelectEvent} colorBy={colorBy} />)}
+                {shown.map((a) => <EventChip key={a.id} appt={a} onClick={onSelectEvent} colorBy={colorBy} variant="grid" />)}
                 {overflow > 0 && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onOpenDay(date) }}
@@ -699,8 +519,8 @@ function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotCl
             const isToday = isSameDay(d, today)
             const openRanges = openRangesFor(businessHours, d)
             return (
-              <div key={i} className="relative border-r border-slate-100 last:border-r-0">
-                <div className={`h-10 border-b border-slate-100 flex items-center justify-center gap-2 sticky top-0 z-10 ${isToday ? 'bg-blue-50/80' : 'bg-white'}`}>
+              <div key={i} className="relative border-r-2 border-slate-300 last:border-r-0">
+                <div className={`h-10 border-b-2 border-slate-300 flex items-center justify-center gap-2 sticky top-0 z-10 ${isToday ? 'bg-blue-100' : 'bg-white'}`}>
                   <span className={`text-[10px] uppercase tracking-wider font-semibold ${i >= 5 ? 'text-blue-600' : 'text-slate-500'}`}>{DAYS_ES_SHORT[i]}</span>
                   <span className={`inline-flex items-center justify-center min-w-[22px] h-6 px-1.5 rounded-full text-xs font-bold ${isToday ? 'bg-gradient-to-br from-cyan-500 to-blue-500 text-white' : 'text-[#1e3a5f]'}`}>{d.getDate()}</span>
                 </div>
@@ -781,5 +601,248 @@ function DayGrid({ cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick, sta
         </div>
       </aside>
     </div>
+  )
+}
+
+/* ============================================================
+   TOOLBAR DE FILTROS (popover compacto)
+   ============================================================ */
+
+const STATUS_FILTER_OPTIONS = [
+  { key: '',            label: 'Todos' },
+  { key: 'PENDING',     dot: 'bg-amber-500' },
+  { key: 'CONFIRMED',   dot: 'bg-blue-500' },
+  { key: 'IN_PROGRESS', dot: 'bg-cyan-500' },
+  { key: 'COMPLETED',   dot: 'bg-emerald-500' },
+  { key: 'CANCELLED',   dot: 'bg-slate-400' },
+  { key: 'NO_SHOW',     dot: 'bg-rose-500' },
+]
+
+function FiltersBar({
+  employees, booths,
+  employeeFilter, setEmployeeFilter,
+  boothFilter,    setBoothFilter,
+  statusFilter,   setStatusFilter,
+  colorBy,        setColorBy,
+  density,        setDensity,
+  view,
+  groupBy,        setGroupBy,
+  statusLabel,
+}) {
+  const [open, setOpen] = useState(false)
+  const popRef = useRef(null)
+  const btnRef = useRef(null)
+
+  // Cerrar al pulsar fuera o ESC
+  useEffect(() => {
+    if (!open) return
+    const onClick = (e) => {
+      if (popRef.current?.contains(e.target)) return
+      if (btnRef.current?.contains(e.target)) return
+      setOpen(false)
+    }
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const activeCount =
+    (employeeFilter ? 1 : 0) +
+    (boothFilter ? 1 : 0) +
+    (statusFilter ? 1 : 0)
+
+  const clearAll = () => {
+    setEmployeeFilter('')
+    setBoothFilter('')
+    setStatusFilter('')
+  }
+
+  const employeeLabel = employees.find((e) => String(e.id) === String(employeeFilter))?.fullName
+  const boothLabelActive = booths.find((b) => String(b.id) === String(boothFilter))?.name
+  const statusOpt     = STATUS_FILTER_OPTIONS.find((s) => s.key === statusFilter)
+
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-slate-100 bg-slate-50/40 no-print">
+      {/* Botón Filtros */}
+      <div className="relative">
+        <button
+          ref={btnRef}
+          onClick={() => setOpen((v) => !v)}
+          className={`h-9 inline-flex items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition ${
+            open || activeCount > 0
+              ? 'border-blue-300 bg-blue-50 text-[#1e3a5f]'
+              : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-[#1e3a5f]'
+          }`}
+        >
+          <SlidersHorizontal size={14} />
+          Filtros
+          {activeCount > 0 && (
+            <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-[#1e3a5f] text-white text-[10px] font-bold tabular-nums px-1">
+              {activeCount}
+            </span>
+          )}
+        </button>
+
+        {open && (
+          <div
+            ref={popRef}
+            className="absolute left-0 top-[calc(100%+8px)] z-30 w-[320px] bg-white rounded-2xl border border-slate-200 shadow-[0_20px_50px_-10px_rgba(15,23,42,0.18)] p-4"
+          >
+            <div className="space-y-4">
+              <FilterRow label="Empleado">
+                <select
+                  value={employeeFilter}
+                  onChange={(e) => setEmployeeFilter(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-[#1e3a5f] focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition"
+                >
+                  <option value="">Todos los empleados</option>
+                  {employees.map((e) => (<option key={e.id} value={e.id}>{e.fullName}</option>))}
+                </select>
+              </FilterRow>
+
+              <FilterRow label="Cabina">
+                <select
+                  value={boothFilter}
+                  onChange={(e) => setBoothFilter(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-[#1e3a5f] focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition"
+                >
+                  <option value="">Todas las cabinas</option>
+                  {booths.map((b) => (<option key={b.id} value={b.id}>{b.name}</option>))}
+                </select>
+              </FilterRow>
+
+              <FilterRow label="Estado">
+                <div className="flex flex-wrap gap-1.5">
+                  {STATUS_FILTER_OPTIONS.map(({ key, label, dot }) => (
+                    <button
+                      key={key || 'ALL'}
+                      onClick={() => setStatusFilter(key)}
+                      className={`text-[11px] font-semibold px-2.5 py-1 rounded-full transition inline-flex items-center gap-1 ${
+                        statusFilter === key
+                          ? 'bg-[#1e3a5f] text-white'
+                          : 'bg-slate-50 border border-slate-200 text-slate-600 hover:border-blue-300'
+                      }`}
+                    >
+                      {dot && <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />}
+                      {label ?? statusLabel(key)}
+                    </button>
+                  ))}
+                </div>
+              </FilterRow>
+
+              <div className="h-px bg-slate-100" />
+
+              <FilterRow label="Color por">
+                <div className="inline-flex items-center bg-slate-100 rounded-lg p-1">
+                  {[
+                    { key: 'status',   label: 'Estado' },
+                    { key: 'employee', label: 'Empleado' },
+                    { key: 'booth',    label: 'Cabina' },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => setColorBy(key)}
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition ${colorBy === key ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-[#1e3a5f]'}`}
+                    >{label}</button>
+                  ))}
+                </div>
+              </FilterRow>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+              <button
+                onClick={clearAll}
+                disabled={activeCount === 0}
+                className="text-[11px] font-semibold text-slate-500 hover:text-[#1e3a5f] disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                Limpiar filtros
+              </button>
+              <button
+                onClick={() => setOpen(false)}
+                className="text-[11px] font-semibold text-white bg-[#1e3a5f] hover:bg-[#2a4f82] rounded-lg px-3 py-1.5 transition"
+              >
+                Hecho
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Chips activos (resumen rápido junto al botón) */}
+      {employeeLabel && (
+        <ActiveChip label={employeeLabel} onClear={() => setEmployeeFilter('')} />
+      )}
+      {boothLabelActive && (
+        <ActiveChip label={boothLabelActive} onClear={() => setBoothFilter('')} />
+      )}
+      {statusOpt && statusOpt.key && (
+        <ActiveChip
+          label={statusLabel(statusOpt.key)}
+          dot={statusOpt.dot}
+          onClear={() => setStatusFilter('')}
+        />
+      )}
+
+      {/* Agrupar (solo en Día/Semana) */}
+      {(view === 'Día' || view === 'Semana') && (
+        <div className="flex items-center gap-1.5 ml-1">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em]">Agrupar</span>
+          <div className="inline-flex items-center bg-slate-100 rounded-lg p-1">
+            {[
+              { key: 'time',     label: 'Cronol.' },
+              { key: 'booth',    label: 'Cabinas' },
+              { key: 'employee', label: 'Empleados' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setGroupBy(key)}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition ${groupBy === key ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-[#1e3a5f]'}`}
+              >{label}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Densidad (preferencia visual, queda a la derecha) */}
+      <div className="ml-auto inline-flex items-center bg-slate-100 rounded-lg p-1">
+        <button
+          onClick={() => setDensity('comfortable')}
+          className={`px-2 py-1 rounded-md text-[11px] font-semibold transition ${density === 'comfortable' ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-[#1e3a5f]'}`}
+        >Cómodo</button>
+        <button
+          onClick={() => setDensity('compact')}
+          className={`px-2 py-1 rounded-md text-[11px] font-semibold transition ${density === 'compact' ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-[#1e3a5f]'}`}
+        >Compacto</button>
+      </div>
+    </div>
+  )
+}
+
+function FilterRow({ label, children }) {
+  return (
+    <div>
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-1.5">{label}</p>
+      {children}
+    </div>
+  )
+}
+
+function ActiveChip({ label, dot, onClear }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full bg-white border border-slate-200 text-[11px] font-semibold text-[#1e3a5f]">
+      {dot && <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />}
+      <span className="truncate max-w-[140px]">{label}</span>
+      <button
+        onClick={onClear}
+        aria-label={`Quitar filtro: ${label}`}
+        className="w-5 h-5 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+      >
+        <X size={11} />
+      </button>
+    </span>
   )
 }
