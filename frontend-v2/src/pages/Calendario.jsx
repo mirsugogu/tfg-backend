@@ -751,24 +751,6 @@ function FiltersBar({
                   ))}
                 </div>
               </FilterRow>
-
-              <div className="h-px bg-slate-100" />
-
-              <FilterRow label="Color por">
-                <div className="inline-flex items-center bg-slate-100 rounded-lg p-1">
-                  {[
-                    { key: 'status',   label: 'Estado' },
-                    { key: 'employee', label: 'Empleado' },
-                    { key: 'booth',    label: 'Cabina' },
-                  ].map(({ key, label }) => (
-                    <button
-                      key={key}
-                      onClick={() => setColorBy(key)}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition ${colorBy === key ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-[#1e3a5f]'}`}
-                    >{label}</button>
-                  ))}
-                </div>
-              </FilterRow>
             </div>
 
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
@@ -804,6 +786,24 @@ function FiltersBar({
           onClear={() => setStatusFilter('')}
         />
       )}
+
+      {/* Color (preferencia visual, en todas las vistas) */}
+      <div className="flex items-center gap-1.5 ml-1">
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em]">Color</span>
+        <div className="inline-flex items-center bg-slate-100 rounded-lg p-1">
+          {[
+            { key: 'status',   label: 'Estado' },
+            { key: 'employee', label: 'Empleado' },
+            { key: 'booth',    label: 'Cabina' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setColorBy(key)}
+              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition ${colorBy === key ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-[#1e3a5f]'}`}
+            >{label}</button>
+          ))}
+        </div>
+      </div>
 
       {/* Agrupar (solo en Día/Semana) */}
       {(view === 'Día' || view === 'Semana') && (

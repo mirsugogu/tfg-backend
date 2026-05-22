@@ -17,15 +17,15 @@ Es un backlog **independiente** del *"Informe de Calidad"* anterior
 | P1-empleado | Turno partido — horario del empleado | ✅ Hecho — commit `45e7f18` |
 | P1-negocio  | Turno partido — horario del negocio | ⬜ Pendiente |
 | P2 | Copiar horario L→V para el empleado | ⬜ Pendiente |
-| P3 | Nombre de servicio único por categoría (no por negocio) | ⬜ Pendiente — decisión |
+| P3 | Nombre de servicio único por categoría (no por negocio) | ✅ Decisión: se mantiene |
 | P4 | Panel de stats en Catálogo ocupa mucho | ✅ Decisión: se mantiene |
 | P5 | Crear cliente al vuelo desde la nueva cita | ⬜ Pendiente |
 | P6 + P7 | Filtros del calendario que esconden citas | ✅ Hecho — commit `f873b9e` |
-| P8 | "Color por cabina" poco visible | ⬜ Pendiente |
+| P8 | "Color por cabina" poco visible | ✅ Hecho — sin commit |
 | P9 | Editar / reprogramar una cita | ⬜ Pendiente — grande |
 | P10 | Toggle densidad no afecta a la vista Mes | ⬜ Opcional |
 | P11 | Color del selector "Agrupar" | ✅ Nada que hacer — confusión del tester |
-| P12 | Las citas canceladas pierden su señal visual | ✅ Hecho — sin commit |
+| P12 | Las citas canceladas pierden su señal visual | ✅ Hecho — commit `c1a3966` |
 | P13 | Panel de stats en el Calendario satura | ✅ Decisión: se mantiene |
 
 ---
@@ -58,7 +58,7 @@ Decisión (2026-05-22): el strip se queda, por coherencia con P13 y mismo
 criterio. `Precio medio`, `Duración media` y `Más caro` son métricas que el
 Dashboard no ofrece.
 
-### P12 — Señal visual de las citas canceladas — sin commit
+### P12 — Señal visual de las citas canceladas — commit `c1a3966`
 `styleFor` (`utils.js`) ignoraba `statusName` en los modos "Color por →
 Empleado/Cabina": una cita `CANCELLED`/`NO_SHOW` tomaba el color del recurso
 y se confundía con una activa. Fix en 3 puntos:
@@ -66,29 +66,31 @@ y se confundía con una activa. Fix en 3 puntos:
   antes de mirar `colorBy` — corrige las 5 vistas desde un solo punto.
 - `cells.jsx` `PositionedEvent`: `opacity-60` si terminal (bloque sin texto).
 - `cells.jsx` `EventChip` (grid + list): `line-through opacity-60` si terminal.
-Build de producción verde. Pendiente: commit.
+Build de producción verde.
+
+### P3 — Unicidad del nombre de servicio — se mantiene
+Decisión (2026-05-22): la unicidad del nombre sigue siendo **por negocio**, no
+por categoría. No es un bug — el 409 es comportamiento correcto. Cambiarlo
+obligaría a tocar la capa de BD (el constraint `uq_service_business_name
+UNIQUE (id_business, name)` de `schema_v20.sql`, añadido en la auditoría del
+2026-05-20) con una migración manual en todos los entornos, y rompería la
+simetría del patrón de unicidad que comparten servicios, categorías, cabinas e
+impuestos. El riesgo/beneficio no compensa para el alcance del TFG.
+
+### P8 — Selector "Color por" sacado a la barra visible — sin commit
+El selector "Color por" estaba dentro del popover de Filtros, mezclado con los
+filtros de contenido (Empleado/Cabina/Estado) pese a ser una preferencia de
+visualización, como "Agrupar" o "Densidad". Movido a la barra visible, con
+etiqueta "Color", junto a "Agrupar" y visible en todas las vistas.
+- `Calendario.jsx` `FiltersBar`: bloque retirado del popover y recreado en la
+  barra con el patrón visual de "Agrupar".
+Build de producción verde.
 
 ---
 
 ## ⬜ Pendiente
 
 Ordenado por relación esfuerzo / valor.
-
-### P3 — Nombre de servicio único por categoría  ·  ~40 min backend  ·  decisión
-Hoy la unicidad del nombre es **por negocio**: no deja repetir "Cuerpo completo"
-en dos categorías distintas.
-- Finder: `BusinessServiceRepository.java:29` (`existsByBusinessIdAndNameIgnoreCase`).
-- Se invoca en `BusinessServiceService.java:78` (crear) y `:172` (editar).
-- Para permitirlo: añadir `existsByBusinessIdAndCategoryIdAndNameIgnoreCase` y
-  usarlo en ambas llamadas (el editar debe re-chequear si cambia de categoría).
-- **Decisión de negocio:** ¿unicidad por categoría o mantener por negocio?
-- Actualizar tests + colección Postman (mensaje 409).
-
-### P8 — "Color por cabina" poco visible  ·  ~30-60 min  ·  frontend
-La función existe (selector "Color por" con modo Cabina), pero está enterrada
-en el popover de Filtros.
-- Selector: `Calendario.jsx:759-773`. Default `'status'` (`Calendario.jsx:54`).
-- Mejora: sacar el selector "Color por" a la barra de herramientas visible.
 
 ### P2 — Copiar horario L→V para el empleado  ·  ~1-2 h  ·  frontend
 El horario del **negocio** ya tiene botón "Copiar L→V"
