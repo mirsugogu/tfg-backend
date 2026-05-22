@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   Plus, Search, Pencil, Archive, ArchiveRestore, Mail, Phone, Users,
-  ChevronsUpDown, ArrowDown, ArrowUp, X, Calendar, ExternalLink,
+  ChevronsUpDown, ArrowDown, ArrowUp, X, Calendar, CalendarPlus, ExternalLink,
   List, LayoutGrid, RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import { usePagedFetch } from '@/hooks/usePagedFetch'
 import api, { getErrorMessage } from '@/lib/api'
+import { AppointmentWizard } from '@/components/appointments/AppointmentWizard'
 
 const AVATAR_COLORS = [
   'from-cyan-400 to-blue-500',
@@ -92,11 +93,13 @@ export default function Clientes() {
     [sortKey, sortDir, archiveView],
   )
 
-  // ---- paginación + datos ----
-  const { items: clients, page, totalPages, totalElements, loading, setPage, refresh } =
-    usePagedFetch(bId ? `/api/businesses/${bId}/clients` : null, { size: pageSize, params: queryParams })
+  // ---- datos: se cargan TODOS los clientes (size=100, tope del backend)
+  //      para que la búsqueda y la paginación operen sobre el conjunto
+  //      completo, no sobre una sola página. Mismo patrón que Bloqueos.
+  const { items: clients, totalElements, loading, refresh } =
+    usePagedFetch(bId ? `/api/businesses/${bId}/clients` : null, { size: 100, params: queryParams })
 
-  // ---- búsqueda local (la misma de antes) ----
+  // ---- búsqueda: filtra sobre el conjunto completo ----
   const [search, setSearch] = useState('')
   const filtered = clients.filter((c) =>
     c.fullName?.toLowerCase().includes(search.toLowerCase()) ||
@@ -104,10 +107,17 @@ export default function Clientes() {
     c.phone?.includes(search)
   )
 
+  // ---- paginación en cliente sobre el resultado ya filtrado ----
+  const [page, setPage] = useState(0)
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const safePage = Math.min(page, totalPages - 1)
+  const paged = filtered.slice(safePage * pageSize, safePage * pageSize + pageSize)
+
   // ---- modales + drawer ----
   const [modal, setModal] = useState(null)       // 'create' | 'edit' | 'archive' | null
   const [selected, setSelected] = useState(null) // cliente seleccionado para edit/archive
   const [drawer, setDrawer] = useState(null)     // cliente abierto en el panel lateral
+  const [wizardClient, setWizardClient] = useState(null) // cliente para el que se crea una cita
   const [form, setForm] = useState(empty)
   const [saving, setSaving] = useState(false)
 
@@ -244,7 +254,7 @@ export default function Clientes() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar en esta página por nombre, email o teléfono…"
+            placeholder="Buscar por nombre, email o teléfono…"
             className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3.5 text-sm text-[#1f2c4a] placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all"
           />
         </div>
@@ -344,7 +354,7 @@ export default function Clientes() {
                     <td colSpan={5}>
                       {search ? (
                         <p className="px-6 py-16 text-center text-slate-400 text-sm">
-                          {`Sin coincidencias en esta página${totalPages > 1 ? ' (prueba a cambiar de página)' : ''}.`}
+                          Sin coincidencias para «{search}».
                         </p>
                       ) : isArchived ? (
                         <EmptyState
@@ -364,7 +374,7 @@ export default function Clientes() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((c) => (
+                  paged.map((c) => (
                     <tr
                       key={c.id}
                       onClick={() => setDrawer(c)}
@@ -444,9 +454,9 @@ export default function Clientes() {
           </div>
 
           <Pagination
-            page={page}
+            page={safePage}
             totalPages={totalPages}
-            totalElements={totalElements}
+            totalElements={filtered.length}
             onChange={setPage}
           />
         </div>
@@ -464,7 +474,7 @@ export default function Clientes() {
           ) : filtered.length === 0 ? (
             <div className="bg-white rounded-2xl border border-slate-100/80 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)]">
               {search ? (
-                <p className="px-6 py-16 text-center text-slate-400 text-sm">Sin coincidencias en esta página.</p>
+                <p className="px-6 py-16 text-center text-slate-400 text-sm">Sin coincidencias para «{search}».</p>
               ) : isArchived ? (
                 <EmptyState
                   icon={Users}
@@ -484,7 +494,7 @@ export default function Clientes() {
           ) : (
             <>
               <div className="card-grid">
-                {filtered.map((c) => (
+                {paged.map((c) => (
                   <div
                     key={c.id}
                     onClick={() => setDrawer(c)}
@@ -554,9 +564,9 @@ export default function Clientes() {
               </div>
               <div className="mt-5 bg-white rounded-xl border border-slate-100/80">
                 <Pagination
-                  page={page}
+                  page={safePage}
                   totalPages={totalPages}
-                  totalElements={totalElements}
+                  totalElements={filtered.length}
                   onChange={setPage}
                 />
               </div>
@@ -647,32 +657,42 @@ export default function Clientes() {
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-slate-100 flex gap-2">
-              {isArchived ? (
+            <div className="px-6 py-4 border-t border-slate-100 space-y-2">
+              {!isArchived && (
                 <Button
-                  variant="success"
-                  onClick={() => handleReactivate(drawer)}
-                  className="flex-1 gap-2"
+                  onClick={() => { setWizardClient(drawer); setDrawer(null) }}
+                  className="w-full gap-2"
                 >
-                  <ArchiveRestore size={15} /> Restaurar
+                  <CalendarPlus size={15} /> Nueva cita
                 </Button>
-              ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => openArchive(drawer)}
-                    className="flex-1 gap-2"
-                  >
-                    <Archive size={15} /> Archivar
-                  </Button>
-                  <Button
-                    onClick={() => { openEdit(drawer); setDrawer(null) }}
-                    className="flex-1 gap-2"
-                  >
-                    <Pencil size={15} /> Editar
-                  </Button>
-                </>
               )}
+              <div className="flex gap-2">
+                {isArchived ? (
+                  <Button
+                    variant="success"
+                    onClick={() => handleReactivate(drawer)}
+                    className="flex-1 gap-2"
+                  >
+                    <ArchiveRestore size={15} /> Restaurar
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => openArchive(drawer)}
+                      className="flex-1 gap-2"
+                    >
+                      <Archive size={15} /> Archivar
+                    </Button>
+                    <Button
+                      onClick={() => { openEdit(drawer); setDrawer(null) }}
+                      className="flex-1 gap-2"
+                    >
+                      <Pencil size={15} /> Editar
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           </aside>
         </>
@@ -714,6 +734,14 @@ export default function Clientes() {
           </div>
         </div>
       </Modal>
+
+      {/* Asistente de nueva cita, abierto desde la ficha del cliente */}
+      <AppointmentWizard
+        open={!!wizardClient}
+        prefillClientId={wizardClient?.id}
+        bId={bId}
+        onClose={() => setWizardClient(null)}
+      />
     </div>
   )
 }

@@ -101,10 +101,12 @@ export default function Catalogo() {
   const servicesUrl   = bId ? `/api/businesses/${bId}/services`   : null
   const categoriesUrl = bId ? `/api/businesses/${bId}/categories` : null
 
+  // Servicios: se cargan TODOS (size=100, tope del backend) para que la
+  // búsqueda y la paginación operen sobre el conjunto completo.
   const {
-    items: services, page: servPage, totalPages: servTotalPages, totalElements: servTotal,
-    loading: servLoading, setPage: setServPage, refresh: refreshServices,
-  } = usePagedFetch(servicesUrl, { size: pageSize, params: servicesParams })
+    items: services, totalElements: servTotal,
+    loading: servLoading, refresh: refreshServices,
+  } = usePagedFetch(servicesUrl, { size: 100, params: servicesParams })
 
   const {
     items: categories, page: catPage, totalPages: catTotalPages, totalElements: catTotal,
@@ -311,7 +313,7 @@ export default function Catalogo() {
     }
   }, [aux.allServices])
 
-  /* ---- Filtros aplicados (sobre la página actual) ---- */
+  /* ---- Filtros aplicados (sobre el conjunto completo) ---- */
   const visibleServices = useMemo(() => {
     const t = search.trim().toLowerCase()
     return services.filter((s) => {
@@ -324,6 +326,12 @@ export default function Catalogo() {
       )
     })
   }, [services, search, activeCat])
+
+  // Paginación en cliente sobre los servicios ya filtrados.
+  const [servPage, setServPage] = useState(0)
+  const servTotalPages = Math.max(1, Math.ceil(visibleServices.length / pageSize))
+  const servSafePage = Math.min(servPage, servTotalPages - 1)
+  const pagedServices = visibleServices.slice(servSafePage * pageSize, servSafePage * pageSize + pageSize)
 
   /* ---- Conteo por categoría para los chips (sobre aux.allServices) ---- */
   const countsByCat = useMemo(() => {
@@ -550,7 +558,7 @@ export default function Catalogo() {
           ) : view === 'grid' ? (
             grouped ? (
               <GroupedView
-                list={visibleServices}
+                list={pagedServices}
                 categories={aux.activeCategories}
                 taxes={aux.taxes}
                 isAdmin={isAdmin}
@@ -562,7 +570,7 @@ export default function Catalogo() {
               />
             ) : (
               <FlatGrid
-                list={visibleServices}
+                list={pagedServices}
                 taxes={aux.taxes}
                 isAdmin={isAdmin}
                 archived={servicesArchived}
@@ -574,7 +582,7 @@ export default function Catalogo() {
             )
           ) : (
             <ServicesTable
-              list={visibleServices}
+              list={pagedServices}
               taxes={aux.taxes}
               isAdmin={isAdmin}
               archived={servicesArchived}
@@ -589,9 +597,9 @@ export default function Catalogo() {
           {servTotalPages > 1 && (
             <div className="mt-6 bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)]">
               <Pagination
-                page={servPage}
+                page={servSafePage}
                 totalPages={servTotalPages}
-                totalElements={servTotal}
+                totalElements={visibleServices.length}
                 onChange={setServPage}
               />
             </div>

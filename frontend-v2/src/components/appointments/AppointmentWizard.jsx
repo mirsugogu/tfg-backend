@@ -55,7 +55,7 @@ function Stepper({ step }) {
 
 /**
  * AppointmentWizard — asistente "Nueva cita" en 3 pasos, reutilizable por
- * la pantalla Citas y por el Calendario.
+ * las pantallas Citas y Clientes y por el Calendario.
  *
  * Props:
  *   open         abre / cierra el modal.
@@ -64,13 +64,15 @@ function Stepper({ step }) {
  *   bId          businessId.
  *   prefillDate  'YYYY-MM-DD' opcional (p. ej. el día pulsado en el calendario).
  *   prefillTime  'HH:mm' opcional; si coincide con un hueco, se preselecciona.
+ *   prefillClientId  id de cliente opcional; preselecciona el cliente (p. ej.
+ *                    al abrir el asistente desde la ficha de un cliente).
  *
  * Pasos: 1) datos básicos → 2) GET /availability (huecos) → 3) confirmar + POST.
  * Consultar la disponibilidad ANTES de crear mitiga la race condition del
  * backend (auditoría D.2): el usuario solo elige un hueco recién calculado
  * como libre, y el botón "Crear" queda bloqueado durante la petición.
  */
-export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, prefillTime }) {
+export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, prefillTime, prefillClientId }) {
   const toast = useToast()
 
   const [aux, setAux] = useState({ clients: [], employees: [], services: [], booths: [] })
@@ -78,6 +80,9 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
   const [form, setForm] = useState(emptyForm)
   const [slots, setSlots] = useState([])
   const [slotsLoading, setSlotsLoading] = useState(false)
+  // true si el empleado elegido no tiene horario semanal: permite dar un
+  // mensaje accionable en vez del genérico "no hay huecos".
+  const [noSchedule, setNoSchedule] = useState(false)
   const [totalDuration, setTotalDuration] = useState(0)
   const [selectedSlot, setSelectedSlot] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -107,13 +112,14 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
   // Al abrir el asistente se reinicia al paso 1 con la fecha precargada.
   useEffect(() => {
     if (open) {
-      setForm({ ...emptyForm, date: prefillDate || todayStr() })
+      setForm({ ...emptyForm, date: prefillDate || todayStr(), clientId: prefillClientId || '' })
       setStep(1)
       setSlots([])
       setSelectedSlot(null)
       setTotalDuration(0)
+      setNoSchedule(false)
     }
-  }, [open, prefillDate])
+  }, [open, prefillDate, prefillClientId])
 
   const toggleService = (id) => {
     setForm((p) => ({
@@ -139,6 +145,7 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
     setSlotsLoading(true)
     setSelectedSlot(null)
     setSlots([])
+    setNoSchedule(false)
     setStep(2)
     try {
       // serviceIds como parámetros REPETIDOS (serviceIds=1&serviceIds=2),
@@ -162,6 +169,14 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
       // Si se abrió desde un hueco del calendario, preselecciona ese tramo.
       if (prefillTime) {
         setSelectedSlot(fresh.find((s) => hhmm(s.startTime) === prefillTime) ?? null)
+      }
+      // Sin huecos: distinguimos "empleado sin horario semanal" del resto de
+      // causas (agenda llena, ausencias…) para dar un mensaje accionable.
+      if (fresh.length === 0) {
+        try {
+          const { data: sch } = await api.get(`/api/businesses/${bId}/users/${membershipId}/schedules`)
+          setNoSchedule(Array.isArray(sch) && sch.length === 0)
+        } catch { /* mejor esfuerzo: si falla, se muestra el mensaje genérico */ }
       }
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'No se pudo consultar la disponibilidad.') })
@@ -307,10 +322,23 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
             </div>
           ) : slots.length === 0 ? (
             <div className="py-10 text-center">
-              <p className="text-sm text-slate-500 font-medium">No hay huecos disponibles.</p>
-              <p className="text-xs text-slate-400 mt-1">
-                Prueba con otra fecha, otro empleado o reduce los servicios.
-              </p>
+              {noSchedule ? (
+                <>
+                  <p className="text-sm text-slate-500 font-medium">
+                    Este empleado no tiene horario semanal configurado.
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Ve a Empleados, abre su ficha y añade su horario para poder citarlo.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-slate-500 font-medium">No hay huecos disponibles.</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Prueba con otra fecha, otro empleado o reduce los servicios.
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <div>

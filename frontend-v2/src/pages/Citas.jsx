@@ -159,9 +159,11 @@ export default function Citas() {
     return p
   }, [fromDate, toDate, employeeFilter, sortDir])
 
+  // Se cargan TODAS las citas del rango (size=100, tope del backend) para que
+  // la búsqueda y la paginación operen sobre el conjunto completo.
   const {
-    items: appointments, page, totalPages, totalElements, loading, setPage, refresh,
-  } = usePagedFetch(bId ? `/api/businesses/${bId}/appointments` : null, { size: pageSize, params: listParams })
+    items: appointments, totalElements, loading, refresh,
+  } = usePagedFetch(bId ? `/api/businesses/${bId}/appointments` : null, { size: 100, params: listParams })
 
   // Empleados para el desplegable
   const [employees, setEmployees] = useState([])
@@ -172,7 +174,7 @@ export default function Citas() {
       .catch((err) => toast({ type: 'error', message: getErrorMessage(err, 'No se pudieron cargar los empleados.') }))
   }, [bId, toast])
 
-  /* ---- Filtros client-side sobre la página visible ---- */
+  /* ---- Filtros client-side sobre el conjunto completo ---- */
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [unpaidOnly, setUnpaidOnly] = useState(false)
@@ -185,6 +187,12 @@ export default function Citas() {
     const matchPaid   = !unpaidOnly || !a.isPaid
     return matchSearch && matchStatus && matchPaid
   })
+
+  /* ---- Paginación en cliente sobre el resultado ya filtrado ---- */
+  const [page, setPage] = useState(0)
+  const totalPages = Math.max(1, Math.ceil(visible.length / pageSize))
+  const safePage = Math.min(page, totalPages - 1)
+  const paged = visible.slice(safePage * pageSize, safePage * pageSize + pageSize)
 
   /* ---- Estado "en curso ahora" ---- */
   const inProgressNow = useMemo(
@@ -200,7 +208,7 @@ export default function Citas() {
     ? Math.max(0, Math.round((new Date(inProgressNow.endDateTime) - now) / 60000))
     : null
 
-  /* ---- Stats de la página ---- */
+  /* ---- Stats del conjunto filtrado ---- */
   const pageStats = useMemo(() => {
     const considered = visible.filter((a) => a.statusName !== 'CANCELLED' && a.statusName !== 'NO_SHOW')
     const total = considered.reduce((acc, a) => acc + parseFloat(totalBooked(a.bookedServices)), 0)
@@ -290,7 +298,7 @@ export default function Citas() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar cliente o empleado en esta página…"
+            placeholder="Buscar cliente o empleado…"
             className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3.5 text-sm text-[#1f2c4a] placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all"
           />
         </div>
@@ -465,15 +473,15 @@ export default function Citas() {
         )
       ) : visible.length === 0 ? (
         <div className="py-20 text-center text-slate-400">
-          Sin resultados en esta página con esos filtros.
+          Sin resultados con esos filtros.
         </div>
       ) : view === 'day' ? (
-        <DayGroupedList list={visible} onOpen={setDetailAppt} />
+        <DayGroupedList list={paged} onOpen={setDetailAppt} />
       ) : (
         // Rejilla en vez de lista vertical: en 2K/4K una sola columna estiraba
         // cada tarjeta a 3000+ px dejando un hueco enorme entre datos e importe.
         <div className="appt-grid">
-          {visible.map((a) => (
+          {paged.map((a) => (
             <AppointmentCard key={a.id} appointment={a} onClick={() => setDetailAppt(a)} />
           ))}
         </div>
@@ -482,7 +490,7 @@ export default function Citas() {
       {/* Paginación */}
       {totalPages > 1 && (
         <div className="mt-6 bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)]">
-          <Pagination page={page} totalPages={totalPages} totalElements={totalElements} onChange={setPage} />
+          <Pagination page={safePage} totalPages={totalPages} totalElements={visible.length} onChange={setPage} />
         </div>
       )}
 

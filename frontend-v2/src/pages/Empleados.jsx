@@ -118,9 +118,10 @@ export default function Empleados() {
     [sortKey, sortDir, view],
   )
 
-  // Listado paginado real
-  const { items: employees, page, totalPages, totalElements, loading, setPage, refresh } =
-    usePagedFetch(bId ? `/api/businesses/${bId}/users` : null, { size: pageSize, params: queryParams })
+  // Listado: se cargan TODOS los empleados (size=100, tope del backend) para
+  // que la búsqueda y la paginación operen sobre el conjunto completo.
+  const { items: employees, totalElements, loading, refresh } =
+    usePagedFetch(bId ? `/api/businesses/${bId}/users` : null, { size: 100, params: queryParams })
 
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL') // ALL | ADMIN | EMPLOYEE
@@ -144,6 +145,12 @@ export default function Empleados() {
       e.fullName?.toLowerCase().includes(search.toLowerCase()) ||
       e.email?.toLowerCase().includes(search.toLowerCase())
     )
+
+  // Paginación en cliente sobre el resultado ya filtrado.
+  const [page, setPage] = useState(0)
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const safePage = Math.min(page, totalPages - 1)
+  const paged = filtered.slice(safePage * pageSize, safePage * pageSize + pageSize)
 
   const defaultRoleId = () => roles.find((r) => r.name === 'EMPLOYEE')?.id ?? roles[0]?.id ?? ''
 
@@ -371,7 +378,7 @@ export default function Empleados() {
             )}
           </div>
         ) : (
-          filtered.map((e) => (
+          paged.map((e) => (
             <EmployeeCard
               key={e.id}
               emp={e}
@@ -387,9 +394,9 @@ export default function Empleados() {
       {/* Paginación */}
       <div className="mt-6 rounded-2xl border border-slate-100 overflow-hidden bg-white">
         <Pagination
-          page={page}
+          page={safePage}
           totalPages={totalPages}
-          totalElements={totalElements}
+          totalElements={filtered.length}
           onChange={setPage}
         />
       </div>
