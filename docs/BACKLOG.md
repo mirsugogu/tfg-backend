@@ -16,10 +16,10 @@ Es un backlog **independiente** del *"Informe de Calidad"* anterior
 |---|------|--------|
 | P1-empleado | Turno partido — horario del empleado | ✅ Hecho — commit `45e7f18` |
 | P1-negocio  | Turno partido — horario del negocio | ⬜ Pendiente |
-| P2 | Copiar horario L→V para el empleado | ✅ Hecho — sin commit |
+| P2 | Copiar horario L→V para el empleado | ✅ Hecho — commit `9728e35` |
 | P3 | Nombre de servicio único por categoría (no por negocio) | ✅ Decisión: se mantiene |
 | P4 | Panel de stats en Catálogo ocupa mucho | ✅ Decisión: se mantiene |
-| P5 | Crear cliente al vuelo desde la nueva cita | ⬜ Pendiente |
+| P5 | Crear cliente al vuelo desde la nueva cita | ✅ Hecho — sin commit |
 | P6 + P7 | Filtros del calendario que esconden citas | ✅ Hecho — commit `f873b9e` |
 | P8 | "Color por cabina" poco visible | ✅ Hecho — commit `3c1e229` |
 | P9 | Editar / reprogramar una cita | ⬜ Pendiente — grande |
@@ -86,7 +86,7 @@ etiqueta "Color", junto a "Agrupar" y visible en todas las vistas.
   barra con el patrón visual de "Agrupar".
 Build de producción verde.
 
-### P2 — Botón "Copiar L→V" en el horario del empleado — sin commit
+### P2 — Botón "Copiar L→V" en el horario del empleado — commit `9728e35`
 El horario del empleado no tenía forma de replicar el lunes al resto de la
 semana (el del negocio sí). Nuevo botón "Copiar L→V" en la sección "Horario
 semanal" del drawer de empleado, con modal de confirmación.
@@ -97,19 +97,26 @@ semanal" del drawer de empleado, con modal de confirmación.
 Verificado E2E con Playwright: turno partido copiado, sobrescritura correcta,
 sábado intacto, guarda sin lunes. Build verde.
 
+### P5 — Buscador de clientes + crear al vuelo en el wizard — sin commit
+El selector de cliente del wizard era un `<select>` que precargaba solo los
+primeros 100 clientes; con más, el resto quedaba inseleccionable. Se sustituye
+por un buscador server-side con autocompletado, e incluye crear un cliente sin
+salir del asistente (P5 propiamente dicho).
+- **Backend:** `GET /clients?search=` — nuevo `@Query searchActiveByBusiness`
+  en `ClientRepository` (busca en nombre, email y teléfono); parámetro `search`
+  opcional y retrocompatible en `ClientService` y `ClientController`.
+- **Frontend:** componente nuevo `ClientPicker.jsx` (input con debounce →
+  `/clients?search`, desplegable de resultados, mini-formulario para crear
+  cliente al vuelo). Integrado en `AppointmentWizard`, que deja de precargar
+  los 100 clientes.
+Verificado E2E con Playwright: búsqueda, selección y creación al vuelo. Build
+del frontend y arranque del backend verdes.
+
 ---
 
 ## ⬜ Pendiente
 
 Ordenado por relación esfuerzo / valor.
-
-### P5 — Crear cliente al vuelo desde la nueva cita  ·  ~2-3 h  ·  frontend
-El paso 1 del wizard tiene un `<Select>` de solo elección.
-- Selector: `AppointmentWizard.jsx:226-233`. Carga `aux.clients`: `:94`, `:99-104`.
-- Añadir un botón "+ Nuevo cliente" → mini-form (3 campos) → `POST
-  /api/businesses/{bId}/clients` → añadir a `aux.clients` y autoseleccionar.
-- El endpoint POST de clientes ya existe. Revisar el `CreateClientRequest` por
-  si valida más campos.
 
 ### P1-negocio — Horario partido del negocio  ·  ~5-7 h  ·  backend + frontend
 Un negocio que cierra a mediodía no puede meter 10-14 / 16-20.

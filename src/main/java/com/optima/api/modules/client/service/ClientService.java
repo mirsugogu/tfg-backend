@@ -70,13 +70,21 @@ public class ClientService {
      * Lista paginada de clientes del negocio. Con active=true (por defecto)
      * devuelve los activos; con active=false los archivados (soft-deleted),
      * la vista desde la que se reactivan.
+     * Si search no viene vacío (solo con active=true), filtra por nombre,
+     * email o teléfono — alimenta el autocompletado del selector de cliente.
      * Pageable parsea page, size y sort del query string.
      */
     @Transactional(readOnly = true)
-    public Page<ClientResponse> listByBusiness(Long businessId, boolean active, Pageable pageable) {
-        Page<Client> page = active
-                ? clientRepository.findByBusinessIdAndIsActiveTrue(businessId, pageable)
-                : clientRepository.findByBusinessIdAndIsActiveFalse(businessId, pageable);
+    public Page<ClientResponse> listByBusiness(Long businessId, boolean active, String search, Pageable pageable) {
+        String q = search == null ? "" : search.trim();
+        Page<Client> page;
+        if (active && !q.isEmpty()) {
+            page = clientRepository.searchActiveByBusiness(businessId, q, pageable);
+        } else {
+            page = active
+                    ? clientRepository.findByBusinessIdAndIsActiveTrue(businessId, pageable)
+                    : clientRepository.findByBusinessIdAndIsActiveFalse(businessId, pageable);
+        }
         return page.map(ClientResponse::from);
     }
 

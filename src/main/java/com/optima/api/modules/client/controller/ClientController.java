@@ -49,13 +49,15 @@ public class ClientController {
     /**
      * Lista paginada de clientes del negocio. ?active=true (por defecto)
      * devuelve los activos; ?active=false los archivados (la vista desde
-     * la que se reactivan).
+     * la que se reactivan). ?search filtra los activos por nombre, email
+     * o teléfono — alimenta el autocompletado del selector de cliente.
      */
     @GetMapping
     public Page<ClientResponse> listByBusiness(@PathVariable @Positive Long businessId,
                                                @RequestParam(defaultValue = "true") boolean active,
+                                               @RequestParam(required = false) String search,
                                                Pageable pageable) {
-        return clientService.listByBusiness(businessId, active, pageable);
+        return clientService.listByBusiness(businessId, active, search, pageable);
     }
 
     /** Obtiene un cliente por ID dentro del negocio (cross-tenant safe). */

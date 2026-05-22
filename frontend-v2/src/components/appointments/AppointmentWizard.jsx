@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import api, { getErrorMessage } from '@/lib/api'
 import { toHms, hhmm, formatDateLong } from '@/lib/format'
+import { ClientPicker } from './ClientPicker'
 
 // Fecha de hoy en 'YYYY-MM-DD' usando la hora LOCAL. Con
 // new Date().toISOString() se usaría UTC y la fecha podría saltar al día
@@ -16,7 +17,7 @@ const todayStr = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
-const emptyForm = { clientId: '', membershipId: '', boothId: '', serviceIds: [], date: todayStr(), notes: '' }
+const emptyForm = { clientId: '', clientName: '', membershipId: '', boothId: '', serviceIds: [], date: todayStr(), notes: '' }
 
 /** Indicador visual de los 3 pasos del asistente. */
 function Stepper({ step }) {
@@ -75,7 +76,7 @@ function Stepper({ step }) {
 export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, prefillTime, prefillClientId }) {
   const toast = useToast()
 
-  const [aux, setAux] = useState({ clients: [], employees: [], services: [], booths: [] })
+  const [aux, setAux] = useState({ employees: [], services: [], booths: [] })
   const [step, setStep] = useState(1)
   const [form, setForm] = useState(emptyForm)
   const [slots, setSlots] = useState([])
@@ -91,16 +92,14 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
   useEffect(() => {
     if (!bId) return
     Promise.allSettled([
-      api.get(`/api/businesses/${bId}/clients?size=100`),
       api.get(`/api/businesses/${bId}/users?size=100`),
       api.get(`/api/businesses/${bId}/services?size=100`),
       api.get(`/api/businesses/${bId}/booths?size=100`),
     ]).then((r) => {
       setAux({
-        clients:   r[0].status === 'fulfilled' ? r[0].value.data.content : [],
-        employees: r[1].status === 'fulfilled' ? r[1].value.data.content : [],
-        services:  r[2].status === 'fulfilled' ? r[2].value.data.content : [],
-        booths:    r[3].status === 'fulfilled' ? r[3].value.data.content : [],
+        employees: r[0].status === 'fulfilled' ? r[0].value.data.content : [],
+        services:  r[1].status === 'fulfilled' ? r[1].value.data.content : [],
+        booths:    r[2].status === 'fulfilled' ? r[2].value.data.content : [],
       })
       const failed = r.find((x) => x.status === 'rejected')
       if (failed) {
@@ -130,7 +129,6 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
     }))
   }
 
-  const clientName = (id) => aux.clients.find((c) => String(c.id) === String(id))?.fullName || '—'
   const employeeName = (id) => aux.employees.find((e) => String(e.id) === String(id))?.fullName || '—'
   const chosenServices = aux.services.filter((s) => form.serviceIds.includes(s.id))
   const chosenTotal = chosenServices.reduce((acc, s) => acc + Number(s.price || 0), 0)
@@ -223,14 +221,12 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
       {step === 1 && (
         <div className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
-            <Select
+            <ClientPicker
+              bId={bId}
               label="Cliente *"
               value={form.clientId}
-              onChange={(e) => setForm((p) => ({ ...p, clientId: e.target.value }))}
-            >
-              <option value="">Selecciona cliente</option>
-              {aux.clients.map((c) => <option key={c.id} value={c.id}>{c.fullName}</option>)}
-            </Select>
+              onChange={(c) => setForm((p) => ({ ...p, clientId: c?.id ?? '', clientName: c?.fullName ?? '' }))}
+            />
             <Select
               label="Empleado *"
               value={form.membershipId}
@@ -386,7 +382,7 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
         <div className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-3">
             {[
-              { label: 'Cliente',  value: clientName(form.clientId) },
+              { label: 'Cliente',  value: form.clientName || '—' },
               { label: 'Empleado', value: selectedSlot.userFullName || employeeName(form.membershipId) },
               { label: 'Fecha',    value: formatDateLong(form.date) },
               { label: 'Hora',     value: `${hhmm(selectedSlot.startTime)} – ${hhmm(selectedSlot.endTime)}` },
