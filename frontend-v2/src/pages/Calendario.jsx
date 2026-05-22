@@ -469,9 +469,9 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
           return (
             <div
               key={idx}
-              onClick={() => onCellClick(keyOf(date))}
+              onClick={() => onOpenDay(date)}
               className={`group relative min-h-[120px] p-2 cursor-pointer transition ${inMonth ? 'bg-white hover:bg-blue-50/40' : 'bg-slate-50/60 hover:bg-slate-50'}`}
-              title="Crear cita este día"
+              title="Ver el día"
             >
               <div className="flex items-center justify-between">
                 <div className={`inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full text-xs font-semibold ${
@@ -479,7 +479,14 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
                     ? 'bg-gradient-to-br from-cyan-500 to-blue-500 text-white shadow-[0_4px_10px_-2px_rgba(14,165,233,0.55)]'
                     : inMonth ? 'text-[#1e3a5f]' : 'text-slate-400'
                 }`}>{date.getDate()}</div>
-                <Plus size={13} className="opacity-0 group-hover:opacity-60 text-blue-500" />
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onCellClick(keyOf(date)) }}
+                  title="Crear cita este día"
+                  className="opacity-0 group-hover:opacity-100 text-blue-500 hover:bg-blue-100 rounded p-0.5 transition"
+                >
+                  <Plus size={14} />
+                </button>
               </div>
               <div className="mt-1.5 space-y-1">
                 {shown.map((a) => <EventChip key={a.id} appt={a} onClick={onSelectEvent} colorBy={colorBy} variant="grid" />)}
