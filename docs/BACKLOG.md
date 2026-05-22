@@ -16,12 +16,12 @@ Es un backlog **independiente** del *"Informe de Calidad"* anterior
 |---|------|--------|
 | P1-empleado | Turno partido — horario del empleado | ✅ Hecho — commit `45e7f18` |
 | P1-negocio  | Turno partido — horario del negocio | ⬜ Pendiente |
-| P2 | Copiar horario L→V para el empleado | ⬜ Pendiente |
+| P2 | Copiar horario L→V para el empleado | ✅ Hecho — sin commit |
 | P3 | Nombre de servicio único por categoría (no por negocio) | ✅ Decisión: se mantiene |
 | P4 | Panel de stats en Catálogo ocupa mucho | ✅ Decisión: se mantiene |
 | P5 | Crear cliente al vuelo desde la nueva cita | ⬜ Pendiente |
 | P6 + P7 | Filtros del calendario que esconden citas | ✅ Hecho — commit `f873b9e` |
-| P8 | "Color por cabina" poco visible | ✅ Hecho — sin commit |
+| P8 | "Color por cabina" poco visible | ✅ Hecho — commit `3c1e229` |
 | P9 | Editar / reprogramar una cita | ⬜ Pendiente — grande |
 | P10 | Toggle densidad no afecta a la vista Mes | ⬜ Opcional |
 | P11 | Color del selector "Agrupar" | ✅ Nada que hacer — confusión del tester |
@@ -77,7 +77,7 @@ UNIQUE (id_business, name)` de `schema_v20.sql`, añadido en la auditoría del
 simetría del patrón de unicidad que comparten servicios, categorías, cabinas e
 impuestos. El riesgo/beneficio no compensa para el alcance del TFG.
 
-### P8 — Selector "Color por" sacado a la barra visible — sin commit
+### P8 — Selector "Color por" sacado a la barra visible — commit `3c1e229`
 El selector "Color por" estaba dentro del popover de Filtros, mezclado con los
 filtros de contenido (Empleado/Cabina/Estado) pese a ser una preferencia de
 visualización, como "Agrupar" o "Densidad". Movido a la barra visible, con
@@ -86,19 +86,22 @@ etiqueta "Color", junto a "Agrupar" y visible en todas las vistas.
   barra con el patrón visual de "Agrupar".
 Build de producción verde.
 
+### P2 — Botón "Copiar L→V" en el horario del empleado — sin commit
+El horario del empleado no tenía forma de replicar el lunes al resto de la
+semana (el del negocio sí). Nuevo botón "Copiar L→V" en la sección "Horario
+semanal" del drawer de empleado, con modal de confirmación.
+- `Empleados.jsx` `EmployeeDrawer`: handler `handleCopyMonToWeek` — por cada
+  día martes-viernes borra los tramos existentes y recrea los del lunes
+  (DELETE antes que POST: el backend valida solapes al crear, 409). Copia los
+  turnos partidos completos. Modal `scheduleModal === 'copyweek'`.
+Verificado E2E con Playwright: turno partido copiado, sobrescritura correcta,
+sábado intacto, guarda sin lunes. Build verde.
+
 ---
 
 ## ⬜ Pendiente
 
 Ordenado por relación esfuerzo / valor.
-
-### P2 — Copiar horario L→V para el empleado  ·  ~1-2 h  ·  frontend
-El horario del **negocio** ya tiene botón "Copiar L→V"
-(`Configuracion.jsx:563-586`, botón `:622`). El del **empleado** no tiene nada.
-- Replicar ese patrón en la sección "Horario semanal" del drawer de empleado
-  (`Empleados.jsx:867-888`): botón que parta de los tramos del lunes y lance
-  los POST a `${empUrl}/schedules` para martes-viernes.
-- Si hay turno partido, copiar todos los tramos del lunes, no solo uno.
 
 ### P5 — Crear cliente al vuelo desde la nueva cita  ·  ~2-3 h  ·  frontend
 El paso 1 del wizard tiene un `<Select>` de solo elección.

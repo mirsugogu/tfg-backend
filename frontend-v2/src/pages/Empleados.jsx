@@ -671,7 +671,7 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
           dot:   'bg-slate-400' }
 
   // ---- Modales de schedule/absence (mismos que el original) ----
-  const [scheduleModal, setScheduleModal]   = useState(null) // create | edit | delete
+  const [scheduleModal, setScheduleModal]   = useState(null) // create | edit | delete | copyweek
   const [absenceModal, setAbsenceModal]     = useState(null)
   const [selectedSch, setSelectedSch]       = useState(null)
   const [selectedAbs, setSelectedAbs]       = useState(null)
@@ -694,6 +694,41 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
     setScheduleModal('edit')
   }
   const openSchedDelete = (s) => { setSelectedSch(s); setScheduleModal('delete') }
+
+  // Quick action: clona los tramos del lunes en martes-viernes. Sobrescribe:
+  // borra antes lo que cada dia tenga, porque el backend valida solapes al
+  // crear (POST 409), asi que hay que vaciar el dia antes de copiar.
+  const handleCopyMonToWeek = async () => {
+    const all = schedules ?? []
+    const mondayTramos = all.filter((s) => s.dayOfWeek === 1)
+    if (mondayTramos.length === 0) {
+      toast({ type: 'error', message: 'Configura primero el horario del lunes.' })
+      return
+    }
+    setSavingChild(true)
+    try {
+      for (let d = 2; d <= 5; d++) {
+        for (const s of all.filter((x) => x.dayOfWeek === d)) {
+          await api.delete(`${empUrl}/schedules/${s.id}`)
+        }
+        for (const m of mondayTramos) {
+          await api.post(`${empUrl}/schedules`, {
+            dayOfWeek: d,
+            startTime: m.startTime,
+            endTime: m.endTime,
+          })
+        }
+      }
+      toast({ type: 'success', message: 'Horario del lunes copiado a martes-viernes.' })
+      closeSched()
+      refreshSchedules()
+    } catch (err) {
+      toast({ type: 'error', message: getErrorMessage(err, 'No se pudo copiar el horario.') })
+      refreshSchedules()
+    } finally {
+      setSavingChild(false)
+    }
+  }
 
   const handleSchedSave = async () => {
     if (scheduleForm.startTime >= scheduleForm.endTime) {
@@ -872,9 +907,14 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em]">Horario semanal</p>
               </div>
               {isAdmin && (
-                <button onClick={openSchedCreate} className="flex items-center gap-0.5 rounded-xl bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-600 hover:bg-blue-100 transition">
-                  <Plus size={10} /> Añadir
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => setScheduleModal('copyweek')} className="rounded-xl bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-200 transition">
+                    Copiar L→V
+                  </button>
+                  <button onClick={openSchedCreate} className="flex items-center gap-0.5 rounded-xl bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-600 hover:bg-blue-100 transition">
+                    <Plus size={10} /> Añadir
+                  </button>
+                </div>
               )}
             </div>
             <ScheduleGrid
@@ -1012,6 +1052,22 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
           <div className="flex gap-3">
             <Button variant="outline" onClick={closeSched} className="flex-1">Cancelar</Button>
             <Button variant="danger" onClick={handleSchedDelete} loading={savingChild} className="flex-1">Eliminar</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={scheduleModal === 'copyweek'} onClose={closeSched} title="Copiar horario L→V" size="sm">
+        <div className="space-y-5">
+          <div className="flex items-start gap-3 rounded-2xl bg-blue-50 border border-blue-100 px-4 py-4">
+            <Clock size={18} className="text-blue-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-blue-800 leading-snug">
+              Se copiarán los tramos del <strong>lunes</strong> a <strong>martes, miércoles,
+              jueves y viernes</strong>. El horario que esos días tuvieran se <strong>reemplazará</strong>.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={closeSched} className="flex-1">Cancelar</Button>
+            <Button onClick={handleCopyMonToWeek} loading={savingChild} className="flex-1">Copiar</Button>
           </div>
         </div>
       </Modal>
