@@ -302,7 +302,7 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
       {step === 2 && (
         <div className="space-y-4">
           <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-xs text-slate-500 flex flex-wrap gap-x-4 gap-y-1">
-            <span className="font-semibold text-[#1e3a5f]">{clientName(form.clientId)}</span>
+            <span className="font-semibold text-[#1e3a5f]">{form.clientName || '—'}</span>
             <span className="flex items-center gap-1"><User size={12} />{employeeName(form.membershipId)}</span>
             <span className="flex items-center gap-1"><CalendarDays size={12} />{formatDateLong(form.date)}</span>
             {totalDuration > 0 && (
