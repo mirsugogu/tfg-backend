@@ -705,10 +705,10 @@ export default function Clientes() {
         title={modal === 'create' ? 'Nuevo cliente' : 'Editar cliente'}
       >
         <div className="space-y-4">
-          <Input label="Nombre completo *" name="fullName" value={form.fullName} onChange={handleChange} placeholder="Nombre y apellidos" />
-          <Input label="Email" name="email" type="email" value={form.email} onChange={handleChange} placeholder="cliente@email.com" />
-          <Input label="Teléfono" name="phone" value={form.phone} onChange={handleChange} placeholder="600 000 000" sanitize={INPUT_SANITIZE.PHONE} inputMode="tel" />
-          <Textarea label="Notas" name="notes" value={form.notes} onChange={handleChange} placeholder="Observaciones, alergias, preferencias…" />
+          <Input label="Nombre completo *" name="fullName" value={form.fullName} onChange={handleChange} placeholder="Nombre y apellidos" maxLength={150} />
+          <Input label="Email" name="email" type="email" value={form.email} onChange={handleChange} placeholder="cliente@email.com" maxLength={150} />
+          <Input label="Teléfono" name="phone" value={form.phone} onChange={handleChange} placeholder="600 000 000" sanitize={INPUT_SANITIZE.PHONE} inputMode="tel" maxLength={20} />
+          <Textarea label="Notas" name="notes" value={form.notes} onChange={handleChange} placeholder="Observaciones, alergias, preferencias…" maxLength={1000} />
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
             <Button onClick={handleSave} loading={saving} className="flex-1">

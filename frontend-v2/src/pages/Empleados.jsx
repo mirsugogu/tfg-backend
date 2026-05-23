@@ -482,6 +482,7 @@ export default function Empleados() {
             onChange={handleChange}
             placeholder="Nombre y apellidos"
             disabled={modal === 'edit'}
+            maxLength={150}
           />
           <Input
             label="Email *"
@@ -491,6 +492,7 @@ export default function Empleados() {
             onChange={handleChange}
             placeholder="empleado@empresa.com"
             disabled={modal === 'edit'}
+            maxLength={150}
           />
           <Input
             label="Teléfono"
@@ -501,6 +503,7 @@ export default function Empleados() {
             disabled={modal === 'edit'}
             sanitize={INPUT_SANITIZE.PHONE}
             inputMode="tel"
+            maxLength={20}
           />
           {modal === 'create' && (
             <Input
@@ -510,6 +513,7 @@ export default function Empleados() {
               value={form.password}
               onChange={handleChange}
               placeholder="Mínimo 8 caracteres"
+              maxLength={100}
             />
           )}
           <Select label="Rol *" name="roleId" value={form.roleId} onChange={handleChange}>
@@ -1190,6 +1194,7 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
             value={absenceForm.reason}
             onChange={(e) => setAbsenceForm((p) => ({ ...p, reason: e.target.value }))}
             placeholder="Vacaciones, baja médica…"
+            maxLength={255}
           />
           <div className="flex gap-3 pt-1">
             <Button variant="outline" onClick={closeAbs} className="flex-1">Cancelar</Button>

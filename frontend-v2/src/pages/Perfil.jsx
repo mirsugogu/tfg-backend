@@ -260,6 +260,7 @@ export default function Perfil() {
             value={profile.fullName}
             onChange={(e) => setProfile((p) => ({ ...p, fullName: e.target.value }))}
             placeholder="Nombre y apellidos"
+            maxLength={150}
           />
           <Input
             label="Email *"
@@ -267,6 +268,7 @@ export default function Perfil() {
             value={profile.email}
             onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))}
             placeholder="tu@email.com"
+            maxLength={150}
           />
           {emailChanged && (
             <div className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-[11px] text-amber-700 flex items-start gap-2">
@@ -281,6 +283,7 @@ export default function Perfil() {
             placeholder="600 000 000"
             sanitize={INPUT_SANITIZE.PHONE}
             inputMode="tel"
+            maxLength={20}
           />
           {me?.createdAt && (
             <p className="text-[11px] text-slate-400 flex items-center gap-1">
@@ -444,6 +447,7 @@ function PasswordField({ label, value, onChange, show, onToggle, placeholder, au
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           autoComplete={autoComplete}
+          maxLength={100}
           className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-3.5 pr-10 text-sm text-[#1e3a5f] placeholder:text-slate-400 focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition"
         />
         <button

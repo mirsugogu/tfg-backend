@@ -84,6 +84,7 @@ export default function ForgotPassword() {
                   onChange={(e) => setEmail(e.target.value)}
                   onBlur={() => setEmailBlurred(true)}
                   placeholder="tu@email.com"
+                  maxLength={150}
                   className={emailInvalid ? inputErr : inputOk}
                   autoComplete="email"
                 />

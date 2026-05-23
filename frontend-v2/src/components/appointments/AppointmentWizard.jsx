@@ -503,6 +503,7 @@ export function AppointmentWizard({
             value={form.notes}
             onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
             placeholder="Observaciones adicionales…"
+            maxLength={1000}
           />
 
           <div className="flex gap-3 pt-1">

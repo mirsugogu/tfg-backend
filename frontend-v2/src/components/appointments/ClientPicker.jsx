@@ -175,11 +175,11 @@ export function ClientPicker({ bId, value, onChange, label, error }) {
                 /* Mini-formulario: crear cliente al vuelo (P5) */
                 <div className="p-3 space-y-2.5">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Nuevo cliente</p>
-                  <Input label="Nombre *" value={newClient.fullName} autoFocus
+                  <Input label="Nombre *" value={newClient.fullName} autoFocus maxLength={150}
                     onChange={(e) => setNewClient((p) => ({ ...p, fullName: e.target.value }))} />
-                  <Input label="Email" type="email" value={newClient.email}
+                  <Input label="Email" type="email" value={newClient.email} maxLength={150}
                     onChange={(e) => setNewClient((p) => ({ ...p, email: e.target.value }))} />
-                  <Input label="Teléfono" value={newClient.phone}
+                  <Input label="Teléfono" value={newClient.phone} maxLength={20}
                     onChange={(e) => setNewClient((p) => ({ ...p, phone: e.target.value }))}
                     sanitize={INPUT_SANITIZE.PHONE} inputMode="tel" />
                   <div className="flex gap-2 pt-1">

@@ -232,6 +232,7 @@ export default function Register() {
                         value={form.bizEmail}
                         onChange={(e) => set('bizEmail', e.target.value)}
                         placeholder="negocio@email.com"
+                        maxLength={150}
                       />
                       {bizEmailInvalid && (
                         <p className="text-[11px] mt-1 text-amber-600 inline-flex items-center gap-1">
@@ -239,7 +240,7 @@ export default function Register() {
                         </p>
                       )}
                     </div>
-                    <Input label="Teléfono del negocio" value={form.bizPhone} onChange={(e) => set('bizPhone', e.target.value)} placeholder="600 000 000" sanitize={INPUT_SANITIZE.PHONE} inputMode="tel" />
+                    <Input label="Teléfono del negocio" value={form.bizPhone} onChange={(e) => set('bizPhone', e.target.value)} placeholder="600 000 000" sanitize={INPUT_SANITIZE.PHONE} inputMode="tel" maxLength={20} />
                   </div>
                 </div>
               </div>
@@ -250,10 +251,10 @@ export default function Register() {
               <div>
                 <SectionHeader icon={MapPin}>Ubicación del negocio</SectionHeader>
                 <div className="space-y-3">
-                  <Input label="Dirección" value={form.bizAddress} onChange={(e) => set('bizAddress', e.target.value)} placeholder="Calle Mayor 5" />
+                  <Input label="Dirección" value={form.bizAddress} onChange={(e) => set('bizAddress', e.target.value)} placeholder="Calle Mayor 5" maxLength={255} />
                   <div className="grid sm:grid-cols-2 gap-3">
-                    <Input label="Ciudad" value={form.bizCity} onChange={(e) => set('bizCity', e.target.value)} placeholder="Madrid" />
-                    <Input label="Código postal" value={form.bizPostalCode} onChange={(e) => set('bizPostalCode', e.target.value)} placeholder="28013" sanitize={INPUT_SANITIZE.DIGITS_ONLY} inputMode="numeric" />
+                    <Input label="Ciudad" value={form.bizCity} onChange={(e) => set('bizCity', e.target.value)} placeholder="Madrid" maxLength={100} />
+                    <Input label="Código postal" value={form.bizPostalCode} onChange={(e) => set('bizPostalCode', e.target.value)} placeholder="28013" sanitize={INPUT_SANITIZE.DIGITS_ONLY} inputMode="numeric" maxLength={10} />
                   </div>
                   {coords ? (
                     <LocationMap lat={coords.lat} lon={coords.lon} />
@@ -284,7 +285,7 @@ export default function Register() {
               <div>
                 <SectionHeader icon={UserCircle}>Tu cuenta de administrador</SectionHeader>
                 <div className="space-y-3">
-                  <Input label="Nombre completo *" value={form.adminName} onChange={(e) => set('adminName', e.target.value)} placeholder="Eva García" />
+                  <Input label="Nombre completo *" value={form.adminName} onChange={(e) => set('adminName', e.target.value)} placeholder="Eva García" maxLength={150} />
                   <div className="grid sm:grid-cols-2 gap-3">
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
@@ -300,6 +301,7 @@ export default function Register() {
                         value={form.adminEmail}
                         onChange={(e) => set('adminEmail', e.target.value)}
                         placeholder="tu@email.com"
+                        maxLength={150}
                         className={`h-11 w-full rounded-xl border bg-white px-3.5 text-sm text-[#1e3a5f] focus:outline-none focus:ring-4 ${adminEmailInvalid ? 'border-amber-300 focus:border-amber-400 focus:ring-amber-100' : 'border-slate-200 focus:border-blue-400 focus:ring-blue-100'}`}
                       />
                       {adminEmailInvalid && (
@@ -308,7 +310,7 @@ export default function Register() {
                         </p>
                       )}
                     </div>
-                    <Input label="Tu teléfono" value={form.adminPhone} onChange={(e) => set('adminPhone', e.target.value)} placeholder="600 000 000" />
+                    <Input label="Tu teléfono" value={form.adminPhone} onChange={(e) => set('adminPhone', e.target.value)} placeholder="600 000 000" maxLength={20} />
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-slate-500 block mb-1.5">Contraseña *</label>
@@ -322,6 +324,7 @@ export default function Register() {
                         onBlur={() => setCapsLock(false)}
                         placeholder="Mínimo 8 caracteres"
                         autoComplete="new-password"
+                        maxLength={100}
                         className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-3.5 pr-10 text-sm text-[#1e3a5f] focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                       />
                       <button type="button" onClick={() => setShowPassword(!showPassword)} tabIndex={-1}

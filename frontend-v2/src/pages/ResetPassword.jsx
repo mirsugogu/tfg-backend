@@ -175,6 +175,7 @@ export default function ResetPassword() {
                       onKeyUp={handlePwdKey}
                       onBlur={() => setCapsLock(false)}
                       placeholder="••••••••"
+                      maxLength={100}
                       className={pwdInputCls}
                       autoComplete="new-password"
                     />
@@ -215,6 +216,7 @@ export default function ResetPassword() {
                       value={form.confirmPassword}
                       onChange={(e) => setForm((p) => ({ ...p, confirmPassword: e.target.value }))}
                       placeholder="••••••••"
+                      maxLength={100}
                       className={pwdInputCls}
                       autoComplete="new-password"
                     />

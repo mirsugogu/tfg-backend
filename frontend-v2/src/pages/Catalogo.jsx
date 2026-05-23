@@ -754,6 +754,7 @@ export default function Catalogo() {
               value={serviceForm.name}
               onChange={(e) => setServiceForm((p) => ({ ...p, name: e.target.value }))}
               placeholder="Nombre del servicio"
+              maxLength={150}
             />
           </div>
           <div className="sm:col-span-2">
@@ -763,6 +764,7 @@ export default function Catalogo() {
               value={serviceForm.description}
               onChange={(e) => setServiceForm((p) => ({ ...p, description: e.target.value }))}
               placeholder="Descripción opcional…"
+              maxLength={500}
             />
           </div>
           <Input
@@ -840,6 +842,7 @@ export default function Catalogo() {
             value={catForm.name}
             onChange={(e) => setCatForm({ name: e.target.value })}
             placeholder="Nombre de la categoría"
+            maxLength={100}
           />
           <div className="flex gap-3">
             <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>

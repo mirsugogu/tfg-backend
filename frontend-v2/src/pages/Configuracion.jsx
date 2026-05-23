@@ -230,9 +230,9 @@ function BusinessTab({ bId, isAdmin }) {
       {/* Form */}
       <div className={`${CARD} p-6 space-y-6`}>
         <div className="grid sm:grid-cols-2 gap-4">
-          <Input label="Nombre *" value={form.name} onChange={(e) => set('name', e.target.value)} disabled={!isAdmin} />
-          <Input label="Email *" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} disabled={!isAdmin} />
-          <Input label="Teléfono" value={form.phone} onChange={(e) => set('phone', e.target.value)} disabled={!isAdmin} sanitize={INPUT_SANITIZE.PHONE} inputMode="tel" />
+          <Input label="Nombre *" value={form.name} onChange={(e) => set('name', e.target.value)} disabled={!isAdmin} maxLength={150} />
+          <Input label="Email *" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} disabled={!isAdmin} maxLength={150} />
+          <Input label="Teléfono" value={form.phone} onChange={(e) => set('phone', e.target.value)} disabled={!isAdmin} sanitize={INPUT_SANITIZE.PHONE} inputMode="tel" maxLength={20} />
           <Select
             label="Intervalo entre citas"
             value={form.appointmentInterval}
@@ -244,18 +244,18 @@ function BusinessTab({ bId, isAdmin }) {
         </div>
 
         <div>
-          <Input label="Identificador (slug)" value={biz?.slug || ''} disabled />
+          <Input label="Identificador (slug)" value={biz?.slug || ''} disabled maxLength={150} />
           <p className="text-[11px] text-slate-400 mt-1.5">El identificador se fija al crear el negocio y no se puede cambiar.</p>
         </div>
 
         <div className="border-t border-slate-100 pt-5">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Ubicación</p>
           <div className="grid sm:grid-cols-2 gap-4">
-            <Input label="Dirección" value={form.address} onChange={(e) => set('address', e.target.value)} disabled={!isAdmin} />
-            <Input label="Ciudad" value={form.city} onChange={(e) => set('city', e.target.value)} disabled={!isAdmin} />
-            <Input label="Código postal" value={form.postalCode} onChange={(e) => set('postalCode', e.target.value)} disabled={!isAdmin} sanitize={INPUT_SANITIZE.DIGITS_ONLY} inputMode="numeric" />
-            <Input label="Provincia / Estado" value={form.state} onChange={(e) => set('state', e.target.value)} disabled={!isAdmin} />
-            <Input label="País" value={form.country} onChange={(e) => set('country', e.target.value)} disabled={!isAdmin} />
+            <Input label="Dirección" value={form.address} onChange={(e) => set('address', e.target.value)} disabled={!isAdmin} maxLength={255} />
+            <Input label="Ciudad" value={form.city} onChange={(e) => set('city', e.target.value)} disabled={!isAdmin} maxLength={100} />
+            <Input label="Código postal" value={form.postalCode} onChange={(e) => set('postalCode', e.target.value)} disabled={!isAdmin} sanitize={INPUT_SANITIZE.DIGITS_ONLY} inputMode="numeric" maxLength={10} />
+            <Input label="Provincia / Estado" value={form.state} onChange={(e) => set('state', e.target.value)} disabled={!isAdmin} maxLength={100} />
+            <Input label="País" value={form.country} onChange={(e) => set('country', e.target.value)} disabled={!isAdmin} maxLength={100} />
           </div>
           {biz?.latitude != null && biz?.longitude != null && (
             <p className="text-[11px] text-slate-400 mt-3 flex items-center gap-1">
@@ -461,7 +461,7 @@ function TaxesTab({ bId, isAdmin }) {
 
       <Modal open={modal === 'create' || modal === 'edit'} onClose={closeModal} title={modal === 'create' ? 'Nuevo impuesto' : 'Editar impuesto'} size="sm">
         <div className="space-y-4">
-          <Input label="Nombre *" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} placeholder="IVA general" />
+          <Input label="Nombre *" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} placeholder="IVA general" maxLength={50} />
           <Input label="Porcentaje *" type="number" min="0" max="100" step="0.01" value={form.percentage} onChange={(e) => setForm((p) => ({ ...p, percentage: e.target.value }))} placeholder="21" />
           <div className="flex gap-3">
             <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
@@ -934,6 +934,7 @@ function BoothsTab({ bId, isAdmin }) {
             value={form.name}
             onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
             placeholder="Sala 1"
+            maxLength={80}
           />
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Color en el calendario</label>
@@ -1186,7 +1187,7 @@ function BlocksTab({ bId, isAdmin }) {
             <Input label="Desde *" type="date" value={form.startDate} onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))} />
             <Input label="Hasta *" type="date" value={form.endDate} onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))} />
           </div>
-          <Input label="Motivo" value={form.reason} onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value }))} placeholder="Vacaciones, festivo, mantenimiento…" />
+          <Input label="Motivo" value={form.reason} onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value }))} placeholder="Vacaciones, festivo, mantenimiento…" maxLength={255} />
           <div className="flex gap-3">
             <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
             <Button onClick={handleCreate} loading={saving} className="flex-1">Crear bloqueo</Button>

@@ -206,6 +206,7 @@ export default function Login() {
                         onChange={handleChange}
                         onBlur={() => setEmailBlurred(true)}
                         placeholder="tu@email.com"
+                        maxLength={150}
                         className={emailInvalid ? inputErr : inputOk}
                         autoComplete="email"
                       />
@@ -235,6 +236,7 @@ export default function Login() {
                         onKeyUp={handlePwdKey}
                         onBlur={() => setCapsLock(false)}
                         placeholder="••••••••"
+                        maxLength={100}
                         className={`${inputOk} pr-11`}
                         autoComplete="current-password"
                       />
