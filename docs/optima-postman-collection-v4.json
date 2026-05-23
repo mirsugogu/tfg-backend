@@ -264,6 +264,16 @@
           "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}"]},"body":{"mode":"raw","raw":"{\"name\":\"Salon Updated\",\"email\":\"demo@optima.com\",\"phone\":\"600999888\",\"address\":\"Nueva calle\",\"appointmentInterval\":30}"}}
         },
         {
+          "name": "PUT codigo postal con letras -> 400 (@Pattern)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));","pm.test('mensaje incluye codigo postal',()=>pm.expect(pm.response.text().toLowerCase()).to.match(/postal|c[oó]digo/));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}"]},"body":{"mode":"raw","raw":"{\"name\":\"Salon Updated\",\"email\":\"demo@optima.com\",\"postalCode\":\"28013AB\",\"appointmentInterval\":30}"}}
+        },
+        {
+          "name": "PUT telefono con simbolos invalidos -> 400 (@Pattern)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}"]},"body":{"mode":"raw","raw":"{\"name\":\"Salon Updated\",\"email\":\"demo@optima.com\",\"phone\":\"abc 91 555\",\"appointmentInterval\":30}"}}
+        },
+        {
           "name": "POST 2do negocio (para cross-tenant)",
           "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","pm.collectionVariables.set('businessId2',pm.response.json().id);"]}}],
           "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses","host":["{{baseUrl}}"],"path":["api","businesses"]},"body":{"mode":"raw","raw":"{\"name\":\"Otro Negocio\",\"slug\":\"otro-{{uniqSuffix}}\",\"email\":\"otro{{uniqSuffix}}@x.com\",\"appointmentInterval\":30}"}}
@@ -627,6 +637,21 @@
           "name": "POST email malformado -> 400",
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
           "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/clients","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","clients"]},"body":{"mode":"raw","raw":"{\"fullName\":\"Otro\",\"email\":\"no-es-email\"}"}}
+        },
+        {
+          "name": "POST telefono con letras -> 400 (@Pattern)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));","pm.test('mensaje incluye telefono',()=>pm.expect(pm.response.text().toLowerCase()).to.include('tel'));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/clients","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","clients"]},"body":{"mode":"raw","raw":"{\"fullName\":\"Otro\",\"phone\":\"abc123\"}"}}
+        },
+        {
+          "name": "POST telefono con simbolo invalido -> 400 (@Pattern)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/clients","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","clients"]},"body":{"mode":"raw","raw":"{\"fullName\":\"Otro\",\"phone\":\"600#000@000\"}"}}
+        },
+        {
+          "name": "POST telefono internacional con simbolos validos -> 201",
+          "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/clients","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","clients"]},"body":{"mode":"raw","raw":"{\"fullName\":\"Internacional {{uniqSuffix}}\",\"phone\":\"+34 (91) 555-0000\"}"}}
         },
         {
           "name": "GET list",
