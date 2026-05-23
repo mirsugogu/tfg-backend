@@ -8,6 +8,7 @@
  *   Fila 1 — día de la semana + número
  *   Fila 2 — sub-columnas de recurso (C1, C2, ..., Sin)
  */
+import { useMemo } from 'react'
 import {
   PALETTES, GRAY_PALETTE, DAYS_ES_SHORT, paletteByName,
   keyOf, isSameDay, layoutEvents, openRangesFor, startOfWeek,
@@ -27,11 +28,28 @@ export function WeekResourceGrid({
   const ws = startOfWeek(cursor)
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(ws); d.setDate(ws.getDate() + i); return d })
 
-  // Sub-columnas finales. Añadimos siempre "Sin asignar" para que todos
-  // los días sean igual de anchos — más legible al escanear.
+  // ¿Hay alguna cita SIN recurso asignado en la semana visible? Si no la
+  // hay, no se añade la columna "Sin asignar" para evitar ruido visual
+  // (caso reportado al probar: salía siempre aunque todas las citas
+  // tuvieran cabina o empleado).
+  const hasUnassigned = useMemo(() => {
+    for (const d of days) {
+      const dayEvents = eventsByDay.get(keyOf(d)) || []
+      for (const a of dayEvents) {
+        if (resourceFor(a) == null) return true
+      }
+    }
+    return false
+  }, [days, eventsByDay, resourceFor])
+
+  // Sub-columnas finales. "Sin asignar" aparece solo si hay citas
+  // huerfanas o si no hay ningun recurso configurado (en cuyo caso es la
+  // unica columna posible y al menos permite ver lo que hay).
   const cols = [
     ...resources,
-    { id: '__none__', name: 'Sin asignar', short: unassignedShort, accent: -1 },
+    ...((hasUnassigned || resources.length === 0)
+      ? [{ id: '__none__', name: 'Sin asignar', short: unassignedShort, accent: -1 }]
+      : []),
   ]
   const nCols = cols.length
 

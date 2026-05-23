@@ -274,7 +274,6 @@ export function PositionedEvent({ appt, onClick, col, cols, colorBy, dayStart, h
         onClick={(e) => { e.stopPropagation(); onClick(appt) }}
         onMouseEnter={hover.onMouseEnter}
         onMouseLeave={hover.onMouseLeave}
-        title={label}
         aria-label={label}
         style={{
           top: `${topPx}px`, height: `${heightPx}px`,
@@ -324,7 +323,6 @@ export function EventChip({ appt, onClick, colorBy, variant = 'list' }) {
           onClick={(e) => { e.stopPropagation(); onClick(appt) }}
           onMouseEnter={hover.onMouseEnter}
           onMouseLeave={hover.onMouseLeave}
-          title={label}
           aria-label={label}
           className={`w-full ${s.bg} ${s.hover} ${s.text} px-1.5 py-1 text-[10px] font-bold tabular-nums text-left leading-tight transition ${isInProgress ? 'ring-1 ring-cyan-400 animate-pulse' : ''} ${isTerminal ? 'line-through opacity-60' : ''}`}
         >
@@ -341,7 +339,7 @@ export function EventChip({ appt, onClick, colorBy, variant = 'list' }) {
         onClick={(e) => { e.stopPropagation(); onClick(appt) }}
         onMouseEnter={hover.onMouseEnter}
         onMouseLeave={hover.onMouseLeave}
-        title={label}
+        aria-label={label}
         className={`w-full flex items-center gap-1.5 ${s.bg} ${s.hover} ${s.text} text-[11px] font-medium rounded-md px-1.5 py-1 text-left transition ${isInProgress ? 'ring-1 ring-cyan-300 animate-pulse' : ''} ${isTerminal ? 'line-through opacity-60' : ''}`}
       >
         <span className={`w-0.5 self-stretch ${s.bar} rounded-full shrink-0`} />

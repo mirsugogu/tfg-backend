@@ -1264,10 +1264,11 @@ function ScheduleGrid({ schedules, loading, isAdmin, onEdit, onDelete, onAdd }) 
               const width  = Math.max(2, ((endH - startH) / total) * 100)
               bar = (
                 <div
-                  className="absolute inset-y-1 rounded-md flex items-center px-2 text-[10px] font-semibold text-white"
+                  className="absolute inset-y-1 rounded-md flex items-center px-2 text-[10px] font-semibold text-white whitespace-nowrap overflow-hidden"
                   style={{ left: `${left}%`, width: `${width}%`, background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)' }}
+                  title={`${sch.startTime.slice(0, 5)} – ${sch.endTime.slice(0, 5)}`}
                 >
-                  {sch.startTime.slice(0, 5)} – {sch.endTime.slice(0, 5)}
+                  <span className="truncate">{sch.startTime.slice(0, 5)} – {sch.endTime.slice(0, 5)}</span>
                 </div>
               )
             } else {
