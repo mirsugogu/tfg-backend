@@ -200,23 +200,28 @@ export function HourSlots({
  */
 export function AbsenceOverlay({ absences, dayDate, dayStart, dayEnd, hourPx }) {
   if (!absences || absences.length === 0) return null
-  const dayStartMs = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate()).getTime()
-  const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000
-  const totalMinutes = (dayEnd - dayStart) * 60
+  // Clamp al RANGO HORARIO VISIBLE de la rejilla (dayStart..dayEnd), no al
+  // dia completo 00-24. Si la ausencia empieza a las 17:53 pero la rejilla
+  // termina en 21:00, la franja debe cortarse en 21:00 — no salirse al
+  // hueco que hay por debajo del calendario.
+  const dayMidnightMs = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate()).getTime()
+  const gridStartMs = dayMidnightMs + dayStart * 60 * 60 * 1000
+  const gridEndMs = dayMidnightMs + dayEnd * 60 * 60 * 1000
+  const gridTotalPx = (dayEnd - dayStart) * hourPx
   return (
     <>
       {absences.map((abs) => {
         const startMs = new Date(abs.startDateTime).getTime()
         const endMs = new Date(abs.endDateTime).getTime()
-        // Clamp al dia visible.
-        const visStart = Math.max(startMs, dayStartMs)
-        const visEnd = Math.min(endMs, dayEndMs)
+        const visStart = Math.max(startMs, gridStartMs)
+        const visEnd = Math.min(endMs, gridEndMs)
         if (visEnd <= visStart) return null
-        const minutesFromMidnight = (visStart - dayStartMs) / 60000
-        const minutesFromDayStart = minutesFromMidnight - dayStart * 60
+        const minutesFromGridStart = (visStart - gridStartMs) / 60000
         const durationMinutes = (visEnd - visStart) / 60000
-        const topPx = (minutesFromDayStart / 60) * hourPx
-        const heightPx = (durationMinutes / 60) * hourPx
+        const topPx = (minutesFromGridStart / 60) * hourPx
+        // Clamp final del alto por si acaso: nunca exceder el contenedor.
+        const rawHeight = (durationMinutes / 60) * hourPx
+        const heightPx = Math.max(8, Math.min(rawHeight, gridTotalPx - topPx))
         const label = abs.reason ? `Ausencia: ${abs.reason}` : 'Ausencia'
         return (
           <div
@@ -225,7 +230,7 @@ export function AbsenceOverlay({ absences, dayDate, dayStart, dayEnd, hourPx }) 
             className="absolute left-0 right-0 z-10 pointer-events-none flex items-start justify-center pt-1"
             style={{
               top: `${Math.max(0, topPx)}px`,
-              height: `${Math.max(8, heightPx)}px`,
+              height: `${heightPx}px`,
               backgroundColor: 'rgba(244, 63, 94, 0.15)',
               backgroundImage:
                 'repeating-linear-gradient(45deg, rgba(244,63,94,0.28) 0 6px, transparent 6px 14px)',
@@ -239,7 +244,6 @@ export function AbsenceOverlay({ absences, dayDate, dayStart, dayEnd, hourPx }) 
             )}
           </div>
         )
-        // (impossible to reach below; suppress lint)
       })}
     </>
   )
