@@ -157,17 +157,27 @@ export default function Calendario() {
     () => new Map(employees.map((e) => [e.id, e.color])),
     [employees],
   )
+  // [L] Mapa boothId -> color asignado a la cabina (booths.color). Igual
+  // patron que empColorMap: simetria empleado/cabina en el calendario.
+  const boothColorMap = useMemo(
+    () => new Map(booths.map((b) => [b.id, b.color])),
+    [booths],
+  )
 
-  // Filtros client-side (estado + cabina). Ademas anexa employeeColor a
-  // cada cita para que styleFor pueda usar el color asignado del empleado.
+  // Filtros client-side (estado + cabina). Ademas anexa employeeColor y
+  // boothColor a cada cita para que styleFor pueda usar el color asignado.
   const filtered = useMemo(() => appointments
     .filter((a) => {
       if (statusFilter && a.statusName !== statusFilter) return false
       if (boothFilter && String(a.boothId ?? '') !== boothFilter) return false
       return true
     })
-    .map((a) => ({ ...a, employeeColor: empColorMap.get(a.membershipId) ?? null })),
-    [appointments, statusFilter, boothFilter, empColorMap])
+    .map((a) => ({
+      ...a,
+      employeeColor: empColorMap.get(a.membershipId) ?? null,
+      boothColor: a.boothId != null ? (boothColorMap.get(a.boothId) ?? null) : null,
+    })),
+    [appointments, statusFilter, boothFilter, empColorMap, boothColorMap])
 
   // Agrupado por día
   const eventsByDay = useMemo(() => {
@@ -298,6 +308,7 @@ export default function Calendario() {
       name: b.name,
       short: b.short || boothShort(b.name),
       accent: b.id,
+      color: b.color,  // [L] permite que paletteByName decida la cabecera
     })),
     [booths],
   )

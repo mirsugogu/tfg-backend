@@ -20,6 +20,7 @@ public record BoothResponse(
         Long id,
         Long businessId,
         String name,
+        String color,
         Boolean isActive,
         LocalDateTime createdAt,
         LocalDateTime deactivatedAt
@@ -29,6 +30,7 @@ public record BoothResponse(
                 b.getId(),
                 b.getBusiness().getId(),
                 b.getName(),
+                b.getColor(),
                 b.getIsActive(),
                 b.getCreatedAt(),
                 b.getDeactivatedAt()

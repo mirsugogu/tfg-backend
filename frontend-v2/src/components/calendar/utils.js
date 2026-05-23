@@ -67,7 +67,12 @@ export const styleFor = (appt, colorBy) => {
     return STATUS_STYLES[appt.statusName]
   if (colorBy === 'status')   return STATUS_STYLES[appt.statusName] || STATUS_STYLES.PENDING
   if (colorBy === 'employee') return paletteByName(appt.employeeColor) || PALETTES[(appt.membershipId ?? 0) % PALETTES.length]
-  if (colorBy === 'booth')    return appt.boothId ? PALETTES[(appt.boothId) % PALETTES.length] : GRAY_PALETTE
+  if (colorBy === 'booth') {
+    if (!appt.boothId) return GRAY_PALETTE
+    // [L] Si la cabina tiene color asignado, usamos esa paleta; si no, el
+    // automatico por id. Simetria con el modo 'employee'.
+    return paletteByName(appt.boothColor) || PALETTES[appt.boothId % PALETTES.length]
+  }
   return STATUS_STYLES[appt.statusName] || STATUS_STYLES.PENDING
 }
 

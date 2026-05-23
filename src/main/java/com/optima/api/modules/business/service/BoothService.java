@@ -61,6 +61,7 @@ public class BoothService {
         Booth b = new Booth();
         b.setBusiness(business);
         b.setName(name);
+        b.setColor(request.color());
         b.setIsActive(true);
 
         return BoothResponse.from(boothRepository.save(b));
@@ -108,6 +109,7 @@ public class BoothService {
         }
 
         b.setName(name);
+        b.setColor(request.color());
         return BoothResponse.from(boothRepository.save(b));
     }
 

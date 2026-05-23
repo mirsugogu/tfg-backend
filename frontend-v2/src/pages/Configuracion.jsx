@@ -23,7 +23,18 @@ const TH   = 'px-6 py-3.5 text-left text-[11px] font-semibold text-slate-400 upp
 
 const emptyTax   = { name: '', percentage: '' }
 const emptyHour  = { dayOfWeek: '1', startTime: '09:00', endTime: '18:00', isClosed: false }
-const emptyBooth = { name: '' }
+const emptyBooth = { name: '', color: '' }
+
+// [L] Paleta de la cabina en el calendario. Mismos nombres que en
+// memberships.color y components/calendar/utils.js. Varias cabinas pueden
+// compartir color a proposito.
+const BOOTH_COLOR_OPTIONS = [
+  { name: 'cyan', cls: 'bg-cyan-500' }, { name: 'amber', cls: 'bg-amber-500' },
+  { name: 'emerald', cls: 'bg-emerald-500' }, { name: 'indigo', cls: 'bg-indigo-500' },
+  { name: 'pink', cls: 'bg-pink-500' }, { name: 'sky', cls: 'bg-sky-500' },
+  { name: 'violet', cls: 'bg-violet-500' }, { name: 'teal', cls: 'bg-teal-500' },
+]
+const BOOTH_COLOR_CLS = Object.fromEntries(BOOTH_COLOR_OPTIONS.map((o) => [o.name, o.cls]))
 const emptyBlock = { type: 'global', membershipId: '', boothId: '', startDate: '', endDate: '', reason: '' }
 
 const fmtDate = (d) =>
@@ -771,18 +782,19 @@ function BoothsTab({ bId, isAdmin }) {
 
   const closeModal  = () => { setModal(null); setSelected(null) }
   const openCreate  = () => { setForm(emptyBooth); setSelected(null); setModal('create') }
-  const openEdit    = (b) => { setSelected(b); setForm({ name: b.name }); setModal('edit') }
+  const openEdit    = (b) => { setSelected(b); setForm({ name: b.name, color: b.color || '' }); setModal('edit') }
   const openArchive = (b) => { setSelected(b); setModal('archive') }
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast({ type: 'error', message: 'El nombre es obligatorio.' }); return }
     setSaving(true)
     try {
+      const body = { name: form.name, color: form.color || null }
       if (modal === 'create') {
-        await api.post(`/api/businesses/${bId}/booths`, { name: form.name })
+        await api.post(`/api/businesses/${bId}/booths`, body)
         toast({ type: 'success', message: 'Cabina creada.' })
       } else {
-        await api.put(`/api/businesses/${bId}/booths/${selected.id}`, { name: form.name })
+        await api.put(`/api/businesses/${bId}/booths/${selected.id}`, body)
         toast({ type: 'success', message: 'Cabina actualizada.' })
       }
       closeModal(); refresh()
@@ -843,7 +855,13 @@ function BoothsTab({ bId, isAdmin }) {
               <div key={b.id} className="group bg-white rounded-2xl border border-slate-100 p-5 hover:border-blue-200 hover:shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)] transition">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${boothColor(b.id)} text-white shadow-[0_6px_16px_-6px_rgba(99,102,241,0.4)]`}>
+                    <div
+                      className={`flex h-11 w-11 items-center justify-center rounded-xl text-white shadow-[0_6px_16px_-6px_rgba(99,102,241,0.4)] ${
+                        b.color && BOOTH_COLOR_CLS[b.color]
+                          ? BOOTH_COLOR_CLS[b.color]
+                          : `bg-gradient-to-br ${boothColor(b.id)}`
+                      }`}
+                    >
                       <Store size={17} />
                     </div>
                     <div>
@@ -878,7 +896,38 @@ function BoothsTab({ bId, isAdmin }) {
 
       <Modal open={modal === 'create' || modal === 'edit'} onClose={closeModal} title={modal === 'create' ? 'Nueva cabina' : 'Editar cabina'} size="sm">
         <div className="space-y-4">
-          <Input label="Nombre *" value={form.name} onChange={(e) => setForm({ name: e.target.value })} placeholder="Sala 1" />
+          <Input
+            label="Nombre *"
+            value={form.name}
+            onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            placeholder="Sala 1"
+          />
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Color en el calendario</label>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, color: '' }))}
+                title="Sin color — el calendario usa uno automático"
+                className={`h-8 px-2 rounded-lg border-2 text-[10px] font-bold text-slate-500 transition ${form.color === '' ? 'border-[#1e3a5f]' : 'border-slate-200 hover:border-slate-300'}`}
+              >
+                Auto
+              </button>
+              {BOOTH_COLOR_OPTIONS.map(({ name, cls }) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, color: name }))}
+                  title={name}
+                  aria-label={`Color ${name}`}
+                  className={`h-8 w-8 rounded-lg ${cls} ring-2 ring-offset-2 transition ${form.color === name ? 'ring-[#1e3a5f]' : 'ring-transparent hover:ring-slate-300'}`}
+                />
+              ))}
+            </div>
+            <p className="text-xs text-slate-400 mt-1.5">
+              Para diferenciar las citas de cada cabina de un vistazo. Varias cabinas pueden compartir color.
+            </p>
+          </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
             <Button onClick={handleSave} loading={saving} className="flex-1">{modal === 'create' ? 'Crear' : 'Guardar'}</Button>

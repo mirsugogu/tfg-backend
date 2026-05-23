@@ -279,6 +279,9 @@ CREATE TABLE booths (
                         id_booth       BIGINT       AUTO_INCREMENT PRIMARY KEY,
                         id_business    BIGINT       NOT NULL,
                         name           VARCHAR(80)  NOT NULL,
+                        -- [L] color de la cabina en el calendario (nombre de la paleta fija); NULL = automatico.
+                        -- Simetria con memberships.color.
+                        color          VARCHAR(20)  NULL,
                         is_active      BOOLEAN      NOT NULL DEFAULT TRUE,
                         deactivated_at DATETIME     NULL,
                         created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,

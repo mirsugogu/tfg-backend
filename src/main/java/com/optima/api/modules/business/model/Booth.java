@@ -71,6 +71,16 @@ public class Booth {
     private String name;
 
     /**
+     * Color asignado a esta cabina para el calendario [L]. Si no se asigna,
+     * el frontend cae a un color automatico por id (simetria con
+     * memberships.color). El valor es el nombre de un color de la paleta
+     * fija (cyan, amber, emerald, indigo, pink, sky, violet, teal). Varias
+     * cabinas pueden compartir color a proposito.
+     */
+    @Column(name = "color")
+    private String color;
+
+    /**
      * Flag de soft delete: false oculta la cabina del listado activo
      * y la excluye de la asignacion de citas, pero conserva las citas
      * historicas que la referencian.
