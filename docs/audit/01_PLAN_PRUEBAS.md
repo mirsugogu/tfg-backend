@@ -320,7 +320,7 @@ Esta sección cubre los 28 Request DTOs del mapa. Como `LoginRequest`, `Register
 | C.4.004 | C | isClosed=true sin start/end | `{dayOfWeek:1,isClosed:true}` | 201 (chk_bh_times_logic permite isClosed=true con tiempos nulos) | ALTA |
 | C.4.005 | C | isClosed=false sin start/end | `{dayOfWeek:1,isClosed:false}` | 400 (validación cruzada en service) | ALTA |
 | C.4.006 | C | startTime >= endTime con isClosed=false | `start=18:00, end=09:00, isClosed=false` | 400 (CHECK chk_bh_times_logic) | ALTA |
-| C.4.007 | C | dayOfWeek=1 duplicado | dos POST dayOfWeek=1 en B1 | 1ª 201, 2ª 409 (UNIQUE `uq_business_hours_day`) | ALTA |
+| C.4.007 | C | dayOfWeek=1 con tramos solapados | dos POST dayOfWeek=1 cuyos rangos `[start,end]` solapan | 1ª 201, 2ª 409 (overlap validado en `BusinessHourService`; el UNIQUE se quitó 2026-05-23 para permitir turno partido) | ALTA |
 | C.4.008 | C | dayOfWeek=7 (domingo) | OK con isClosed=true | 201 | BAJA |
 
 ### C.5 CreateScheduleBlockRequest (sin Update — endpoint sin PUT)
@@ -1064,7 +1064,7 @@ Casos en los que el bug podría meterse por la vía JPA si la validación de ser
 | O.2.002 | O | UNIQUE businesses.email | doble POST register con misma business.email | 409 | ALTA |
 | O.2.003 | O | UNIQUE users.email (global) | crear 2 users con mismo email via UserService.create | 409 o re-uso por find-or-create | ALTA |
 | O.2.004 | O | uq_membership_user_business | crear 2 memberships mismo user en mismo business | 409 | ALTA |
-| O.2.005 | O | uq_business_hours_day | doble POST hours con mismo dayOfWeek en B1 | 409 (constraint añadido 2026-05-17, commit `fac0760`) | ALTA |
+| O.2.005 | O | business_hours overlap | doble POST hours con mismo dayOfWeek y rangos solapados en B1 | 409 vía overlap en `BusinessHourService` (UNIQUE `uq_business_hours_day` quitado 2026-05-23 para turno partido) | ALTA |
 | O.2.006 | O | UNIQUE appointment_statuses.name | INSERT directo | violation | INFO |
 | O.2.007 | O | UNIQUE roles.name | INSERT directo | violation | INFO |
 | O.2.008 | O | UNIQUE password_resets.token_hash | dos forgot-password con misma collision (artificial) | violation | INFO (improbable) |

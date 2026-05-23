@@ -110,17 +110,18 @@ public class AvailabilityService {
         // 2) Resolver servicios -> sumar duracion total
         int totalDuration = resolveServicesAndSumDuration(businessId, serviceIds);
 
-        // 3) Horario de apertura del negocio para el dia consultado
+        // 3) Horario de apertura del negocio para el dia consultado.
+        //    Puede ser turno partido (10-14 + 16-20): obtenemos todos los
+        //    tramos abiertos. Si no hay ninguno, el negocio esta cerrado.
         int dayOfWeek = date.getDayOfWeek().getValue(); // 1=Lunes..7=Domingo
-        BusinessHour hours = businessHourRepository
-                .findByBusinessIdAndDayOfWeek(businessId, dayOfWeek)
-                .orElse(null);
-        if (hours == null || Boolean.TRUE.equals(hours.getIsClosed())) {
+        List<BusinessHour> openHours = businessHourRepository
+                .findAllByBusinessIdAndDayOfWeekOrderByStartTimeAsc(businessId, dayOfWeek)
+                .stream()
+                .filter(h -> !Boolean.TRUE.equals(h.getIsClosed()))
+                .toList();
+        if (openHours.isEmpty()) {
             return new AvailabilityResponse(date, businessId, totalDuration, List.of());
         }
-
-        LocalDateTime dayStart = date.atTime(hours.getStartTime());
-        LocalDateTime dayEnd = date.atTime(hours.getEndTime());
 
         // 4) Bloqueos del dia: globales abortan; los del recurso se reparten
         //    en Java para no lanzar N queries.
@@ -198,12 +199,20 @@ public class AvailabilityService {
                     .toList();
 
             for (EmployeeSchedule range : ranges) {
-                addSlotsForEmployeeRange(
-                        slots, date, range, dayStart, dayEnd,
-                        interval, totalDuration,
-                        emp, absences, empAppts,
-                        candidateBooths, blockedBoothIds, activeAppointments
-                );
+                // Cada tramo del empleado se intersecta con cada tramo abierto
+                // del negocio por separado. Asi el descanso 14-16 del turno
+                // partido del negocio nunca produce slots, aunque el empleado
+                // tenga horario continuo 09-20.
+                for (BusinessHour bh : openHours) {
+                    LocalDateTime dayStart = date.atTime(bh.getStartTime());
+                    LocalDateTime dayEnd = date.atTime(bh.getEndTime());
+                    addSlotsForEmployeeRange(
+                            slots, date, range, dayStart, dayEnd,
+                            interval, totalDuration,
+                            emp, absences, empAppts,
+                            candidateBooths, blockedBoothIds, activeAppointments
+                    );
+                }
             }
         }
 

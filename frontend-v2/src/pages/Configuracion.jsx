@@ -559,45 +559,58 @@ function HoursTab({ bId, isAdmin }) {
     } finally { setSaving(false) }
   }
 
-  // Quick action: clonar Lunes en Mar-Vie (sobrescribe los que ya existan)
+  // Quick action: clona los tramos del lunes en Mar-Vie. Sobrescribe: borra
+  // antes los tramos de cada dia y crea los del lunes (turno partido se copia
+  // completo). DELETE antes que POST porque el backend valida solape al crear
+  // (409). Mismo patron que Empleados.handleCopyMonToWeek.
   const handleCopyMonToFriday = async () => {
-    const monday = hours?.find((h) => h.dayOfWeek === 1)
-    if (!monday || monday.isClosed) {
+    const all = hours ?? []
+    const mondayTramos = all.filter((h) => h.dayOfWeek === 1 && !h.isClosed)
+    if (mondayTramos.length === 0) {
       toast({ type: 'error', message: 'Configura primero el horario del lunes.' }); return
     }
     setSaving(true)
     try {
       for (let d = 2; d <= 5; d++) {
-        const existing = hours.find((h) => h.dayOfWeek === d)
-        const payload = {
-          dayOfWeek: d,
-          isClosed: false,
-          startTime: monday.startTime,
-          endTime: monday.endTime,
+        for (const existing of all.filter((h) => h.dayOfWeek === d)) {
+          await api.delete(`/api/businesses/${bId}/hours/${existing.id}`)
         }
-        if (existing) await api.put(`/api/businesses/${bId}/hours/${existing.id}`, payload)
-        else          await api.post(`/api/businesses/${bId}/hours`, payload)
+        for (const m of mondayTramos) {
+          await api.post(`/api/businesses/${bId}/hours`, {
+            dayOfWeek: d,
+            isClosed: false,
+            startTime: m.startTime,
+            endTime: m.endTime,
+          })
+        }
       }
       toast({ type: 'success', message: 'Horario del lunes copiado a martes–viernes.' })
       refresh()
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'No se pudo copiar el horario.') })
+      refresh()
     } finally { setSaving(false) }
   }
 
+  // Borra todos los tramos de sabado/domingo y crea uno con isClosed=true.
+  // Asi un fin de semana con turno partido previo queda limpiamente "cerrado".
   const handleCloseWeekend = async () => {
+    const all = hours ?? []
     setSaving(true)
     try {
       for (let d = 6; d <= 7; d++) {
-        const existing = hours.find((h) => h.dayOfWeek === d)
-        const payload = { dayOfWeek: d, isClosed: true, startTime: null, endTime: null }
-        if (existing) await api.put(`/api/businesses/${bId}/hours/${existing.id}`, payload)
-        else          await api.post(`/api/businesses/${bId}/hours`, payload)
+        for (const existing of all.filter((h) => h.dayOfWeek === d)) {
+          await api.delete(`/api/businesses/${bId}/hours/${existing.id}`)
+        }
+        await api.post(`/api/businesses/${bId}/hours`, {
+          dayOfWeek: d, isClosed: true, startTime: null, endTime: null,
+        })
       }
       toast({ type: 'success', message: 'Fin de semana marcado como cerrado.' })
       refresh()
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'No se pudo actualizar.') })
+      refresh()
     } finally { setSaving(false) }
   }
 
@@ -635,46 +648,57 @@ function HoursTab({ bId, isAdmin }) {
         <div className={`${CARD} p-5`}>
           <div className="space-y-2">
             {[1, 2, 3, 4, 5, 6, 7].map((d) => {
-              const h = (hours ?? []).find((x) => x.dayOfWeek === d)
+              // Turno partido: un negocio puede tener varios tramos el mismo dia
+              // (p.ej. 10-14 + 16-20). Se renderiza una fila por tramo (no una
+              // por dia); los dias sin ningun tramo muestran una unica fila
+              // "Sin configurar". Mismo patron que Empleados.ScheduleGrid.
+              const dayHours = (hours ?? [])
+                .filter((h) => h.dayOfWeek === d)
+                .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
               const isToday = (new Date().getDay() === 0 ? 7 : new Date().getDay()) === d
-              let bar
-              if (h && !h.isClosed && h.startTime && h.endTime) {
-                const [sh, sm] = h.startTime.slice(0, 5).split(':').map(Number)
-                const [eh, em] = h.endTime.slice(0, 5).split(':').map(Number)
-                const startH = sh + sm / 60 - DAY_START
-                const endH   = eh + em / 60 - DAY_START
-                const left   = Math.max(0, (startH / total) * 100)
-                const width  = Math.max(2, ((endH - startH) / total) * 100)
-                bar = (
-                  <div
-                    className="absolute inset-y-1 rounded-md flex items-center px-2 text-[10px] font-semibold text-white"
-                    style={{ left: `${left}%`, width: `${width}%`, background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)' }}
-                  >
-                    {h.startTime.slice(0, 5)} – {h.endTime.slice(0, 5)}
+              const rows = dayHours.length ? dayHours : [null]
+              return rows.map((h, idx) => {
+                let bar
+                if (h && !h.isClosed && h.startTime && h.endTime) {
+                  const [sh, sm] = h.startTime.slice(0, 5).split(':').map(Number)
+                  const [eh, em] = h.endTime.slice(0, 5).split(':').map(Number)
+                  const startH = sh + sm / 60 - DAY_START
+                  const endH   = eh + em / 60 - DAY_START
+                  const left   = Math.max(0, (startH / total) * 100)
+                  const width  = Math.max(2, ((endH - startH) / total) * 100)
+                  bar = (
+                    <div
+                      className="absolute inset-y-1 rounded-md flex items-center px-2 text-[10px] font-semibold text-white"
+                      style={{ left: `${left}%`, width: `${width}%`, background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)' }}
+                    >
+                      {h.startTime.slice(0, 5)} – {h.endTime.slice(0, 5)}
+                    </div>
+                  )
+                } else if (h && h.isClosed) {
+                  bar = <div className="absolute inset-y-2 left-1 right-1 rounded-md bg-slate-50 text-[10px] font-medium text-slate-400 flex items-center justify-center">Cerrado</div>
+                } else {
+                  bar = <div className="absolute inset-y-2 left-1 right-1 rounded-md border border-dashed border-slate-200 text-[10px] font-medium text-slate-400 flex items-center justify-center">Sin configurar</div>
+                }
+                return (
+                  <div key={h ? `h-${h.id}` : `empty-${d}`} className="grid grid-cols-[80px_1fr_64px] items-center gap-2">
+                    <div className={`text-xs font-bold ${isToday ? 'text-blue-600' : 'text-[#1e3a5f]'}`}>
+                      {idx === 0 ? DAYS[d] : ''}
+                    </div>
+                    <div className="relative h-8 rounded-md bg-slate-50 border border-slate-100">{bar}</div>
+                    <div className="flex gap-0.5 justify-end">
+                      {h && isAdmin && (
+                        <>
+                          <button onClick={() => openEdit(h)} className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition" title="Editar"><Pencil size={12} /></button>
+                          <button onClick={() => openDelete(h)} className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 transition" title="Eliminar"><Trash2 size={12} /></button>
+                        </>
+                      )}
+                      {!h && isAdmin && (
+                        <button onClick={() => { setForm({ ...emptyHour, dayOfWeek: String(d) }); setModal('create') }} className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition" title="Añadir"><Plus size={12} /></button>
+                      )}
+                    </div>
                   </div>
                 )
-              } else if (h && h.isClosed) {
-                bar = <div className="absolute inset-y-2 left-1 right-1 rounded-md bg-slate-50 text-[10px] font-medium text-slate-400 flex items-center justify-center">Cerrado</div>
-              } else {
-                bar = <div className="absolute inset-y-2 left-1 right-1 rounded-md border border-dashed border-slate-200 text-[10px] font-medium text-slate-400 flex items-center justify-center">Sin configurar</div>
-              }
-              return (
-                <div key={d} className="grid grid-cols-[80px_1fr_64px] items-center gap-2">
-                  <div className={`text-xs font-bold ${isToday ? 'text-blue-600' : 'text-[#1e3a5f]'}`}>{DAYS[d]}</div>
-                  <div className="relative h-8 rounded-md bg-slate-50 border border-slate-100">{bar}</div>
-                  <div className="flex gap-0.5 justify-end">
-                    {h && isAdmin && (
-                      <>
-                        <button onClick={() => openEdit(h)} className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition" title="Editar"><Pencil size={12} /></button>
-                        <button onClick={() => openDelete(h)} className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 transition" title="Eliminar"><Trash2 size={12} /></button>
-                      </>
-                    )}
-                    {!h && isAdmin && (
-                      <button onClick={() => { setForm({ ...emptyHour, dayOfWeek: String(d) }); setModal('create') }} className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition" title="Añadir"><Plus size={12} /></button>
-                    )}
-                  </div>
-                </div>
-              )
+              })
             })}
           </div>
           <div className="grid grid-cols-[80px_1fr_64px] gap-2 mt-3">

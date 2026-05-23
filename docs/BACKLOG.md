@@ -15,11 +15,11 @@ Es un backlog **independiente** del *"Informe de Calidad"* anterior
 | # | Tema | Estado |
 |---|------|--------|
 | P1-empleado | Turno partido — horario del empleado | ✅ Hecho — commit `45e7f18` |
-| P1-negocio  | Turno partido — horario del negocio | ⬜ Pendiente |
+| P1-negocio  | Turno partido — horario del negocio | ✅ Hecho — sin commit |
 | P2 | Copiar horario L→V para el empleado | ✅ Hecho — commit `9728e35` |
 | P3 | Nombre de servicio único por categoría (no por negocio) | ✅ Decisión: se mantiene |
 | P4 | Panel de stats en Catálogo ocupa mucho | ✅ Decisión: se mantiene |
-| P5 | Crear cliente al vuelo desde la nueva cita | ✅ Hecho — sin commit |
+| P5 | Crear cliente al vuelo desde la nueva cita | ✅ Hecho — commit `c512729` (+ fix `659ff37`) |
 | P6 + P7 | Filtros del calendario que esconden citas | ✅ Hecho — commit `f873b9e` |
 | P8 | "Color por cabina" poco visible | ✅ Hecho — commit `3c1e229` |
 | P9 | Editar / reprogramar una cita | ⬜ Pendiente — grande |
@@ -97,7 +97,7 @@ semanal" del drawer de empleado, con modal de confirmación.
 Verificado E2E con Playwright: turno partido copiado, sobrescritura correcta,
 sábado intacto, guarda sin lunes. Build verde.
 
-### P5 — Buscador de clientes + crear al vuelo en el wizard — sin commit
+### P5 — Buscador de clientes + crear al vuelo en el wizard — `c512729` (+ fix `659ff37`)
 El selector de cliente del wizard era un `<select>` que precargaba solo los
 primeros 100 clientes; con más, el resto quedaba inseleccionable. Se sustituye
 por un buscador server-side con autocompletado, e incluye crear un cliente sin
@@ -114,20 +114,39 @@ del frontend y arranque del backend verdes.
 
 ---
 
+### P1-negocio — Horario partido del negocio — sin commit
+Cierra la asimetría con P1-empleado. Aplicado con simetría al patrón de
+`EmployeeScheduleService` (overlap `A<D AND C<B`).
+- **Schema:** quitado `uq_business_hours_day` en `docs/schema_v20.sql`. La BD
+  se recarga cargando el `.sql` entero (`mysql < docs/schema_v20.sql`), que
+  hace `DROP DATABASE IF EXISTS` + `CREATE DATABASE` antes de las tablas y
+  del seed; no se aplican `ALTER` incrementales.
+- **Repository:** sustituidos `findByBusinessIdAndDayOfWeek` y
+  `existsByBusinessIdAndDayOfWeek` por
+  `findAllByBusinessIdAndDayOfWeekOrderByStartTimeAsc`.
+- **`BusinessHourService.create`:** loop de solape sobre los tramos abiertos
+  del día. Cerrados (`isClosed=true`) y nuevos cerrados se ignoran del check
+  (un "marcador cerrado" no solapa). `update` sin revalidación, simetría con
+  `EmployeeScheduleService.update`.
+- **`AppointmentValidator.validateBusinessHours`:** la cita es válida si
+  cabe íntegra dentro de **algún** tramo abierto del día.
+- **`AvailabilityService`:** itera todos los tramos abiertos del día y, por
+  cada (tramo-empleado × tramo-negocio), genera slots. El descanso 14-16 del
+  turno partido nunca produce huecos.
+- **Frontend `HoursTab`:** una fila por tramo (`filter` + `sort`, fila vacía
+  "Sin configurar" si no hay tramos), "Copiar L→V" hace DELETE+POST de todos
+  los tramos del lunes, "Fin de semana cerrado" hace DELETE de todo +
+  POST `isClosed=true`. Mismo patrón que `Empleados.jsx`.
+- **Postman:** caso "Lunes duplicado" cambia de "dos POST iguales → UNIQUE"
+  a "tramo solapado → 409 por solape"; añadido caso "Lunes 19-22 turno
+  partido → 201".
+Tests 30/30 verdes, build frontend verde.
+
+---
+
 ## ⬜ Pendiente
 
 Ordenado por relación esfuerzo / valor.
-
-### P1-negocio — Horario partido del negocio  ·  ~5-7 h  ·  backend + frontend
-Un negocio que cierra a mediodía no puede meter 10-14 / 16-20.
-- **Backend:** la tabla `business_hours` tiene `UNIQUE (id_business,
-  day_of_week)` (`schema_v20.sql`). `BusinessHourService.create` rechaza con
-  `existsByBusinessIdAndDayOfWeek`.
-  - Quitar el UNIQUE; sustituir el check por validación de solape (misma
-    fórmula `A<D AND C<B` que ya usa `EmployeeScheduleService`).
-  - Revisar que `AvailabilityService` tolera varios tramos por día.
-- **Frontend:** `HoursTab` en `Configuracion.jsx` (form `emptyHour:25`, itera
-  `[1..7]` con `.find` en `:638`) → mismo cambio multi-barra que P1-empleado.
 
 ### P10 — El toggle densidad no afecta a la vista Mes  ·  opcional
 `density` cambia `HOUR_PX` 64↔40 px (`utils.js:16`) solo en Día/Semana. La vista

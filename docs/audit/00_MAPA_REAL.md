@@ -447,7 +447,7 @@ isPaid  @NotNull Boolean
 | 296 | UNIQUE (col-level) | `appointment_statuses` | `name` |
 | 367–368 | `uq_appointment_active_slot` | `appointments` | `(active_slot_key)` — columna virtual `(id_membership, start)` o NULL; anti-doble-reserva por empleado, commit `95e3958` |
 | 369–370 | `uq_appointment_active_booth_slot` | `appointments` | `(active_booth_slot_key)` — columna virtual `(id_booth, start)` o NULL; anti-doble-reserva por cabina, commit `95e3958` |
-| 420–421 | `uq_business_hours_day` | `business_hours` | `(id_business, day_of_week)` — añadido 2026-05-17, commit `fac0760` |
+| ~~420–421~~ | ~~`uq_business_hours_day`~~ | ~~`business_hours`~~ | **Quitado 2026-05-23 (P1-negocio)**: el negocio puede tener turno partido (10-14 + 16-20); la no-superposición se valida en `BusinessHourService` con overlap `A<D AND C<B`, no a nivel de SQL. |
 | 502 | UNIQUE (col-level) | `password_resets` | `token_hash` |
 
 ### 3.3 Foreign Keys con `ON DELETE` no default
@@ -646,7 +646,7 @@ Cadena de filtros (orden): `RateLimitFilter → JwtAuthenticationFilter → Tena
 4. **`validateNoEmployeeAbsence` (paso 12)** — añadido 2026-05-17 (commit `c0f5e21`). Cubre el hueco descrito en el audit previo (BUG-1). No aparece en AGENTS.md.
 5. **Tabla de transiciones `VALID_TRANSITIONS`** — la sección 7 "Seguridad" de AGENTS.md no incluye la state machine; sólo está en `AppointmentValidator.java:66-70`.
 6. **CHECK constraints SQL** — AGENTS.md no enumera los 14 `chk_*` del schema (`chk_appointment_interval`, `chk_block_target`, `chk_bh_times_logic`, …). Sólo aparecen en `docs/schema_v20.sql`.
-7. **`uq_business_hours_day`** — UNIQUE compuesto en `business_hours(id_business, day_of_week)` añadido 2026-05-17 (commit `fac0760`). No aparece en AGENTS.md.
+7. ~~**`uq_business_hours_day`** — UNIQUE compuesto en `business_hours(id_business, day_of_week)` añadido 2026-05-17 (commit `fac0760`). No aparece en AGENTS.md.~~ **Quitado 2026-05-23 (P1-negocio)** para soportar turno partido del negocio; la no-superposición se valida en `BusinessHourService` con overlap, igual que `EmployeeScheduleService`.
 8. **Lock pesimista `SELECT … FOR UPDATE`** en `MembershipRepository.findByIdAndBusinessIdForUpdate` y `BoothRepository.findByIdAndBusinessIdForUpdate` — AGENTS.md no lo menciona; previene TOCTOU entre `validateNoOverlap` y el `INSERT` final.
 9. **`AppointmentResponse.from(Appointment, List<BookedService>)`** — la firma actual ya NO depende de repos. AGENTS.md sección 8 mencionaba este refactor como "Pendiente" (corregido en commit `1f50810`).
 10. **Validación de elementos de `serviceIds`** — `List<@NotNull @Positive Long>` añadido 2026-05-17 (commit `7c6d7f7`). No documentado en AGENTS.md.

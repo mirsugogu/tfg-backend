@@ -76,8 +76,8 @@ class AvailabilityServiceTest {
         sunday.setIsClosed(true);
         sunday.setStartTime(LocalTime.of(0, 0));
         sunday.setEndTime(LocalTime.of(0, 0));
-        when(businessHourRepository.findByBusinessIdAndDayOfWeek(businessId, 7))
-                .thenReturn(Optional.of(sunday));
+        when(businessHourRepository.findAllByBusinessIdAndDayOfWeekOrderByStartTimeAsc(businessId, 7))
+                .thenReturn(java.util.List.of(sunday));
 
         AvailabilityResponse response = availabilityService.getAvailability(
                 businessId, date, serviceIds, null, null);

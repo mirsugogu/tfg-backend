@@ -23,9 +23,13 @@ import java.util.List;
  * COMUNICACION:
  * - Lo invoca: BusinessHourController.
  * - Llama a:
- *     BusinessHourRepository       CRUD + existsByBusinessIdAndDayOfWeek.
+ *     BusinessHourRepository       CRUD + findAllByBusinessIdAndDayOfWeek (overlap).
  *     BusinessRepository.findById  verifica que el negocio existe.
  * - Devuelve: BusinessHourResponse.
+ *
+ * Turno partido (P1-negocio): un mismo dia puede tener varios tramos
+ * (10-14 + 16-20). La no-superposicion se valida en create con el mismo
+ * patron A<D AND C<B que EmployeeScheduleService.
  *
  * Helper applyHours(): centraliza la coherencia entre isClosed y las
  * horas (si cerrado -> horas null; si abierto -> ambas obligatorias y
@@ -40,8 +44,9 @@ public class BusinessHourService {
     private final BusinessRepository businessRepository;
 
     /**
-     * Crea un tramo horario para un dia del negocio. Falla si ya existe otro
-     * tramo para el mismo dia.
+     * Crea un tramo horario para un dia del negocio. Si el nuevo tramo es
+     * abierto, valida que no se solape con otros tramos abiertos del mismo
+     * dia (regla A<D AND C<B; 409 si choca).
      */
     public BusinessHourResponse create(Long businessId, CreateBusinessHourRequest request) {
         Business business = businessRepository.findById(businessId)
@@ -49,10 +54,9 @@ public class BusinessHourService {
                         HttpStatus.NOT_FOUND,
                         "No se encontró el negocio con ID: " + businessId));
 
-        if (hourRepository.existsByBusinessIdAndDayOfWeek(businessId, request.dayOfWeek())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Ya existe un horario para ese día en este negocio");
-        }
+        validateNoOverlap(businessId, request.dayOfWeek(),
+                request.isClosed(), request.startTime(), request.endTime(),
+                null);
 
         BusinessHour bh = new BusinessHour();
         bh.setBusiness(business);
@@ -63,11 +67,12 @@ public class BusinessHourService {
     }
 
     /**
-     * Lista los tramos horarios del negocio ordenados de lunes a domingo.
+     * Lista los tramos horarios del negocio ordenados por dia (lunes-domingo)
+     * y, dentro del mismo dia, por hora de inicio.
      */
     @Transactional(readOnly = true)
     public List<BusinessHourResponse> listByBusiness(Long businessId) {
-        return hourRepository.findAllByBusinessIdOrderByDayOfWeekAsc(businessId)
+        return hourRepository.findAllByBusinessIdOrderByDayOfWeekAscStartTimeAsc(businessId)
                 .stream().map(BusinessHourResponse::from).toList();
     }
 
@@ -80,17 +85,16 @@ public class BusinessHourService {
     }
 
     /**
-     * Actualiza dia y horas del tramo. Si se cambia el dia, valida que no
-     * choque con otro tramo del mismo negocio.
+     * Sustituye dia, hora de inicio y hora de fin de un tramo existente.
+     * 404 si el tramo no pertenece al negocio.
+     *
+     * Nota: simetria con EmployeeScheduleService.update — NO revalida overlap
+     * con otros tramos (decision: el overlap se chequea solo al crear; el
+     * ADMIN modifica con intencion y puede borrar + crear si necesita rearmar
+     * el cuadro).
      */
     public BusinessHourResponse update(Long businessId, Long id, UpdateBusinessHourRequest request) {
         BusinessHour bh = findOrThrow(businessId, id);
-
-        if (!bh.getDayOfWeek().equals(request.dayOfWeek()) &&
-                hourRepository.existsByBusinessIdAndDayOfWeek(businessId, request.dayOfWeek())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Ya existe un horario para ese día en este negocio");
-        }
 
         bh.setDayOfWeek(request.dayOfWeek());
         applyHours(bh, request.isClosed(), request.startTime(), request.endTime());
@@ -104,6 +108,38 @@ public class BusinessHourService {
     public void delete(Long businessId, Long id) {
         BusinessHour bh = findOrThrow(businessId, id);
         hourRepository.delete(bh);
+    }
+
+    /**
+     * Valida que el nuevo tramo no se solape con otros tramos abiertos del
+     * mismo (business, dayOfWeek). Aplica solo si el nuevo tramo es abierto:
+     * un tramo cerrado es un "marcador" sin horas y nunca solapa.
+     *
+     * Regla de solape (mismas semanticas que EmployeeScheduleService):
+     *   nuevo.start < existente.end AND nuevo.end > existente.start
+     *
+     * @param excludeId  id a excluir del check (util al actualizar, aunque
+     *                   por simetria con EmployeeScheduleService el update
+     *                   actual no usa este metodo; queda preparado por si
+     *                   en el futuro se quiere revalidar).
+     */
+    private void validateNoOverlap(Long businessId, Integer dayOfWeek,
+                                   Boolean isClosed, LocalTime startTime, LocalTime endTime,
+                                   Long excludeId) {
+        if (Boolean.TRUE.equals(isClosed)) return;
+        if (startTime == null || endTime == null) return;
+
+        List<BusinessHour> sameDay =
+                hourRepository.findAllByBusinessIdAndDayOfWeekOrderByStartTimeAsc(businessId, dayOfWeek);
+        for (BusinessHour existing : sameDay) {
+            if (excludeId != null && excludeId.equals(existing.getId())) continue;
+            if (Boolean.TRUE.equals(existing.getIsClosed())) continue;
+            if (startTime.isBefore(existing.getEndTime())
+                    && endTime.isAfter(existing.getStartTime())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Ya existe un tramo que se solapa con ese horario en este día");
+            }
+        }
     }
 
     /**

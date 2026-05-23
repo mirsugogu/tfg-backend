@@ -417,10 +417,12 @@ CREATE TABLE business_hours (
                                     CHECK (
                                         is_closed = TRUE
                                             OR (start_time IS NOT NULL AND end_time IS NOT NULL AND start_time < end_time)
-                                        ),
+                                        )
 
-                                CONSTRAINT uq_business_hours_day
-                                    UNIQUE (id_business, day_of_week)
+                                -- Nota: NO hay UNIQUE (id_business, day_of_week). Un negocio puede
+                                -- tener turno partido (p.ej. lunes 10-14 + 16-20). La no-superposición
+                                -- entre tramos del mismo día se valida en BusinessHourService con el
+                                -- patrón A<D AND C<B, igual que EmployeeScheduleService.
 ) ENGINE=InnoDB;
 
 
@@ -523,7 +525,8 @@ CREATE TABLE password_resets (
 -- A proposito NO se indexan employee_absences ni schedule_blocks:
 -- son tablas que se mantienen pequenas y ahi un indice solo
 -- anadiria coste de escritura sin ganancia real de lectura.
--- business_hours ya esta cubierta por su UNIQUE(id_business, day).
+-- business_hours: sin indice anyadido; el filtro por (id_business, day_of_week)
+-- usa la FK por id_business y el patron de lectura es de pocas filas por dia.
 -- ------------------------------------------------------------
 
 -- Solapamiento de citas por empleado: AppointmentRepository

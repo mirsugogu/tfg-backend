@@ -18,14 +18,13 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 /**
  * Clase dedicada a las validaciones complejas de citas.
  * Se separa del service para mantener el código organizado
  * y que cada clase tenga una única responsabilidad.
- *
+
  * COMUNICACION:
  * - Lo invoca: AppointmentService (en createAppointment y
  *   updateAppointmentStatus).
@@ -36,11 +35,11 @@ import java.util.Set;
  *     ScheduleBlockRepository.findApplicableBlocks            (validateNoScheduleBlock, v15).
  * - No devuelve nada: cada metodo lanza ResponseStatusException si una
  *   regla falla, o no hace nada si todo esta bien (fail-fast).
- *
+
  * [v16 membership] Los parametros llamados `membershipId` son en realidad el
  * id de la membership (pertenencia usuario-negocio). El nombre externo se
  * mantiene por compatibilidad con la API; internamente es membershipId.
- *
+
  * 8 validaciones publicas (en orden de invocacion tipica):
  *   validateAppointmentInterval  400 si la hora no es multiplo del intervalo.
  *   validateBusinessHours        400 si el negocio esta cerrado ese dia o
@@ -103,12 +102,12 @@ public class AppointmentValidator {
     /**
      * Comprueba que la membership (empleado) no tiene una ausencia registrada
      * (vacaciones, cita medica, etc.) que solape con el rango de la cita.
-     *
+
      * Cubre el hueco semantico entre `GET /availability` (que ya excluye
      * slots dentro de ausencias) y `POST /appointments` (que antes podia
      * crear citas encima de una ausencia si el cliente saltaba la consulta
      * previa).
-     *
+
      * Si encuentra al menos una ausencia solapada, devuelve 409 con el
      * `reason` del primero para que el frontend muestre el motivo
      * ("El empleado tiene una ausencia: Vacaciones").
@@ -153,13 +152,13 @@ public class AppointmentValidator {
     /**
      * Comprueba que la fecha de la cita no caiga en un bloqueo de agenda
      * (schedule_block) aplicable.
-     *
+
      * Un bloqueo aplica a la cita si su rango [startDate, endDate] incluye
      * la fecha de la cita Y se da alguno de estos casos:
      *   - global (employee NULL y booth NULL): aplica a todo el negocio.
      *   - dirigido al empleado de la cita.
      *   - dirigido a la cabina de la cita (si la cita lleva cabina).
-     *
+
      * Si encuentra al menos un bloqueo aplicable, devuelve 409 con el
      * `reason` del primero para que el frontend muestre la razon ("La
      * fecha está bloqueada por: San Isidro").
@@ -188,7 +187,7 @@ public class AppointmentValidator {
     /**
      * Comprobar que la cita cae dentro del horario
      * de trabajo del empleado para ese día de la semana.
-     *
+
      * Un empleado puede tener varios tramos en un día (ej: mañana y tarde).
      * La cita es válida si encaja completamente dentro de alguno de esos tramos.
      */
@@ -237,7 +236,7 @@ public class AppointmentValidator {
     /**
      * Comprobar que la hora de inicio de la cita
      * respeta el intervalo configurado del negocio.
-     *
+
      * Si el negocio tiene appointment_interval = 30, las citas
      * deben empezar en minutos múltiplos de 30 (00, 30).
      * Si es 15, pueden empezar en 00, 15, 30 o 45.
@@ -266,14 +265,16 @@ public class AppointmentValidator {
     /**
      * Comprueba que la cita cae dentro del horario de apertura del negocio
      * para ese dia de la semana.
-     *
+
      * Politica (misma que AvailabilityService al generar slots, para que
      * GET /availability y POST /appointments sean coherentes):
      *   - Si no existe fila business_hours para ese dia -> cerrado implicito.
-     *   - Si is_closed=true -> cerrado.
-     *   - Si abierto -> [startDateTime, endDateTime] debe caber dentro de
-     *     [start_time, end_time].
-     *
+     *   - Si solo hay tramos con is_closed=true -> cerrado.
+     *   - Si hay tramos abiertos -> [startDateTime, endDateTime] debe caber
+     *     integro dentro de ALGUNO de ellos (el negocio puede tener turno
+     *     partido: 10-14 + 16-20; una cita 13-15 no encaja en ninguno, una
+     *     cita 11-13 si encaja en el primero).
+
      * En cualquier caso de violacion se devuelve 400 con un mensaje generico
      * "El negocio está cerrado en ese día y horario" (no se revelan detalles
      * del horario configurado).
@@ -282,22 +283,17 @@ public class AppointmentValidator {
                                       LocalDateTime startDateTime,
                                       LocalDateTime endDateTime) {
         int dayOfWeek = startDateTime.getDayOfWeek().getValue();
-        Optional<BusinessHour> hoursOpt =
-                businessHourRepository.findByBusinessIdAndDayOfWeek(businessId, dayOfWeek);
+        List<BusinessHour> hoursOfDay =
+                businessHourRepository.findAllByBusinessIdAndDayOfWeekOrderByStartTimeAsc(
+                        businessId, dayOfWeek);
 
-        if (hoursOpt.isEmpty() || Boolean.TRUE.equals(hoursOpt.get().getIsClosed())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "El negocio está cerrado en ese día y horario"
-            );
-        }
-
-        BusinessHour hours = hoursOpt.get();
         LocalTime appointmentStart = startDateTime.toLocalTime();
         LocalTime appointmentEnd = endDateTime.toLocalTime();
 
-        boolean fits = !appointmentStart.isBefore(hours.getStartTime())
-                && !appointmentEnd.isAfter(hours.getEndTime());
+        boolean fits = hoursOfDay.stream()
+                .filter(h -> !Boolean.TRUE.equals(h.getIsClosed()))
+                .anyMatch(h -> !appointmentStart.isBefore(h.getStartTime())
+                        && !appointmentEnd.isAfter(h.getEndTime()));
 
         if (!fits) {
             throw new ResponseStatusException(

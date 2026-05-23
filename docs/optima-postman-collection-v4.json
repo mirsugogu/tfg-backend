@@ -287,19 +287,19 @@
       "name": "04 - business_hours",
       "item": [
         {
-          "name": "POST Lunes (seed ya lo tiene) -> 409",
-          "event": [{"listen":"test","script":{"exec":["pm.test('409 dia ya configurado en seed',()=>pm.response.to.have.status(409));"]}}],
+          "name": "POST Lunes 09-18 solapa con seed -> 409",
+          "event": [{"listen":"test","script":{"exec":["pm.test('409 solape con tramo del seed',()=>pm.response.to.have.status(409));"]}}],
           "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/hours","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","hours"]},"body":{"mode":"raw","raw":"{\"dayOfWeek\":1,\"startTime\":\"09:00:00\",\"endTime\":\"18:00:00\",\"isClosed\":false}"}}
         },
         {
-          "name": "POST Domingo (seed ya lo tiene) -> 409",
-          "event": [{"listen":"test","script":{"exec":["pm.test('409 dia ya configurado en seed',()=>pm.response.to.have.status(409));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/hours","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","hours"]},"body":{"mode":"raw","raw":"{\"dayOfWeek\":7,\"isClosed\":true}"}}
+          "name": "POST Lunes 10-14 solapa con seed 09-18 -> 409",
+          "event": [{"listen":"test","script":{"exec":["pm.test('409 solape parcial',()=>pm.response.to.have.status(409));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/hours","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","hours"]},"body":{"mode":"raw","raw":"{\"dayOfWeek\":1,\"startTime\":\"10:00\",\"endTime\":\"14:00\",\"isClosed\":false}"}}
         },
         {
-          "name": "POST Lunes duplicado -> 409",
-          "event": [{"listen":"test","script":{"exec":["pm.test('409',()=>pm.response.to.have.status(409));"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/hours","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","hours"]},"body":{"mode":"raw","raw":"{\"dayOfWeek\":1,\"startTime\":\"10:00\",\"endTime\":\"14:00\",\"isClosed\":false}"}}
+          "name": "POST Lunes 19-22 turno partido (no solapa con seed 09-18) -> 201",
+          "event": [{"listen":"test","script":{"exec":["pm.test('201 turno partido permitido',()=>pm.response.to.have.status(201));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/hours","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","hours"]},"body":{"mode":"raw","raw":"{\"dayOfWeek\":1,\"startTime\":\"19:00\",\"endTime\":\"22:00\",\"isClosed\":false}"}}
         },
         {
           "name": "PUT start>end -> 400 (validacion de tiempos)",
