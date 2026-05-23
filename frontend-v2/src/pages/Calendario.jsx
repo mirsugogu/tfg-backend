@@ -50,10 +50,15 @@ export default function Calendario() {
   const [view, setView] = useState(() => localStorage.getItem('optima_cal_view') || 'Mes')
   useEffect(() => { localStorage.setItem('optima_cal_view', view) }, [view])
 
-  // [I] El selector de densidad se retiro: HOUR_PX es ahora constante. La
-  // clave de localStorage `optima_cal_density` se deja morir; no se limpia
+  // [I] El selector de densidad se retiro: HOUR_PX es la base. La clave
+  // de localStorage `optima_cal_density` se deja morir; no se limpia
   // explicitamente (es benigno, ocupa < 20 bytes y desaparece al reset).
-  const hourPx = HOUR_PX
+  //
+  // hourPx es adaptativo: con horarios extensos (8-22, 2-22...) la
+  // rejilla a 64 px/hora se vuelve enorme y rompe la sensacion de
+  // calendario. Reducimos la altura por hora segun el rango visible
+  // para que el conjunto quepa en una pantalla normal sin perder
+  // informacion. El minimo (40 px) sigue siendo legible.
 
   const [colorBy, setColorBy] = useState(() => localStorage.getItem('optima_cal_colorby') || 'status')
   useEffect(() => { localStorage.setItem('optima_cal_colorby', colorBy) }, [colorBy])
@@ -139,8 +144,20 @@ export default function Calendario() {
       if (e > maxEnd)   maxEnd   = e
     })
     if (minStart === 24 || maxEnd === 0) return { dayStart: DEFAULT_DAY_START, dayEnd: DEFAULT_DAY_END }
-    return { dayStart: Math.floor(minStart), dayEnd: Math.ceil(maxEnd) }
+    // Cap [0, 24] defensivo: si el negocio o una cita aportan un valor
+    // raro (negativo, mayor de 24) no rompemos la rejilla.
+    return {
+      dayStart: Math.max(0, Math.floor(minStart)),
+      dayEnd: Math.min(24, Math.ceil(maxEnd)),
+    }
   }, [businessHours, appointments])
+
+  const hourPx = useMemo(() => {
+    const range = Math.max(1, dayEnd - dayStart)
+    if (range >= 18) return 40
+    if (range >= 14) return 48
+    return HOUR_PX
+  }, [dayStart, dayEnd])
 
   // Carga de citas del rango visible
   useEffect(() => {
