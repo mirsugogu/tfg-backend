@@ -158,7 +158,7 @@ export function PositionedEvent({ appt, onClick, col, cols, colorBy, dayStart, h
         top: `${topPx}px`, height: `${heightPx}px`,
         left: `${col * widthPct}%`, width: `${widthPct}%`,
       }}
-      className={`absolute ${s.dot} ring-1 ring-black/10 overflow-hidden transition hover:brightness-110 text-left ${isInProgress ? 'animate-pulse' : ''} ${isTerminal ? 'opacity-60' : ''}`}
+      className={`absolute z-20 ${s.dot} ring-1 ring-black/10 overflow-hidden transition hover:brightness-110 text-left ${isInProgress ? 'animate-pulse' : ''} ${isTerminal ? 'opacity-60' : ''}`}
     >
       {showText && (
         <div className="flex flex-col h-full px-1.5 py-0.5 text-white leading-tight">
