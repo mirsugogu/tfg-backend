@@ -21,7 +21,7 @@ import {
   blocksForCell, labelForBlock, blockForAppointment,
 } from '@/components/calendar/utils'
 import {
-  HourColumn, HourSlots, NowLine, PositionedEvent, EventChip, BlockOverlay,
+  HourColumn, HourSlots, NowLine, PositionedEvent, EventChip, BlockOverlay, AbsenceOverlay,
 } from '@/components/calendar/cells'
 import { ResourceDayGrid }  from '@/components/calendar/ResourceDayGrid'
 import { WeekResourceGrid } from '@/components/calendar/WeekResourceGrid'
@@ -87,6 +87,10 @@ export default function Calendario() {
   // cargan completos (cardinalidad baja, ~decenas) y se filtran al rango
   // visible en `blocksInRange`.
   const [scheduleBlocks, setScheduleBlocks] = useState([])
+  // Ausencias de empleados (vacaciones, bajas) que solapan con el rango
+  // visible. Se piden filtradas por rango al endpoint dedicado para no
+  // traer toda la historia del negocio.
+  const [absences, setAbsences] = useState([])
 
   useEffect(() => {
     if (!bId) return
@@ -480,6 +484,7 @@ export default function Calendario() {
             unassignedShort="S/E"
             blocks={blocksInRange}
             resourceType="employee"
+            absences={absences}
           />
         ) : view === 'Semana' ? (
           <WeekGrid
@@ -512,6 +517,7 @@ export default function Calendario() {
             unassignedLabel="Sin empleado"
             blocks={blocksInRange}
             resourceType="employee"
+            absences={absences}
           />
         ) : (
           <DayGrid

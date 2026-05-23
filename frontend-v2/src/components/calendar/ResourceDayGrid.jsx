@@ -10,7 +10,7 @@ import {
   keyOf, isSameDay, layoutEvents, openRangesFor,
   blocksForCell, labelForBlock,
 } from './utils'
-import { HourColumn, HourSlots, NowLine, PositionedEvent, EventChip, BlockOverlay } from './cells'
+import { HourColumn, HourSlots, NowLine, PositionedEvent, EventChip, BlockOverlay, AbsenceOverlay } from './cells'
 
 export function ResourceDayGrid({
   cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick,
@@ -20,6 +20,7 @@ export function ResourceDayGrid({
   unassignedLabel = 'Sin asignar',
   blocks = [],         // schedule_blocks aplicables al rango visible
   resourceType = null, // 'employee' | 'booth' | null
+  absences = [],       // ausencias del rango; solo se pintan en columnas de empleado
 }) {
   const dayKey = keyOf(cursor)
   const dayEvents = eventsByDay.get(dayKey) || []
@@ -77,6 +78,9 @@ export function ResourceDayGrid({
                           : blocksForCell(blocks, cursor, resourceType, col.id)
                         const cellIsBlocked = cellBlocks.length > 0
                         const cellBlockLabel = cellIsBlocked ? labelForBlock(cellBlocks[0]) : null
+                        const cellAbsences = (resourceType === 'employee' && col.id !== '__none__')
+                          ? absences.filter((ab) => ab.membershipId === col.id)
+                          : []
                         return (
                           <>
                             <HourSlots
@@ -88,6 +92,13 @@ export function ResourceDayGrid({
                               closedRanges={openRanges}
                               isBlocked={cellIsBlocked}
                               blockedReason={cellBlockLabel}
+                            />
+                            <AbsenceOverlay
+                              absences={cellAbsences}
+                              dayDate={cursor}
+                              dayStart={dayStart}
+                              dayEnd={dayEnd}
+                              hourPx={hourPx}
                             />
                             {laidOut.map(({ a, col: c, cols }) => (
                               <PositionedEvent

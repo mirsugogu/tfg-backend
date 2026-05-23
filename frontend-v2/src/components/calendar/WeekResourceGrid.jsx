@@ -14,7 +14,7 @@ import {
   keyOf, isSameDay, layoutEvents, openRangesFor, startOfWeek,
   blocksForCell, labelForBlock,
 } from './utils'
-import { HourColumn, HourSlots, NowLine, PositionedEvent, BlockOverlay } from './cells'
+import { HourColumn, HourSlots, NowLine, PositionedEvent, BlockOverlay, AbsenceOverlay } from './cells'
 
 export function WeekResourceGrid({
   cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotClick,
@@ -24,6 +24,7 @@ export function WeekResourceGrid({
   unassignedShort = 'Sin',
   blocks = [],         // schedule_blocks aplicables al rango visible
   resourceType = null, // 'employee' | 'booth' | null
+  absences = [],       // ausencias del rango; solo se pintan en columnas de empleado
 }) {
   const ws = startOfWeek(cursor)
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(ws); d.setDate(ws.getDate() + i); return d })
@@ -136,6 +137,10 @@ export function WeekResourceGrid({
                       : blocksForCell(blocks, d, resourceType, c.id)
                     const cellIsBlocked = cellBlocks.length > 0
                     const cellBlockLabel = cellIsBlocked ? labelForBlock(cellBlocks[0]) : null
+                    // Ausencias: solo si la sub-columna es de empleado.
+                    const cellAbsences = (resourceType === 'employee' && c.id !== '__none__')
+                      ? absences.filter((ab) => ab.membershipId === c.id)
+                      : []
                     return (
                       <div key={c.id} className="relative border-r border-slate-300 last:border-r-0">
                         <HourSlots
@@ -147,6 +152,13 @@ export function WeekResourceGrid({
                           closedRanges={openRanges}
                           isBlocked={cellIsBlocked}
                           blockedReason={cellBlockLabel}
+                        />
+                        <AbsenceOverlay
+                          absences={cellAbsences}
+                          dayDate={d}
+                          dayStart={dayStart}
+                          dayEnd={dayEnd}
+                          hourPx={hourPx}
                         />
                         {laidOut.map(({ a, col, cols: c2 }) => (
                           <PositionedEvent

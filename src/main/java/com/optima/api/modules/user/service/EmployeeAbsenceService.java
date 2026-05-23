@@ -51,6 +51,21 @@ public class EmployeeAbsenceService {
     private final MembershipRepository membershipRepository;
 
     /**
+     * Lista todas las ausencias del negocio que solapan con el rango
+     * [from, to). Se usa desde el calendario para pintar la franja roja
+     * sobre la sub-columna del empleado en las vistas resource agrupadas
+     * por empleado. Devuelve List (no Page): cardinalidad acotada por
+     * diseno (decenas de ausencias por mes como mucho).
+     */
+    @Transactional(readOnly = true)
+    public List<EmployeeAbsenceResponse> listByBusinessAndRange(Long businessId,
+                                                                LocalDateTime from,
+                                                                LocalDateTime to) {
+        return absenceRepository.findOverlappingByBusinessAndRange(businessId, from, to)
+                .stream().map(EmployeeAbsenceResponse::from).toList();
+    }
+
+    /**
      * Crea una ausencia para un empleado del negocio.
      *
      * Pasos:

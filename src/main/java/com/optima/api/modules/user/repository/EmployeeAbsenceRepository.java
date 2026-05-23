@@ -98,4 +98,25 @@ public interface EmployeeAbsenceRepository extends JpaRepository<EmployeeAbsence
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
+
+    /**
+     * Todas las ausencias del negocio que solapan con el rango [start, end).
+     * Sirve al calendario para pintar la franja en rojo sobre la sub-columna
+     * del empleado (vistas resource agrupadas por empleado).
+     *
+     * @EntityGraph para evitar el N+1 al construir EmployeeAbsenceResponse
+     * (lee membership.user.fullName).
+     */
+    @EntityGraph(attributePaths = {"membership", "membership.user"})
+    @Query("""
+            SELECT a FROM EmployeeAbsence a
+            WHERE a.membership.business.id = :businessId
+              AND a.startDateTime <  :end
+              AND a.endDateTime   >  :start
+            """)
+    List<EmployeeAbsence> findOverlappingByBusinessAndRange(
+            @Param("businessId") Long businessId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
 }

@@ -183,6 +183,69 @@ export function HourSlots({
 }
 
 /*
+ * AbsenceOverlay — franja roja que cubre las horas en las que un empleado
+ * tiene una ausencia registrada (vacaciones, baja, cita medica). Se pinta
+ * solo en las sub-columnas del empleado afectado en las vistas resource
+ * agrupadas por empleado.
+ *
+ * Una ausencia puede durar varios días; este componente recibe `dayDate`
+ * (la fecha de la sub-columna que se está pintando) y hace clamp del rango
+ * absence.start / absence.end a las horas visibles de ese día. Asi cubre
+ * solo la franja que corresponde.
+ *
+ * pointer-events-none: las citas (PositionedEvent z-20) y los slots
+ * permanecen clicables; el overlay es solo informativo. El backend ya
+ * rechaza crear citas dentro de una ausencia (validateNoEmployeeAbsence,
+ * 409).
+ */
+export function AbsenceOverlay({ absences, dayDate, dayStart, dayEnd, hourPx }) {
+  if (!absences || absences.length === 0) return null
+  const dayStartMs = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate()).getTime()
+  const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000
+  const totalMinutes = (dayEnd - dayStart) * 60
+  return (
+    <>
+      {absences.map((abs) => {
+        const startMs = new Date(abs.startDateTime).getTime()
+        const endMs = new Date(abs.endDateTime).getTime()
+        // Clamp al dia visible.
+        const visStart = Math.max(startMs, dayStartMs)
+        const visEnd = Math.min(endMs, dayEndMs)
+        if (visEnd <= visStart) return null
+        const minutesFromMidnight = (visStart - dayStartMs) / 60000
+        const minutesFromDayStart = minutesFromMidnight - dayStart * 60
+        const durationMinutes = (visEnd - visStart) / 60000
+        const topPx = (minutesFromDayStart / 60) * hourPx
+        const heightPx = (durationMinutes / 60) * hourPx
+        const label = abs.reason ? `Ausencia: ${abs.reason}` : 'Ausencia'
+        return (
+          <div
+            key={abs.id}
+            aria-label={label}
+            className="absolute left-0 right-0 z-10 pointer-events-none flex items-start justify-center pt-1"
+            style={{
+              top: `${Math.max(0, topPx)}px`,
+              height: `${Math.max(8, heightPx)}px`,
+              backgroundColor: 'rgba(244, 63, 94, 0.15)',
+              backgroundImage:
+                'repeating-linear-gradient(45deg, rgba(244,63,94,0.28) 0 6px, transparent 6px 14px)',
+            }}
+          >
+            {heightPx >= 24 && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-600/90 text-white text-[10px] font-bold uppercase tracking-wider shadow">
+                <Ban size={10} />
+                <span className="truncate max-w-[120px]">{label}</span>
+              </span>
+            )}
+          </div>
+        )
+        // (impossible to reach below; suppress lint)
+      })}
+    </>
+  )
+}
+
+/*
  * BlockOverlay — capa visual que cubre la rejilla horaria de un día (o una
  * sub-columna en las vistas resource) cuando hay un schedule_block aplicable.
  *
