@@ -49,9 +49,10 @@ export default function Calendario() {
   const [view, setView] = useState(() => localStorage.getItem('optima_cal_view') || 'Mes')
   useEffect(() => { localStorage.setItem('optima_cal_view', view) }, [view])
 
-  const [density, setDensity] = useState(() => localStorage.getItem('optima_cal_density') || 'comfortable')
-  useEffect(() => { localStorage.setItem('optima_cal_density', density) }, [density])
-  const hourPx = HOUR_PX[density]
+  // [I] El selector de densidad se retiro: HOUR_PX es ahora constante. La
+  // clave de localStorage `optima_cal_density` se deja morir; no se limpia
+  // explicitamente (es benigno, ocupa < 20 bytes y desaparece al reset).
+  const hourPx = HOUR_PX
 
   const [colorBy, setColorBy] = useState(() => localStorage.getItem('optima_cal_colorby') || 'status')
   useEffect(() => { localStorage.setItem('optima_cal_colorby', colorBy) }, [colorBy])
@@ -410,7 +411,6 @@ export default function Calendario() {
           boothFilter={boothFilter}          setBoothFilter={setBoothFilter}
           statusFilter={statusFilter}        setStatusFilter={setStatusFilter}
           colorBy={colorBy}                  setColorBy={setColorBy}
-          density={density}                  setDensity={setDensity}
           view={view}
           groupBy={groupBy}                  setGroupBy={setGroupBy}
           statusLabel={statusLabel}
@@ -754,7 +754,6 @@ function FiltersBar({
   boothFilter,    setBoothFilter,
   statusFilter,   setStatusFilter,
   colorBy,        setColorBy,
-  density,        setDensity,
   view,
   groupBy,        setGroupBy,
   statusLabel,
@@ -937,17 +936,6 @@ function FiltersBar({
         </div>
       )}
 
-      {/* Densidad (preferencia visual, queda a la derecha) */}
-      <div className="ml-auto inline-flex items-center bg-slate-100 rounded-lg p-1">
-        <button
-          onClick={() => setDensity('comfortable')}
-          className={`px-2 py-1 rounded-md text-[11px] font-semibold transition ${density === 'comfortable' ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-[#1e3a5f]'}`}
-        >Cómodo</button>
-        <button
-          onClick={() => setDensity('compact')}
-          className={`px-2 py-1 rounded-md text-[11px] font-semibold transition ${density === 'compact' ? 'bg-white text-[#1e3a5f] shadow-[0_1px_4px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-[#1e3a5f]'}`}
-        >Compacto</button>
-      </div>
     </div>
   )
 }

@@ -12,8 +12,10 @@ export const VIEW_MODES = ['Mes','Semana','Día']
 export const DEFAULT_DAY_START = 8
 export const DEFAULT_DAY_END   = 21
 
-// Densidad: px por hora.
-export const HOUR_PX = { comfortable: 64, compact: 40 }
+// Pixeles por hora en las rejillas Dia/Semana/resource. Valor unico tras
+// retirar el modo compacto (audit I): la vista Mes no respetaba la
+// densidad y mantener dos modos sin coherencia entre vistas confundia.
+export const HOUR_PX = 64
 
 /*
  * Paleta determinista para "Color por" Empleado / Cabina. Backgrounds
