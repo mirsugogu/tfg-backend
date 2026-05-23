@@ -134,9 +134,13 @@ export function HourColumn({ withHeader = true, dayStart, dayEnd, hourPx }) {
   return (
     <div className="w-14 shrink-0 border-r-2 border-slate-300 bg-white">
       {withHeader && <div className="h-10 border-b-2 border-slate-300" />}
-      {hours.map((h) => (
+      {hours.map((h, idx) => (
         <div key={h} style={{ height: hourPx }} className="relative border-b border-slate-200">
-          <span className="absolute -top-2 right-1.5 text-[10px] font-semibold text-slate-500 bg-white px-1">
+          {/* El estilo "Excel" coloca el label entre dos filas (top -8px),
+              pero eso saca el primer label fuera del contenedor y queda
+              recortado por el header. Para idx=0 lo dejamos dentro del
+              slot. */}
+          <span className={`absolute ${idx === 0 ? 'top-1' : '-top-2'} right-1.5 text-[10px] font-semibold text-slate-500 bg-white px-1`}>
             {pad2(h)}:00
           </span>
         </div>
