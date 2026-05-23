@@ -143,3 +143,51 @@ export const openRangesFor = (businessHours, date) => {
   const [eh, em] = h.endTime.slice(0, 5).split(':').map(Number)
   return [[sh + sm / 60, eh + em / 60]]
 }
+
+/* ----- bloqueos de agenda (schedule_blocks) ----- */
+
+/**
+ * Un block aplica a la fecha si esta cae dentro de [startDate, endDate]
+ * (inclusive en ambos extremos). Las fechas vienen del backend como YYYY-MM-DD.
+ */
+const isDateInBlockRange = (date, block) => {
+  const ymd = keyOf(date)
+  return ymd >= block.startDate && ymd <= block.endDate
+}
+
+/**
+ * Filtra los `blocks` quedándose solo con los que aplican a una "celda" del
+ * calendario, identificada por (date, resourceType, resourceId):
+ *
+ *  - block GLOBAL  (membershipId=null y boothId=null): aplica a TODA celda
+ *    en su rango de fechas, sea cual sea el recurso.
+ *  - block POR EMPLEADO (membershipId set): solo aplica si la celda es del
+ *    mismo empleado (resourceType='employee' y resourceId coincide).
+ *  - block POR CABINA   (boothId set):       analogo con 'booth'.
+ *
+ * Si se llama con resourceType=null (vista cronologica sin sub-columnas),
+ * solo se devuelven los blocks globales: los parciales no son representables
+ * en una columna unica del dia y el caller los ignora.
+ */
+export const blocksForCell = (blocks, date, resourceType = null, resourceId = null) => {
+  if (!blocks || blocks.length === 0) return []
+  return blocks.filter((b) => {
+    if (!isDateInBlockRange(date, b)) return false
+    const isGlobal = b.membershipId == null && b.boothId == null
+    if (isGlobal) return true
+    if (resourceType === 'employee' && b.membershipId === resourceId) return true
+    if (resourceType === 'booth' && b.boothId === resourceId) return true
+    return false
+  })
+}
+
+/**
+ * Etiqueta corta para mostrar en el overlay del bloqueo. Si el block trae
+ * `reason`, lo usa; si no, cae a un texto generico segun el tipo.
+ */
+export const labelForBlock = (b) => {
+  if (b.reason && b.reason.trim()) return b.reason
+  if (b.membershipId != null) return 'Empleado bloqueado'
+  if (b.boothId != null) return 'Cabina bloqueada'
+  return 'Día bloqueado'
+}

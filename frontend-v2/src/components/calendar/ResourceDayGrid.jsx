@@ -8,8 +8,9 @@ import { useMemo } from 'react'
 import {
   PALETTES, GRAY_PALETTE, paletteByName,
   keyOf, isSameDay, layoutEvents, openRangesFor,
+  blocksForCell,
 } from './utils'
-import { HourColumn, HourSlots, NowLine, PositionedEvent, EventChip } from './cells'
+import { HourColumn, HourSlots, NowLine, PositionedEvent, EventChip, BlockOverlay } from './cells'
 
 export function ResourceDayGrid({
   cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick,
@@ -17,6 +18,8 @@ export function ResourceDayGrid({
   resources, // [{ id, name, accent }] — accent: índice de paleta
   resourceFor, // (appt) => resource.id  (o null = "Sin asignar")
   unassignedLabel = 'Sin asignar',
+  blocks = [],         // schedule_blocks aplicables al rango visible
+  resourceType = null, // 'employee' | 'booth' | null
 }) {
   const dayKey = keyOf(cursor)
   const dayEvents = eventsByDay.get(dayKey) || []
@@ -88,6 +91,11 @@ export function ResourceDayGrid({
                           hourPx={hourPx}
                         />
                       ))}
+                      <BlockOverlay
+                        blocks={col.id === '__none__'
+                          ? blocksForCell(blocks, cursor)
+                          : blocksForCell(blocks, cursor, resourceType, col.id)}
+                      />
                     </div>
                   </div>
                 )

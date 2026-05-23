@@ -4,7 +4,8 @@
  * sidebar). Estilo tipo hoja de cálculo: bordes slate-300, zebra sutil
  * cada hora, slots cerrados con fondo gris pleno.
  */
-import { pad2, minutesOf, apptDuration, apptHHMM, styleFor } from './utils'
+import { Ban } from 'lucide-react'
+import { pad2, minutesOf, apptDuration, apptHHMM, styleFor, labelForBlock } from './utils'
 
 export function HourColumn({ withHeader = true, dayStart, dayEnd, hourPx }) {
   const hours = []
@@ -46,6 +47,43 @@ export function HourSlots({ dayKey, onSlotClick, dayStart, dayEnd, hourPx, close
         )
       })}
     </>
+  )
+}
+
+/*
+ * BlockOverlay — capa visual que cubre la rejilla horaria de un día (o una
+ * sub-columna en las vistas resource) cuando hay un schedule_block aplicable.
+ *
+ * Diseño: trama diagonal sutil + icono Ban + reason del bloqueo, sobre fondo
+ * rose con baja opacidad para que el patrón de la rejilla siga visible.
+ * pointer-events-none deja pasar los clicks a HourSlots: el filtro de
+ * "fuera de horario" sigue funcionando, pero al renderizar antes del overlay
+ * el toast del backend (validateNoScheduleBlock) sigue siendo la última red
+ * de seguridad si alguien intenta crear cita en un slot bloqueado.
+ *
+ * blocks: array de schedule_blocks aplicables a esta celda; si esta vacio,
+ *         no se renderiza nada. El primero manda la etiqueta visible.
+ */
+export function BlockOverlay({ blocks }) {
+  if (!blocks || blocks.length === 0) return null
+  const label = labelForBlock(blocks[0])
+  return (
+    <div
+      className="absolute inset-0 z-10 flex items-start justify-center pt-2 pointer-events-none"
+      style={{
+        backgroundColor: 'rgba(244, 63, 94, 0.10)',
+        backgroundImage:
+          'repeating-linear-gradient(45deg, rgba(244,63,94,0.18) 0 6px, transparent 6px 14px)',
+      }}
+    >
+      <span
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-600/90 text-white text-[10px] font-bold uppercase tracking-wider shadow"
+        title={label}
+      >
+        <Ban size={10} />
+        <span className="truncate max-w-[120px]">{label}</span>
+      </span>
+    </div>
   )
 }
 

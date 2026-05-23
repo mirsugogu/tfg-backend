@@ -18,9 +18,10 @@ import {
   PALETTES, GRAY_PALETTE, STATUS_STYLES,
   pad2, keyOf, isSameDay, startOfWeek, buildMonthGrid, rangeFor,
   apptDate, minutesOf, apptDuration, layoutEvents, openRangesFor,
+  blocksForCell, labelForBlock,
 } from '@/components/calendar/utils'
 import {
-  HourColumn, HourSlots, NowLine, PositionedEvent, EventChip,
+  HourColumn, HourSlots, NowLine, PositionedEvent, EventChip, BlockOverlay,
 } from '@/components/calendar/cells'
 import { ResourceDayGrid }  from '@/components/calendar/ResourceDayGrid'
 import { WeekResourceGrid } from '@/components/calendar/WeekResourceGrid'
@@ -80,6 +81,10 @@ export default function Calendario() {
   const [employees, setEmployees] = useState([])
   const [booths, setBooths] = useState([])
   const [businessHours, setBusinessHours] = useState([])
+  // schedule_blocks del negocio (festivos/vacaciones/mantenimiento). Se
+  // cargan completos (cardinalidad baja, ~decenas) y se filtran al rango
+  // visible en `blocksInRange`.
+  const [scheduleBlocks, setScheduleBlocks] = useState([])
 
   useEffect(() => {
     if (!bId) return
@@ -87,15 +92,17 @@ export default function Calendario() {
       api.get(`/api/businesses/${bId}/users?size=100`),
       api.get(`/api/businesses/${bId}/booths?size=100`),
       api.get(`/api/businesses/${bId}/hours`),
-    ]).then(([emp, bo, hrs]) => {
+      api.get(`/api/businesses/${bId}/schedule-blocks?size=100`),
+    ]).then(([emp, bo, hrs, blks]) => {
       if (emp.status === 'fulfilled') setEmployees(emp.value.data.content ?? [])
       if (bo.status  === 'fulfilled') setBooths(bo.value.data.content ?? [])
       if (hrs.status === 'fulfilled') {
         const data = Array.isArray(hrs.value.data) ? hrs.value.data : (hrs.value.data?.content ?? [])
         setBusinessHours(data)
       }
+      if (blks.status === 'fulfilled') setScheduleBlocks(blks.value.data.content ?? [])
     })
-  }, [bId])
+  }, [bId, reloadFlag])
 
   // Rango horario dinámico de la rejilla. Cubre el horario del negocio Y
   // todas las citas cargadas: así ninguna cita queda fuera de la rejilla
@@ -171,6 +178,14 @@ export default function Calendario() {
     })
     return map
   }, [filtered])
+
+  // Subconjunto de blocks cuyas fechas intersectan el rango visible. Reduce
+  // el trabajo de las grids: en vez de filtrar todos los blocks por celda,
+  // solo iteramos sobre los que de verdad pueden aplicar a esta vista.
+  const blocksInRange = useMemo(() => {
+    const r = rangeFor(view, cursor)
+    return scheduleBlocks.filter((b) => b.endDate >= r.from && b.startDate <= r.to)
+  }, [scheduleBlocks, view, cursor])
 
   // Stats del rango activo
   const rangeStats = useMemo(() => {
@@ -374,6 +389,7 @@ export default function Calendario() {
           <MonthGrid
             cursor={cursor} today={today} eventsByDay={eventsByDay} colorBy={colorBy}
             onCellClick={onCellClick} onSelectEvent={setDetailAppt} onOpenDay={onOpenDay}
+            blocks={blocksInRange}
           />
         ) : view === 'Semana' && groupBy === 'booth' ? (
           <WeekResourceGrid
@@ -384,6 +400,8 @@ export default function Calendario() {
             resources={boothResources}
             resourceFor={(a) => a.boothId}
             unassignedShort="S/C"
+            blocks={blocksInRange}
+            resourceType="booth"
           />
         ) : view === 'Semana' && groupBy === 'employee' ? (
           <WeekResourceGrid
@@ -394,6 +412,8 @@ export default function Calendario() {
             resources={employeeResources}
             resourceFor={(a) => a.membershipId}
             unassignedShort="S/E"
+            blocks={blocksInRange}
+            resourceType="employee"
           />
         ) : view === 'Semana' ? (
           <WeekGrid
@@ -401,6 +421,7 @@ export default function Calendario() {
             onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
             dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
             businessHours={businessHours} now={now}
+            blocks={blocksInRange}
           />
         ) : groupBy === 'booth' ? (
           <ResourceDayGrid
@@ -411,6 +432,8 @@ export default function Calendario() {
             resources={boothResources}
             resourceFor={(a) => a.boothId}
             unassignedLabel="Sin cabina"
+            blocks={blocksInRange}
+            resourceType="booth"
           />
         ) : groupBy === 'employee' ? (
           <ResourceDayGrid
@@ -421,6 +444,8 @@ export default function Calendario() {
             resources={employeeResources}
             resourceFor={(a) => a.membershipId}
             unassignedLabel="Sin empleado"
+            blocks={blocksInRange}
+            resourceType="employee"
           />
         ) : (
           <DayGrid
@@ -428,6 +453,7 @@ export default function Calendario() {
             onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
             statusLabel={statusLabel} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
             businessHours={businessHours} now={now}
+            blocks={blocksInRange}
           />
         )}
       </div>
@@ -466,7 +492,7 @@ function StatTile({ label, value, tone }) {
   )
 }
 
-function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectEvent, onOpenDay }) {
+function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectEvent, onOpenDay, blocks = [] }) {
   const cells = buildMonthGrid(cursor.getFullYear(), cursor.getMonth())
   const month = cursor.getMonth()
   return (
@@ -486,12 +512,27 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
           const dayRevenue = dayEvents
             .filter((a) => a.statusName !== 'CANCELLED' && a.statusName !== 'NO_SHOW')
             .reduce((acc, a) => acc + parseFloat(totalBooked(a.bookedServices)), 0)
+          // En la vista Mes no hay sub-columnas por recurso, asi que
+          // mostramos cualquier bloqueo que aplique al dia (global o no);
+          // el badge se imprime con el primer reason encontrado.
+          const dayBlocks = blocksForCell(blocks, date)
+            .concat(blocks.filter((b) => (b.membershipId != null || b.boothId != null)
+                                          && keyOf(date) >= b.startDate
+                                          && keyOf(date) <= b.endDate))
+          // Deduplica por id (los globales pueden colarse dos veces).
+          const seenIds = new Set()
+          const uniqueDayBlocks = dayBlocks.filter((b) => {
+            if (seenIds.has(b.id)) return false
+            seenIds.add(b.id); return true
+          })
+          const hasBlock = uniqueDayBlocks.length > 0
           return (
             <div
               key={idx}
               onClick={() => onOpenDay(date)}
-              className={`group relative min-h-[120px] p-2 cursor-pointer transition ${inMonth ? 'bg-white hover:bg-blue-50/40' : 'bg-slate-50/60 hover:bg-slate-50'}`}
-              title="Ver el día"
+              className={`group relative min-h-[120px] p-2 cursor-pointer transition ${inMonth ? 'bg-white hover:bg-blue-50/40' : 'bg-slate-50/60 hover:bg-slate-50'} ${hasBlock ? 'ring-1 ring-inset ring-rose-200' : ''}`}
+              title={hasBlock ? labelForBlock(uniqueDayBlocks[0]) : 'Ver el día'}
+              style={hasBlock ? { backgroundImage: 'repeating-linear-gradient(45deg, rgba(244,63,94,0.08) 0 6px, transparent 6px 14px)' } : undefined}
             >
               <div className="flex items-center justify-between">
                 <div className={`inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full text-xs font-semibold ${
@@ -509,6 +550,11 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
                 </button>
               </div>
               <div className="mt-1.5 space-y-1">
+                {hasBlock && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-600 text-white text-[9px] font-bold uppercase tracking-wider shadow-sm">
+                    <span className="truncate max-w-[100px]">{labelForBlock(uniqueDayBlocks[0])}</span>
+                  </span>
+                )}
                 {shown.map((a) => <EventChip key={a.id} appt={a} onClick={onSelectEvent} colorBy={colorBy} variant="grid" />)}
                 {overflow > 0 && (
                   <button
@@ -532,7 +578,7 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
   )
 }
 
-function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotClick, dayStart, dayEnd, hourPx, businessHours, now }) {
+function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotClick, dayStart, dayEnd, hourPx, businessHours, now, blocks = [] }) {
   const ws = startOfWeek(cursor)
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(ws); d.setDate(ws.getDate() + i); return d })
   return (
@@ -545,6 +591,11 @@ function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotCl
             const laidOut = layoutEvents(eventsByDay.get(dayKey) || [])
             const isToday = isSameDay(d, today)
             const openRanges = openRangesFor(businessHours, d)
+            // En la vista Semana cronologica solo se renderizan los bloqueos
+            // globales: una columna sin sub-columnas no puede separar un
+            // bloqueo por empleado o por cabina. Los parciales se ven en
+            // la vista Semana agrupada por recurso.
+            const dayBlocks = blocksForCell(blocks, d)
             return (
               <div key={i} className="relative border-r-2 border-slate-300 last:border-r-0">
                 <div className={`h-10 border-b-2 border-slate-300 flex items-center justify-center gap-2 sticky top-0 z-10 ${isToday ? 'bg-blue-100' : 'bg-white'}`}>
@@ -557,6 +608,7 @@ function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotCl
                     <PositionedEvent key={a.id} appt={a} onClick={onSelectEvent} col={col} cols={cols} colorBy={colorBy} dayStart={dayStart} hourPx={hourPx} />
                   ))}
                   {isToday && <NowLine now={now} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} />}
+                  <BlockOverlay blocks={dayBlocks} />
                 </div>
               </div>
             )
@@ -567,13 +619,17 @@ function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotCl
   )
 }
 
-function DayGrid({ cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick, statusLabel, dayStart, dayEnd, hourPx, businessHours, now }) {
+function DayGrid({ cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick, statusLabel, dayStart, dayEnd, hourPx, businessHours, now, blocks = [] }) {
   const dayKey = keyOf(cursor)
   const dayEvents = eventsByDay.get(dayKey) || []
   const sorted = [...dayEvents].sort((a, b) => minutesOf(a.startDateTime) - minutesOf(b.startDateTime))
   const laidOut = layoutEvents(dayEvents)
   const openRanges = openRangesFor(businessHours, cursor)
   const isToday = isSameDay(cursor, new Date())
+  // Vista Dia cronologica: solo se muestran los bloqueos globales (no hay
+  // sub-columnas para los bloqueos por recurso, que se ven al pasar a
+  // agrupacion por cabina/empleado).
+  const dayBlocks = blocksForCell(blocks, cursor)
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 p-5">
@@ -587,6 +643,7 @@ function DayGrid({ cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick, sta
                 <PositionedEvent key={a.id} appt={a} onClick={onSelectEvent} col={col} cols={cols} colorBy={colorBy} dayStart={dayStart} hourPx={hourPx} />
               ))}
               {isToday && <NowLine now={now} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} />}
+              <BlockOverlay blocks={dayBlocks} />
             </div>
           </div>
         </div>

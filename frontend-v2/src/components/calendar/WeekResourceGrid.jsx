@@ -11,8 +11,9 @@
 import {
   PALETTES, GRAY_PALETTE, DAYS_ES_SHORT, paletteByName,
   keyOf, isSameDay, layoutEvents, openRangesFor, startOfWeek,
+  blocksForCell,
 } from './utils'
-import { HourColumn, HourSlots, NowLine, PositionedEvent } from './cells'
+import { HourColumn, HourSlots, NowLine, PositionedEvent, BlockOverlay } from './cells'
 
 export function WeekResourceGrid({
   cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotClick,
@@ -20,6 +21,8 @@ export function WeekResourceGrid({
   resources, // [{ id, name, short, accent }]
   resourceFor,
   unassignedShort = 'Sin',
+  blocks = [],         // schedule_blocks aplicables al rango visible
+  resourceType = null, // 'employee' | 'booth' | null
 }) {
   const ws = startOfWeek(cursor)
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(ws); d.setDate(ws.getDate() + i); return d })
@@ -107,6 +110,12 @@ export function WeekResourceGrid({
                 >
                   {cols.map((c) => {
                     const laidOut = layoutEvents(buckets.get(c.id) || [])
+                    // Para la sub-columna "Sin asignar" solo aplican los
+                    // bloqueos globales (resourceId=null). Para las demas,
+                    // los globales + los dirigidos a ese recurso concreto.
+                    const cellBlocks = c.id === '__none__'
+                      ? blocksForCell(blocks, d)
+                      : blocksForCell(blocks, d, resourceType, c.id)
                     return (
                       <div key={c.id} className="relative border-r border-slate-300 last:border-r-0">
                         <HourSlots
@@ -129,6 +138,7 @@ export function WeekResourceGrid({
                             hourPx={hourPx}
                           />
                         ))}
+                        <BlockOverlay blocks={cellBlocks} />
                       </div>
                     )
                   })}
