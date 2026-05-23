@@ -1229,7 +1229,28 @@ function KpiTile({ label, value }) {
 }
 
 function ScheduleGrid({ schedules, loading, isAdmin, onEdit, onDelete, onAdd }) {
-  const DAY_START = 8, DAY_END = 22
+  // Rango visual adaptativo: mismo problema que la rejilla de horarios
+  // del negocio (HoursTab). Con un tramo 2:00-22:00 la formula calcula
+  // width > 100% sobre el rango fijo 8-22 y la barra desborda la
+  // tarjeta. Calculo min/max del horario real del empleado; defaults
+  // 8-22 si todavia no hay nada; cap [0, 24] defensivo.
+  const { DAY_START, DAY_END } = useMemo(() => {
+    let minH = 24, maxH = 0
+    ;(schedules ?? []).forEach((s) => {
+      if (!s.startTime || !s.endTime) return
+      const [sh, sm] = s.startTime.slice(0, 5).split(':').map(Number)
+      const [eh, em] = s.endTime.slice(0, 5).split(':').map(Number)
+      const start = sh + sm / 60
+      const end   = eh + em / 60
+      if (start < minH) minH = start
+      if (end > maxH)   maxH = end
+    })
+    if (minH === 24 || maxH === 0) return { DAY_START: 8, DAY_END: 22 }
+    return {
+      DAY_START: Math.max(0, Math.floor(minH)),
+      DAY_END: Math.min(24, Math.ceil(maxH)),
+    }
+  }, [schedules])
   const total = DAY_END - DAY_START
   const dow = todayDow()
 
