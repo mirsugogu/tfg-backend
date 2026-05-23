@@ -1,16 +1,29 @@
-# React + Vite
+# Optima — Frontend v2
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+SPA en React 19 + Vite 8 + React Router 7 + Tailwind CSS 4 que consume el
+backend REST de Optima (Spring Boot, ver [`../CLAUDE.md`](../CLAUDE.md)).
 
-Currently, two official plugins are available:
+> El detalle del proyecto (estructura, bundle UI/UX, hallazgos del
+> backend que el frontend esquiva, trabajo posterior al backlog del
+> tester con drag-and-drop, ausencias, revalidación de sesión, etc.)
+> vive en **[`PROGRESS.md`](./PROGRESS.md)** — ese es el documento de
+> contexto canónico del frontend.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Arranque
 
-## React Compiler
+```powershell
+npm install
+npm run dev      # dev server http://127.0.0.1:5173 (Vite, IPv4 forzada)
+npm run build    # build de producción a dist/
+npm run preview  # sirve dist/ en local para verificar
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Necesita el backend en `http://localhost:8080`. Levantarlo desde la raíz
+del repo con `docker compose up -d` y esperar ~50 s.
 
-## Expanding the ESLint configuration
+## Login demo
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+`admin@optima.com` / `12345678` — el usuario `admin` tiene 2 memberships
+en el seed, así que dispara el flujo de login en 2 pasos (identity → select
+business). Cualquiera de los otros 6 usuarios del seed entra directo con
+tenant token. Password común: `12345678`.

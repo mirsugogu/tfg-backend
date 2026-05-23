@@ -5,6 +5,32 @@ la prosa académica que justifica cada uno. Está pensado para copiarse
 directamente en la memoria del TFG, ajustando tono y referencias bibliográficas
 según la sección final donde se integre.
 
+> **Snapshot 2026-05-21 — features añadidas después no documentadas aquí.**
+> Los 40 diagramas describen el sistema en su estado del 2026-05-21. Los
+> siguientes bloques de funcionalidad (2026-05-22/23) NO tienen diagrama
+> dedicado en el FigJam; si se quieren ilustrar en la defensa, se pueden
+> añadir paneles nuevos o cubrir en prosa de cierre:
+>
+> - **Drag-and-drop de citas en el calendario** (frontend) — hook
+>   `useDragAppointment`, hit-test sobre `data-cal-cell`, snap al
+>   `appointmentInterval` del negocio, `ConfirmDropModal`.
+> - **PUT /api/businesses/{id}/appointments/{id}** (P9 reschedule,
+>   backend) — extensión de la cadena de validación de `createAppointment`
+>   con `excludeAppointmentId`.
+> - **`BusinessAbsencesController`** — vista agregada de ausencias del
+>   negocio (`GET /absences?from&to`), consumida por el calendario.
+> - **`TenantGuardFilter.revalidateSession`** — revalidación de
+>   membership/rol por request (defensa contra cambios de rol y
+>   desactivación de empleado en sesiones vivas).
+> - **Turno partido (multi-tramo)** — `business_hours` y
+>   `employee_schedules` aceptan N filas por día; `openRangesFor` del
+>   frontend trabaja sobre N rangos.
+> - **Color configurable en `booths`** — cierre de simetría con
+>   `memberships.color`.
+>
+> Estado vigente: `docs/BACKLOG.md` ("Trabajo posterior al backlog") y
+> `frontend-v2/PROGRESS.md` §11.
+
 **FigJam de la defensa:** https://www.figma.com/board/WAo58CBNcUHpDAHFBjFuJl
 
 Cada apartado describe **qué muestra** el diagrama, **qué decisión

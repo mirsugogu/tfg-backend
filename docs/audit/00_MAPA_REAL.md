@@ -1,9 +1,33 @@
 # Mapa real del backend Optima — pre-frontend audit
 
-**Fecha**: 2026-05-17 (actualizado 2026-05-21)
+**Fecha**: 2026-05-17 (actualizado 2026-05-21, 2026-05-23)
 **Rama**: `audit/pre-frontend`
 **Origen**: lectura directa del código (sin suposiciones).
 
+> **Actualización 2026-05-23** — el backend creció con varias features
+> que NO están reflejadas en las tablas de abajo. Para no reescribir el
+> mapa, se listan aquí los deltas; la fuente canónica del contrato HTTP
+> al día es **`docs/optima-postman-collection-v4.json`** (17 controllers,
+> verificado al 100%):
+>
+> - `BusinessAbsencesController` (nuevo): `GET /api/businesses/{id}/absences?from&to`
+>   — vista agregada de ausencias del negocio para el calendario.
+> - `AppointmentController`: añadido `PUT /api/businesses/{id}/appointments/{id}`
+>   (P9 reschedule). `AppointmentValidator` acepta `excludeAppointmentId`
+>   en `validateNoOverlap` y `validateNoBoothOverlap`. `AvailabilityController`
+>   acepta el mismo param.
+> - `ClientController`: `GET /clients?search=` (autocompletado server-side
+>   via `ClientRepository.searchActiveByBusiness`).
+> - `BoothController` + DTOs (`Create/UpdateBoothRequest`, `BoothResponse`):
+>   campo `color` con `@Pattern(cyan|amber|emerald|indigo|pink|sky|violet|teal)`.
+> - `BusinessHourController` multi-tramo: se retiró el `UNIQUE` `(business, dayOfWeek)`
+>   del schema; `BusinessHourService` valida solape `A<D AND C<B` por tramo abierto.
+> - `Membership.color` (campo nuevo, VARCHAR 20) para asignar color al
+>   empleado en el calendario.
+> - `TenantGuardFilter.revalidateSession`: consulta la membership viva en
+>   cada request y compara con los claims del JWT (rol + `is_active`);
+>   401 si cambió.
+>
 > Actualización 2026-05-21: refleja la feature Archivar/Reactivar del 2026-05-20
 > (6 endpoints `PATCH …/reactivate` + query param `?active` en los 6 listados
 > con soft delete), la retirada de `@FutureOrPresent` de

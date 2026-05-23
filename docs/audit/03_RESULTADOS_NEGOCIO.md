@@ -6,6 +6,15 @@
 **Entorno**: BD limpia (seed v20), API en localhost:8080.
 **Baseline BD**: 4 users · 2 businesses · 4 memberships · 6 clients · 4 appointments · 5 services · 2 booths · 2 taxes · 7 business_hours · 30 employee_schedules · 1 employee_absence · 1 schedule_block · 2 roles · 6 appointment_statuses.
 
+> **Snapshot histórico — actualizado 2026-05-23.** Mismo caso que el
+> `02_RESULTADOS_*`: la ejecución original se cerró el 2026-05-18 (con
+> los hallazgos resueltos en el bloque del 2026-05-20). Desde entonces
+> el backend añadió endpoints y reglas (P9 reschedule, `GET /absences`,
+> `?search` en clients, color en booths, multi-tramo en hours,
+> revalidación de sesión por request) que NO se evaluaron en esta
+> auditoría. Estado vigente: `docs/BACKLOG.md` y
+> `frontend-v2/PROGRESS.md` §11.
+
 > Documento generado en una sola sesión por bloques. Veredictos por test individual; no se modifica código bajo prueba.
 
 > **🔧 ACTUALIZACIÓN 2026-05-20 — hallazgos cerrados.** Esta auditoría se

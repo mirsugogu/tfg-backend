@@ -5,6 +5,15 @@
 **Origen**: derivado 1:1 de `docs/audit/00_MAPA_REAL.md` (sin inventar endpoints ni validaciones que no existen en el código).
 **Objetivo**: validar exhaustivamente el backend antes de integrar el frontend, cubriendo seguridad, validación, reglas de negocio, rendimiento y contrato HTTP.
 
+> **Nota 2026-05-23**: este plan se ejecutó en su totalidad (resultados
+> en `02_RESULTADOS_*` y `03_RESULTADOS_*`). El backend ha crecido
+> después con varios endpoints nuevos (P9 reschedule, GET /absences,
+> ClientPicker `?search`, color en booths, multi-tramo en hours). La
+> cobertura HTTP vigente vive en la collection Postman
+> **`docs/optima-postman-collection-v4.json`** (verificado al 100%
+> contra los 17 controllers actuales). Este documento se conserva como
+> referencia académica del esfuerzo de auditoría exhaustiva pre-frontend.
+
 ---
 
 ## 0. Convenciones del plan

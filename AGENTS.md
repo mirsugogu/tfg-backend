@@ -298,3 +298,22 @@ password `optima_pass`, db `optima_db`.
 - Rama principal: `main` (la activa de desarrollo es `develop`).
 - Política de ramas: `feat/...`, `fix/...`, `refactor/...`, `chore/...`,
   `docs/...`.
+
+---
+
+## 11. Frontend (`frontend-v2/`)
+
+SPA en **`frontend-v2/`** (React 19 + Vite 8 + React Router 7 + axios +
+Tailwind CSS 4) que consume esta API. No comparte build ni Docker con el
+backend. El progreso detallado y los componentes nuevos viven en
+**`frontend-v2/PROGRESS.md`** (su equivalente a este archivo).
+
+- CORS cableado en `SecurityConfig` (`.cors(Customizer.withDefaults())`),
+  así que los preflight `OPTIONS` se resuelven en la cadena de filtros.
+- Login en 2 pasos (§7): tenant token → `localStorage`; identity token
+  efímero → `sessionStorage`.
+- No hay catálogo público de negocios: sin autenticarse no se pueden
+  listar.
+- Pendiente backend no bloqueante: restringir `allowedOrigins` al
+  dominio real en producción; filtros server-side opcionales en
+  `GET /appointments`.

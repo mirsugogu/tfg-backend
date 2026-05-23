@@ -2,6 +2,17 @@
 
 Auditoría línea a línea del backend (Spring Boot) y del frontend (`frontend-v2/`).
 
+> **Snapshot histórico — 2026-05-23.** Los 67 hallazgos descritos abajo
+> corresponden al estado del 2026-05-21. Los 26 accionables se cerraron
+> ese mismo día (backend) y la revisión sirvió como base para
+> `docs/optima-postman-collection-v4.json`. Desde entonces se han añadido
+> features y fixes que NO están auditados en este documento (P9
+> reschedule + drag-and-drop, `GET /absences`, color en booths,
+> multi-tramo en hours, revalidación de sesión por request, bloqueos y
+> ausencias visibles en el calendario en 4 capas defensivas, varios
+> fixes de horarios). Estado vigente: `docs/BACKLOG.md` ("Trabajo
+> posterior al backlog") y `frontend-v2/PROGRESS.md` §11.
+
 ## 1. Resumen ejecutivo
 
 - **Método**: 8 agentes de revisión en paralelo (un lote por módulo/capa), cada

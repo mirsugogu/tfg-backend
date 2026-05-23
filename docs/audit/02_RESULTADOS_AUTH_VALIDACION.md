@@ -6,6 +6,16 @@
 **Entorno**: BD limpia (docker compose down -v + up), API en localhost:8080.
 **Baseline BD**: 4 users · 2 businesses · 4 memberships · 4 appointments · 6 clients.
 
+> **Snapshot histórico — actualizado 2026-05-23.** Este documento es la
+> fotografía de la ejecución de la auditoría en la fecha indicada arriba.
+> Los hallazgos ya se cerraron (ver el bloque del 2026-05-20 más abajo);
+> desde entonces el backend ganó endpoints y reglas nuevas (P9 reschedule,
+> `GET /absences`, `?search` en clients, color en booths, multi-tramo en
+> hours, revalidación de sesión por request) que NO se evaluaron en esta
+> auditoría. Para el estado y la cobertura vigentes: `docs/BACKLOG.md`
+> ("Trabajo posterior al backlog"), `frontend-v2/PROGRESS.md` §11 y la
+> collection Postman `docs/optima-postman-collection-v4.json`.
+
 > Documento en construcción — se actualiza por bloque. Sólo se documenta lo observado.
 
 > **🔧 ACTUALIZACIÓN 2026-05-20 — hallazgos cerrados.** Esta auditoría se
