@@ -167,7 +167,27 @@ export default function Empleados() {
     })
     setModal('edit')
   }
-  const openDeactivate = (e) => { setSelected(e); setModal('deactivate') }
+  // Conteo de citas proximas del empleado seleccionado para el aviso del modal
+  // de desactivacion (E del audit). null mientras carga, numero cuando llega.
+  // Si la consulta falla, se asume 0 para no bloquear la acción por un error
+  // ortogonal (el backend tiene la red final si hay alguna inconsistencia).
+  const [upcomingInfo, setUpcomingInfo] = useState({ loading: false, count: null })
+
+  const openDeactivate = async (e) => {
+    setSelected(e)
+    setModal('deactivate')
+    setUpcomingInfo({ loading: true, count: null })
+    const t = new Date()
+    const ymd = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+    try {
+      const r = await api.get(`/api/businesses/${bId}/appointments`, {
+        params: { membershipId: e.id, from: ymd, size: 1 },
+      })
+      setUpcomingInfo({ loading: false, count: r.data.totalElements ?? 0 })
+    } catch {
+      setUpcomingInfo({ loading: false, count: 0 })
+    }
+  }
   const closeModal = () => { setModal(null); setSelected(null) }
 
   const handleChange = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }))
@@ -509,16 +529,46 @@ export default function Empleados() {
       {/* Modal desactivar */}
       <Modal open={modal === 'deactivate'} onClose={closeModal} title="Desactivar empleado" size="sm">
         <div className="space-y-5">
-          <div className="flex items-start gap-3 rounded-2xl bg-amber-50 border border-amber-100 px-4 py-4">
-            <UserMinus size={20} className="text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-sm text-amber-800 leading-snug">
-              ¿Desactivar a <strong>{selected?.fullName}</strong>? Dejará de poder iniciar sesión y
-              no podrá asignarse a nuevas citas, pero seguirá presente en el historial.
-            </p>
-          </div>
+          {/* Aviso base con tono segun el conteo: si tiene citas proximas,
+              fondo rose con explicacion del impacto; si no, amber neutro. */}
+          {upcomingInfo.count != null && upcomingInfo.count > 0 ? (
+            <div className="flex items-start gap-3 rounded-2xl bg-rose-50 border border-rose-200 px-4 py-4">
+              <UserMinus size={20} className="text-rose-600 shrink-0 mt-0.5" />
+              <div className="text-sm text-rose-800 leading-snug space-y-1.5">
+                <p>
+                  <strong>{selected?.fullName}</strong> tiene <strong>{upcomingInfo.count} cita{upcomingInfo.count === 1 ? '' : 's'}</strong> de hoy en adelante.
+                </p>
+                <p className="text-rose-700">
+                  Al desactivarlo no podrá iniciar sesión ni asignarse a nuevas citas. Las existentes
+                  <strong> no se cancelan automáticamente</strong>: revísalas en <em>Citas</em>
+                  (filtra por este empleado) y decide si reasignarlas o cancelarlas.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start gap-3 rounded-2xl bg-amber-50 border border-amber-100 px-4 py-4">
+              <UserMinus size={20} className="text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-sm text-amber-800 leading-snug">
+                {upcomingInfo.loading ? (
+                  <>Comprobando citas próximas de <strong>{selected?.fullName}</strong>…</>
+                ) : (
+                  <>¿Desactivar a <strong>{selected?.fullName}</strong>? Dejará de poder iniciar sesión y
+                  no podrá asignarse a nuevas citas, pero seguirá presente en el historial.</>
+                )}
+              </p>
+            </div>
+          )}
           <div className="flex gap-3">
             <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
-            <Button variant="danger" onClick={handleDeactivate} loading={saving} className="flex-1">Desactivar</Button>
+            <Button
+              variant="danger"
+              onClick={handleDeactivate}
+              loading={saving}
+              disabled={upcomingInfo.loading}
+              className="flex-1"
+            >
+              {upcomingInfo.count > 0 ? 'Desactivar de todos modos' : 'Desactivar'}
+            </Button>
           </div>
         </div>
       </Modal>
