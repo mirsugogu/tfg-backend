@@ -135,8 +135,11 @@ export default function Citas() {
   const [pageSize, setPageSize] = useState(() => parseInt(localStorage.getItem('optima_citas_size') || '20', 10))
   useEffect(() => { localStorage.setItem('optima_citas_size', String(pageSize)) }, [pageSize])
 
-  const [sortDir, setSortDir] = useState(() => localStorage.getItem('optima_citas_sortdir') || 'desc')
-  useEffect(() => { localStorage.setItem('optima_citas_sortdir', sortDir) }, [sortDir])
+  // D2: selector temporal "Próximas" (futuras asc) / "Pasadas" (pasadas desc).
+  // Sustituye al "asc/desc" ambiguo anterior. La key cambia para no heredar
+  // valores antiguos del localStorage.
+  const [timeMode, setTimeMode] = useState(() => localStorage.getItem('optima_citas_timemode') || 'upcoming')
+  useEffect(() => { localStorage.setItem('optima_citas_timemode', timeMode) }, [timeMode])
 
   const [view, setView] = useState(() => localStorage.getItem('optima_citas_view') || 'list')
   useEffect(() => { localStorage.setItem('optima_citas_view', view) }, [view])
@@ -151,13 +154,14 @@ export default function Citas() {
 
   // Solo se incluyen las claves con valor; el backend rechaza ?from= vacío.
   // sort: la auditoría I.010 dice que solo `startDateTime` es seguro como sort.
+  // El timeMode "upcoming" -> asc, "past" -> desc.
   const listParams = useMemo(() => {
-    const p = { sort: `startDateTime,${sortDir}` }
+    const p = { sort: `startDateTime,${timeMode === 'past' ? 'desc' : 'asc'}` }
     if (fromDate) p.from = fromDate
     if (toDate)   p.to = toDate
     if (employeeFilter) p.membershipId = employeeFilter
     return p
-  }, [fromDate, toDate, employeeFilter, sortDir])
+  }, [fromDate, toDate, employeeFilter, timeMode])
 
   // Se cargan TODAS las citas del rango (size=100, tope del backend) para que
   // la búsqueda y la paginación operen sobre el conjunto completo.
@@ -179,7 +183,17 @@ export default function Citas() {
   const [filterStatus, setFilterStatus] = useState('')
   const [unpaidOnly, setUnpaidOnly] = useState(false)
 
+  // Frontera temporal: las citas de HOY se consideran "Próximas" todo el día
+  // (no se mueven de modo durante la jornada). Comparar contra startOfToday
+  // en lugar de `now` evita reordenes y movimientos inesperados.
+  const startOfToday = useMemo(() => {
+    const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime()
+  }, [now])
+
   const visible = appointments.filter((a) => {
+    const startMs = new Date(a.startDateTime).getTime()
+    if (timeMode === 'upcoming' && startMs < startOfToday) return false
+    if (timeMode === 'past' && startMs >= startOfToday) return false
     const matchSearch = !search ||
       a.clientName?.toLowerCase().includes(search.toLowerCase()) ||
       a.userFullName?.toLowerCase().includes(search.toLowerCase())
@@ -316,12 +330,12 @@ export default function Citas() {
         </div>
 
         <select
-          value={sortDir}
-          onChange={(e) => setSortDir(e.target.value)}
+          value={timeMode}
+          onChange={(e) => setTimeMode(e.target.value)}
           className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-[#1e3a5f] focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition"
         >
-          <option value="asc">Próximas primero</option>
-          <option value="desc">Más recientes</option>
+          <option value="upcoming">Próximas</option>
+          <option value="past">Pasadas</option>
         </select>
 
         <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
@@ -544,10 +558,19 @@ function StatTile({ label, value, tone }) {
   )
 }
 
+// D3: estados terminales en los que NO se muestra el chip "Pasada" (la cita
+// ya fue cerrada manualmente por el admin, su pasado es esperado).
+const STATES_CERRADOS = new Set(['COMPLETED', 'CANCELLED', 'NO_SHOW'])
+
 function AppointmentCard({ appointment: a, onClick }) {
   const isInProgress = a.statusName === 'IN_PROGRESS'
   const servicesLabel = a.bookedServices?.map((b) => b.serviceName).join(' + ') || 'Sin servicios'
   const showUnpaidChip = !a.isPaid && (a.statusName === 'COMPLETED' || a.statusName === 'IN_PROGRESS')
+  // Chip "Pasada": SOLO indicador visual, no cambia el estado en BD. Avisa
+  // al admin que la cita esta sin cerrar y deberia marcarla manualmente
+  // (COMPLETED / CANCELLED / NO_SHOW segun lo que ocurrio).
+  const isOverdue = new Date(a.endDateTime).getTime() < Date.now()
+                    && !STATES_CERRADOS.has(a.statusName)
   return (
     <div
       onClick={onClick}
@@ -574,6 +597,14 @@ function AppointmentCard({ appointment: a, onClick }) {
             {showUnpaidChip && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 ring-1 ring-amber-200">
                 Pendiente cobro
+              </span>
+            )}
+            {isOverdue && (
+              <span
+                title="La cita pasó sin marcarse como completada, cancelada ni ausencia. Ciérrala manualmente."
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 ring-1 ring-rose-200"
+              >
+                Pasada sin cerrar
               </span>
             )}
           </div>
