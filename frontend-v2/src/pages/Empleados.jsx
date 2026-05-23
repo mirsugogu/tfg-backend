@@ -1262,67 +1262,84 @@ function ScheduleGrid({ schedules, loading, isAdmin, onEdit, onDelete, onAdd }) 
     )
   }
 
+  /*
+   * Aplanado del horario en un unico array de filas. Es clave para que
+   * React reconcilie bien: con el patron anterior
+   *   [1..7].map((d) => rows.map(...))
+   * React veia un array de arrays sin key estable a nivel de dia y,
+   * al borrar el primer tramo de un dia con turno partido, las
+   * etiquetas DAYS_SHORT[d] se desplazaban a la fila siguiente porque
+   * dependian del idx local del sub-map. flatMap + isFirstOfDay
+   * calculado por item arregla el reciclaje y la posicion de la
+   * etiqueta queda anclada al tramo correcto.
+   */
+  const flatRows = [1, 2, 3, 4, 5, 6, 7].flatMap((d) => {
+    const daySchedules = schedules
+      .filter((s) => s.dayOfWeek === d)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))
+    if (daySchedules.length === 0) {
+      return [{ key: `empty-${d}`, sch: null, day: d, isFirstOfDay: true }]
+    }
+    return daySchedules.map((sch, idx) => ({
+      key: `s-${sch.id}`,
+      sch,
+      day: d,
+      isFirstOfDay: idx === 0,
+    }))
+  })
+
   return (
     <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
       <div className="space-y-1.5">
-        {[1, 2, 3, 4, 5, 6, 7].map((d) => {
-          // Turno partido: un empleado puede tener varios tramos el mismo dia.
-          // Se renderiza una fila por tramo (no una por dia); los dias sin
-          // ningun tramo muestran una unica fila "Libre".
-          const daySchedules = schedules
-            .filter((s) => s.dayOfWeek === d)
-            .sort((a, b) => a.startTime.localeCompare(b.startTime))
-          const isToday = d === dow
-          const rows = daySchedules.length ? daySchedules : [null]
-          return rows.map((sch, idx) => {
-            let bar
-            if (sch) {
-              const [sh, sm] = sch.startTime.slice(0, 5).split(':').map(Number)
-              const [eh, em] = sch.endTime.slice(0, 5).split(':').map(Number)
-              const startH = sh + sm / 60 - DAY_START
-              const endH   = eh + em / 60 - DAY_START
-              const left   = Math.max(0, (startH / total) * 100)
-              const width  = Math.max(2, ((endH - startH) / total) * 100)
-              bar = (
-                <div
-                  className="absolute inset-y-1 rounded-md flex items-center px-2 text-[10px] font-semibold text-white whitespace-nowrap overflow-hidden"
-                  style={{ left: `${left}%`, width: `${width}%`, background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)' }}
-                  title={`${sch.startTime.slice(0, 5)} – ${sch.endTime.slice(0, 5)}`}
-                >
-                  <span className="truncate">{sch.startTime.slice(0, 5)} – {sch.endTime.slice(0, 5)}</span>
-                </div>
-              )
-            } else {
-              bar = (
-                <div className="absolute inset-y-2 left-1 right-1 rounded-md border border-dashed border-slate-200 text-[10px] font-medium text-slate-400 flex items-center justify-center">
-                  Libre
-                </div>
-              )
-            }
-            return (
-              <div key={sch ? sch.id : `empty-${d}`} className="grid grid-cols-[36px_1fr_56px] items-center gap-2">
-                <div className={`text-[11px] font-bold text-center ${isToday ? 'text-blue-600' : 'text-slate-500'}`}>
-                  {idx === 0 ? DAYS_SHORT[d] : ''}
-                  {idx === 0 && isToday && <span className="block w-1 h-1 rounded-full bg-blue-500 mx-auto mt-0.5" />}
-                </div>
-                <div className="relative h-7 rounded-md bg-white border border-slate-100">{bar}</div>
-                <div className="flex gap-0.5 justify-end">
-                  {sch ? (
-                    isAdmin && (
-                      <>
-                        <button onClick={() => onEdit(sch)}   className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition"><Pencil size={12} /></button>
-                        <button onClick={() => onDelete(sch)} className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 transition"><Trash2 size={12} /></button>
-                      </>
-                    )
-                  ) : (
-                    isAdmin && (
-                      <button onClick={onAdd} className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition" title="Añadir"><Plus size={12} /></button>
-                    )
-                  )}
-                </div>
+        {flatRows.map(({ key, sch, day, isFirstOfDay }) => {
+          const isToday = day === dow
+          let bar
+          if (sch) {
+            const [sh, sm] = sch.startTime.slice(0, 5).split(':').map(Number)
+            const [eh, em] = sch.endTime.slice(0, 5).split(':').map(Number)
+            const startH = sh + sm / 60 - DAY_START
+            const endH   = eh + em / 60 - DAY_START
+            const left   = Math.max(0, (startH / total) * 100)
+            const width  = Math.max(2, ((endH - startH) / total) * 100)
+            bar = (
+              <div
+                className="absolute inset-y-1 rounded-md flex items-center px-2 text-[10px] font-semibold text-white whitespace-nowrap overflow-hidden"
+                style={{ left: `${left}%`, width: `${width}%`, background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)' }}
+                title={`${sch.startTime.slice(0, 5)} – ${sch.endTime.slice(0, 5)}`}
+              >
+                <span className="truncate">{sch.startTime.slice(0, 5)} – {sch.endTime.slice(0, 5)}</span>
               </div>
             )
-          })
+          } else {
+            bar = (
+              <div className="absolute inset-y-2 left-1 right-1 rounded-md border border-dashed border-slate-200 text-[10px] font-medium text-slate-400 flex items-center justify-center">
+                Libre
+              </div>
+            )
+          }
+          return (
+            <div key={key} className="grid grid-cols-[36px_1fr_56px] items-center gap-2">
+              <div className={`text-[11px] font-bold text-center ${isToday ? 'text-blue-600' : 'text-slate-500'}`}>
+                {isFirstOfDay ? DAYS_SHORT[day] : ''}
+                {isFirstOfDay && isToday && <span className="block w-1 h-1 rounded-full bg-blue-500 mx-auto mt-0.5" />}
+              </div>
+              <div className="relative h-7 rounded-md bg-white border border-slate-100">{bar}</div>
+              <div className="flex gap-0.5 justify-end">
+                {sch ? (
+                  isAdmin && (
+                    <>
+                      <button onClick={() => onEdit(sch)}   className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition"><Pencil size={12} /></button>
+                      <button onClick={() => onDelete(sch)} className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 transition"><Trash2 size={12} /></button>
+                    </>
+                  )
+                ) : (
+                  isAdmin && (
+                    <button onClick={onAdd} className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition" title="Añadir"><Plus size={12} /></button>
+                  )
+                )}
+              </div>
+            </div>
+          )
         })}
       </div>
       <div className="grid grid-cols-[36px_1fr_56px] gap-2 mt-2">
