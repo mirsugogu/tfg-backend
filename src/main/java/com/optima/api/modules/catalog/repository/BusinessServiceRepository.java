@@ -64,4 +64,12 @@ public interface BusinessServiceRepository extends JpaRepository<BusinessService
      * para detectar ids inexistentes o de otro tenant.
      */
     List<BusinessService> findAllByIdInAndBusinessId(Collection<Long> ids, Long businessId);
+
+    /**
+     * Cuenta los servicios activos asociados a una categoria concreta. La
+     * usa ServiceCategoryService.deactivateCategory para bloquear el borrado
+     * de una categoria que aun tiene servicios vivos (decision de diseno
+     * D1: borrar con servicios -> 409).
+     */
+    long countByCategoryIdAndIsActiveTrue(Long categoryId);
 }

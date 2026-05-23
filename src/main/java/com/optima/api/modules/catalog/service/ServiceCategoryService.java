@@ -6,6 +6,7 @@ import com.optima.api.modules.catalog.dto.request.CreateCategoryRequest;
 import com.optima.api.modules.catalog.dto.request.UpdateCategoryRequest;
 import com.optima.api.modules.catalog.dto.response.ServiceCategoryResponse;
 import com.optima.api.modules.catalog.model.ServiceCategory;
+import com.optima.api.modules.catalog.repository.BusinessServiceRepository;
 import com.optima.api.modules.catalog.repository.ServiceCategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -38,6 +39,7 @@ public class ServiceCategoryService {
 
     private final ServiceCategoryRepository categoryRepository;
     private final BusinessRepository businessRepository;
+    private final BusinessServiceRepository businessServiceRepository;
 
     /**
      * Crea una nueva categoria en el catalogo del negocio.
@@ -128,12 +130,26 @@ public class ServiceCategoryService {
     /**
      * Soft delete: marca la categoría como inactiva y registra el momento.
      * Filtra por negocio (cross-tenant safe). No se puede desactivar dos veces.
+     *
+     * Decision de diseno D1: si la categoria tiene servicios activos, se
+     * rechaza con 409. Asi no quedan servicios huerfanos apuntando a una
+     * categoria archivada. Para borrar la categoria el admin debe archivar
+     * o mover sus servicios primero. Servicios YA archivados no cuentan:
+     * mantienen su referencia para preservar el historial.
      */
     public void deactivateCategory(Long businessId, Long id) {
         ServiceCategory category = findOrThrow(businessId, id);
         if (!category.getIsActive()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "La categoría ya está desactivada");
+        }
+        long activeServices = businessServiceRepository.countByCategoryIdAndIsActiveTrue(id);
+        if (activeServices > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "No se puede archivar la categoría: tiene " + activeServices
+                            + " servicio" + (activeServices == 1 ? "" : "s")
+                            + " activo" + (activeServices == 1 ? "" : "s")
+                            + ". Archive o mueva esos servicios primero.");
         }
         category.setIsActive(false);
         category.setDeactivatedAt(LocalDateTime.now());
