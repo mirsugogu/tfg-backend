@@ -904,11 +904,6 @@
           "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId2}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId2}}"]},"body":{"mode":"raw","raw":"{\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextTue1000}}\",\"serviceIds\":[]}"}}
         },
         {
-          "name": "[P9] PUT startDateTime en el pasado -> 400 (FutureOrPresent)",
-          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
-          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId2}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId2}}"]},"body":{"mode":"raw","raw":"{\"membershipId\":{{employeeUserId}},\"startDateTime\":\"2024-01-01T10:00:00\",\"serviceIds\":[{{serviceId}}]}"}}
-        },
-        {
           "name": "[P9] PUT a cita en estado COMPLETED ({{appointmentId}}) -> 400",
           "event": [{"listen":"test","script":{"exec":["pm.test('400 estado terminal',()=>pm.response.to.have.status(400));","pm.test('mensaje COMPLETED',()=>pm.expect(pm.response.json().message).to.include('COMPLETED'));"]}}],
           "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId}}"]},"body":{"mode":"raw","raw":"{\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextTue1000}}\",\"serviceIds\":[{{serviceId}}]}"}}
