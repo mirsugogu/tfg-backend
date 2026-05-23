@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/Toast'
 import { usePagedFetch } from '@/hooks/usePagedFetch'
 import api, { getErrorMessage } from '@/lib/api'
 import { totalBooked } from '@/lib/format'
+import { employeeDotClass } from '@/lib/employeeColor'
 
 /* ============================================================
    CONSTANTES Y HELPERS
@@ -582,15 +583,27 @@ export default function Empleados() {
 
 function EmployeeCard({ emp, onOpen, showReactivate, onReactivate }) {
   const isAdmin = emp.roleName === 'ADMIN'
+  // Color de identidad visual del empleado, coherente con el calendario:
+  // si el admin le asigno un color (memberships.color), se usa solido para
+  // el avatar y la barra superior; si no, se mantiene el gradient automatico
+  // decorativo. Asi un mismo empleado se reconoce en Empleados, Citas,
+  // DetailModal y Calendario por el mismo color.
+  const dotBg = emp.color ? employeeDotClass(emp) : null
+  const avatarClass = dotBg
+    ? dotBg
+    : `bg-gradient-to-br ${avatarColor(emp.id)}`
+  const stripClass = dotBg
+    ? dotBg
+    : `bg-gradient-to-r ${avatarColor(emp.id)}`
   return (
     <div
       onClick={onOpen}
       className="group bg-white rounded-2xl border border-slate-100/80 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)] overflow-hidden hover:shadow-[0_12px_40px_-12px_rgba(15,23,42,0.15)] hover:border-blue-200 transition cursor-pointer"
     >
-      <div className={`h-1 w-full bg-gradient-to-r ${avatarColor(emp.id)}`} />
+      <div className={`h-1 w-full ${stripClass}`} />
       <div className="p-5">
         <div className="flex items-start gap-3.5">
-          <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${avatarColor(emp.id)} text-white font-bold text-lg shadow-[0_6px_16px_-6px_rgba(14,165,233,0.4)]`}>
+          <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${avatarClass} text-white font-bold text-lg shadow-[0_6px_16px_-6px_rgba(14,165,233,0.4)]`}>
             {emp.fullName?.[0]?.toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">

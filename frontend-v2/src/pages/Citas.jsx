@@ -17,6 +17,7 @@ import { useToast } from '@/components/ui/Toast'
 import { usePagedFetch } from '@/hooks/usePagedFetch'
 import api, { getErrorMessage } from '@/lib/api'
 import { formatDateTime, totalBooked } from '@/lib/format'
+import { dotClassFromColorAndId } from '@/lib/employeeColor'
 
 /* ============================================================
    CONSTANTES Y HELPERS
@@ -177,6 +178,14 @@ export default function Citas() {
       .then((r) => setEmployees(r.data.content))
       .catch((err) => toast({ type: 'error', message: getErrorMessage(err, 'No se pudieron cargar los empleados.') }))
   }, [bId, toast])
+
+  // Map membershipId -> color asignado al empleado. Sirve para pintar el
+  // punto de identidad visual del empleado en cada cita (tarjeta y detalle)
+  // de forma coherente con el calendario. F del audit de UI.
+  const empColorMap = useMemo(
+    () => new Map(employees.map((e) => [e.id, e.color])),
+    [employees],
+  )
 
   /* ---- Filtros client-side sobre el conjunto completo ---- */
   const [search, setSearch] = useState('')
@@ -502,13 +511,18 @@ export default function Citas() {
           Sin resultados con esos filtros.
         </div>
       ) : view === 'day' ? (
-        <DayGroupedList list={paged} onOpen={setDetailAppt} />
+        <DayGroupedList list={paged} onOpen={setDetailAppt} empColorMap={empColorMap} />
       ) : (
         // Rejilla en vez de lista vertical: en 2K/4K una sola columna estiraba
         // cada tarjeta a 3000+ px dejando un hueco enorme entre datos e importe.
         <div className="appt-grid">
           {paged.map((a) => (
-            <AppointmentCard key={a.id} appointment={a} onClick={() => setDetailAppt(a)} />
+            <AppointmentCard
+              key={a.id}
+              appointment={a}
+              onClick={() => setDetailAppt(a)}
+              employeeColor={empColorMap.get(a.membershipId)}
+            />
           ))}
         </div>
       )}
@@ -534,6 +548,7 @@ export default function Citas() {
         onClose={() => setDetailAppt(null)}
         onChanged={refresh}
         onEdit={startEditing}
+        employeeColor={detailAppt ? empColorMap.get(detailAppt.membershipId) : undefined}
       />
     </div>
   )
@@ -562,7 +577,7 @@ function StatTile({ label, value, tone }) {
 // ya fue cerrada manualmente por el admin, su pasado es esperado).
 const STATES_CERRADOS = new Set(['COMPLETED', 'CANCELLED', 'NO_SHOW'])
 
-function AppointmentCard({ appointment: a, onClick }) {
+function AppointmentCard({ appointment: a, onClick, employeeColor }) {
   const isInProgress = a.statusName === 'IN_PROGRESS'
   const servicesLabel = a.bookedServices?.map((b) => b.serviceName).join(' + ') || 'Sin servicios'
   const showUnpaidChip = !a.isPaid && (a.statusName === 'COMPLETED' || a.statusName === 'IN_PROGRESS')
@@ -571,6 +586,9 @@ function AppointmentCard({ appointment: a, onClick }) {
   // (COMPLETED / CANCELLED / NO_SHOW segun lo que ocurrio).
   const isOverdue = new Date(a.endDateTime).getTime() < Date.now()
                     && !STATES_CERRADOS.has(a.statusName)
+  // Punto del color del empleado (F del audit): si el admin asignó color
+  // en Empleados.jsx, ese; si no, color automatico por membershipId.
+  const empDot = dotClassFromColorAndId(employeeColor, a.membershipId)
   return (
     <div
       onClick={onClick}
@@ -618,7 +636,10 @@ function AppointmentCard({ appointment: a, onClick }) {
               <Clock size={12} />
               {formatDateTime(a.startDateTime)} · {formatDuration(a.startDateTime, a.endDateTime)}
             </span>
-            <span className="flex items-center gap-1.5"><User size={12} />{a.userFullName}</span>
+            <span className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${empDot}`} aria-hidden />
+              <User size={12} />{a.userFullName}
+            </span>
             {a.boothName && <span className="flex items-center gap-1.5"><MapPin size={12} />{a.boothName}</span>}
           </div>
         </div>
@@ -634,7 +655,7 @@ function AppointmentCard({ appointment: a, onClick }) {
   )
 }
 
-function DayGroupedList({ list, onOpen }) {
+function DayGroupedList({ list, onOpen, empColorMap }) {
   // Agrupa por fecha (yyyy-mm-dd) manteniendo el orden de `list`.
   const groups = useMemo(() => {
     const m = new Map()
@@ -670,7 +691,12 @@ function DayGroupedList({ list, onOpen }) {
           </div>
           <div className="appt-grid">
             {list.map((a) => (
-              <AppointmentCard key={a.id} appointment={a} onClick={() => onOpen(a)} />
+              <AppointmentCard
+                key={a.id}
+                appointment={a}
+                onClick={() => onOpen(a)}
+                employeeColor={empColorMap?.get(a.membershipId)}
+              />
             ))}
           </div>
         </section>

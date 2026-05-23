@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/Toast'
 import { useCatalog } from '@/context/CatalogContext'
 import api, { getErrorMessage } from '@/lib/api'
 import { formatDateTime, totalBooked } from '@/lib/format'
+import { dotClassFromColorAndId } from '@/lib/employeeColor'
 
 /**
  * Estados en los que NO aparece el botón "Editar cita".
@@ -53,8 +54,12 @@ const VALID_TRANSITIONS = {
  *                 blockForAppointment(). Si viene, se muestra un aviso
  *                 destacado y se sugiere reagendar. Citas.jsx no lo pasa
  *                 (no carga bloqueos); Calendario.jsx sí.
+ *   employeeColor opcional; nombre de la paleta del empleado (cyan,
+ *                 amber...). Lo pasa el padre desde su empColorMap. Si
+ *                 viene, se pinta un punto del color al lado del campo
+ *                 "Empleado", para coherencia con el calendario.
  */
-export function AppointmentDetailModal({ appointment, bId, onClose, onChanged, onEdit, appliedBlock }) {
+export function AppointmentDetailModal({ appointment, bId, onClose, onChanged, onEdit, appliedBlock, employeeColor }) {
   const toast = useToast()
   const { statusLabel } = useCatalog()
 
@@ -143,13 +148,20 @@ export function AppointmentDetailModal({ appointment, bId, onClose, onChanged, o
           <div className="grid sm:grid-cols-2 gap-4">
             {[
               { label: 'Cliente',  value: current.clientName },
-              { label: 'Empleado', value: current.userFullName },
+              {
+                label: 'Empleado',
+                value: current.userFullName,
+                dot: dotClassFromColorAndId(employeeColor, current.membershipId),
+              },
               { label: 'Inicio',   value: formatDateTime(current.startDateTime) },
               { label: 'Fin',      value: formatDateTime(current.endDateTime) },
-            ].map(({ label, value }) => (
+            ].map(({ label, value, dot }) => (
               <div key={label} className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
-                <p className="text-sm font-semibold text-[#1e3a5f]">{value}</p>
+                <p className="text-sm font-semibold text-[#1e3a5f] flex items-center gap-2">
+                  {dot && <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} aria-hidden />}
+                  <span className="truncate">{value}</span>
+                </p>
               </div>
             ))}
           </div>
