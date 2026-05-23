@@ -325,16 +325,49 @@ export default function Calendario() {
   )
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8 print:p-0">
+    <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8 print:p-0 print:max-w-none">
 
-      {/* Estilos de impresión */}
+      {/* Estilos de impresion (K del audit):
+          - Oculta toolbars, sidebar y cualquier elemento marcado no-print.
+          - Resetea sombras y bordes del calendario; el papel ya delimita.
+          - Fuerza print-color-adjust: exact para que los chips de cita
+            mantengan su color identificativo (sin esto, muchos navegadores
+            sustituyen los backgrounds por blanco al imprimir).
+          - Reduce padding global y maximiza el ancho del calendario.
+          - El header propio de impresion lleva nombre del negocio,
+            rango impreso y fecha de impresion. */}
       <style>{`
         @media print {
+          @page { margin: 12mm; }
+          body, html { background: white !important; }
+          *, *::before, *::after {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           aside.sidebar, .no-print { display: none !important; }
-          body { background: white !important; }
-          .print-area { box-shadow: none !important; border: none !important; }
+          .print-area {
+            box-shadow: none !important;
+            border: none !important;
+            border-radius: 0 !important;
+          }
+          /* las cabeceras sticky deshabilitan sticky al imprimir (cada pagina
+             tendria su propia capa) */
+          .sticky { position: static !important; }
         }
       `}</style>
+
+      {/* Header solo en impresion: titulo + rango + fecha de impresion */}
+      <div className="hidden print:block mb-3">
+        <div className="flex items-baseline justify-between border-b-2 border-slate-300 pb-2">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-500 font-semibold">Calendario</p>
+            <h2 className="text-2xl font-bold text-[#1e3a5f] capitalize">{headerText}</h2>
+          </div>
+          <p className="text-[10px] text-slate-500 font-mono">
+            Impreso {new Date().toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          </p>
+        </div>
+      </div>
 
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4 no-print">
         <div>
