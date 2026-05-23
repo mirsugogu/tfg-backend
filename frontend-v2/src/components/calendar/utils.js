@@ -217,3 +217,24 @@ export const blockForAppointment = (blocks, appt) => {
   }
   return null
 }
+
+/**
+ * Devuelve la primera ausencia que aplica a una cita concreta (mismo
+ * empleado, rangos solapados con la regla A<D AND C<B), o null. Analogo a
+ * blockForAppointment pero para EmployeeAbsence: lo usa el calendario para
+ * avisar al admin de que la cita coincide con una ausencia registrada y
+ * deberia reagendarse a otra hora libre del mismo empleado o a otro
+ * empleado.
+ */
+export const absenceForAppointment = (absences, appt) => {
+  if (!appt || !absences || absences.length === 0) return null
+  const apptStart = new Date(appt.startDateTime).getTime()
+  const apptEnd = new Date(appt.endDateTime).getTime()
+  for (const abs of absences) {
+    if (abs.membershipId !== appt.membershipId) continue
+    const absStart = new Date(abs.startDateTime).getTime()
+    const absEnd = new Date(abs.endDateTime).getTime()
+    if (apptStart < absEnd && apptEnd > absStart) return abs
+  }
+  return null
+}

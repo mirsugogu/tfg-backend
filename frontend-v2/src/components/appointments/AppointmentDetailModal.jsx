@@ -49,17 +49,24 @@ const VALID_TRANSITIONS = {
  *                 las citas no terminales. Recibe la cita actual y es el
  *                 padre quien decide qué hacer (típicamente: cerrar este
  *                 modal y abrir el AppointmentWizard en modo edición).
- *   appliedBlock  opcional; schedule_block aplicable a esta cita (global,
- *                 por empleado o por cabina) calculado por el padre con
- *                 blockForAppointment(). Si viene, se muestra un aviso
- *                 destacado y se sugiere reagendar. Citas.jsx no lo pasa
- *                 (no carga bloqueos); Calendario.jsx sí.
- *   employeeColor opcional; nombre de la paleta del empleado (cyan,
- *                 amber...). Lo pasa el padre desde su empColorMap. Si
- *                 viene, se pinta un punto del color al lado del campo
- *                 "Empleado", para coherencia con el calendario.
+ *   appliedBlock   opcional; schedule_block aplicable a esta cita (global,
+ *                  por empleado o por cabina) calculado por el padre con
+ *                  blockForAppointment(). Si viene, se muestra un aviso
+ *                  destacado y se sugiere reagendar. Citas.jsx no lo pasa
+ *                  (no carga bloqueos); Calendario.jsx sí.
+ *   appliedAbsence opcional; EmployeeAbsence que solapa con esta cita y
+ *                  apunta al mismo empleado. Mismo banner que appliedBlock
+ *                  pero motivo "ausencia del empleado". Solo lo pasa
+ *                  Calendario.jsx (Citas no carga ausencias).
+ *   employeeColor  opcional; nombre de la paleta del empleado (cyan,
+ *                  amber...). Lo pasa el padre desde su empColorMap. Si
+ *                  viene, se pinta un punto del color al lado del campo
+ *                  "Empleado", para coherencia con el calendario.
  */
-export function AppointmentDetailModal({ appointment, bId, onClose, onChanged, onEdit, appliedBlock, employeeColor }) {
+export function AppointmentDetailModal({
+  appointment, bId, onClose, onChanged, onEdit,
+  appliedBlock, appliedAbsence, employeeColor,
+}) {
   const toast = useToast()
   const { statusLabel } = useCatalog()
 
@@ -140,6 +147,25 @@ export function AppointmentDetailModal({ appointment, bId, onClose, onChanged, o
                 </p>
                 <p className="text-xs text-rose-700/80 mt-1">
                   Edita la cita y cambia la fecha; el bloqueo impide mantenerla este día.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {appliedAbsence && (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 flex items-start gap-3">
+              <div className="shrink-0 w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600">
+                <Ban size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold text-rose-700 uppercase tracking-wider">
+                  El empleado tiene una ausencia registrada
+                </p>
+                <p className="text-sm font-semibold text-rose-800 mt-0.5 truncate">
+                  Motivo: {appliedAbsence.reason?.trim() ? appliedAbsence.reason : 'Ausencia del empleado'}
+                </p>
+                <p className="text-xs text-rose-700/80 mt-1">
+                  Edita la cita y cambia hora o empleado; la ausencia impide mantenerla así.
                 </p>
               </div>
             </div>

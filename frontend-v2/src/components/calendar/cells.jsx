@@ -227,7 +227,9 @@ export function AbsenceOverlay({ absences, dayDate, dayStart, dayEnd, hourPx }) 
           <div
             key={abs.id}
             aria-label={label}
-            className="absolute left-0 right-0 z-10 pointer-events-none flex items-start justify-center pt-1"
+            title={label}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute left-0 right-0 z-10 cursor-not-allowed flex items-start justify-center pt-1"
             style={{
               top: `${Math.max(0, topPx)}px`,
               height: `${heightPx}px`,

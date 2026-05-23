@@ -18,7 +18,7 @@ import {
   PALETTES, GRAY_PALETTE, STATUS_STYLES,
   pad2, keyOf, isSameDay, startOfWeek, buildMonthGrid, rangeFor,
   apptDate, minutesOf, apptDuration, layoutEvents, openRangesFor,
-  blocksForCell, labelForBlock, blockForAppointment,
+  blocksForCell, labelForBlock, blockForAppointment, absenceForAppointment,
 } from '@/components/calendar/utils'
 import {
   HourColumn, HourSlots, NowLine, PositionedEvent, EventChip, BlockOverlay, AbsenceOverlay,
@@ -269,6 +269,12 @@ export default function Calendario() {
     () => blockForAppointment(blocksInRange, detailAppt),
     [blocksInRange, detailAppt],
   )
+  // Ausencia del empleado aplicable a la cita abierta (null si no coincide
+  // con ninguna). Misma idea que detailApptBlock pero para ausencias.
+  const detailApptAbsence = useMemo(
+    () => absenceForAppointment(absences, detailAppt),
+    [absences, detailAppt],
+  )
 
   const openEditWizard = useCallback((appt) => {
     const block = blockForAppointment(blocksInRange, appt)
@@ -282,9 +288,17 @@ export default function Calendario() {
         message: `Esta cita cae en un bloqueo (${motivo}). Cambia la fecha al guardar.`,
       })
     }
+    const absence = absenceForAppointment(absences, appt)
+    if (absence) {
+      const motivo = (absence.reason && absence.reason.trim()) || 'ausencia del empleado'
+      toast({
+        type: 'info',
+        message: `Esta cita coincide con una ausencia (${motivo}). Cambia hora o empleado al guardar.`,
+      })
+    }
     setDetailAppt(null)
     setWizard({ open: true, date: null, time: null, appt })
-  }, [blocksInRange, toast])
+  }, [blocksInRange, absences, toast])
 
   const onSlotClick = useCallback((dayKey, hour) => openWizard(dayKey, `${pad2(hour)}:00`), [openWizard])
   const onCellClick = useCallback((dayKey) => openWizard(dayKey, null), [openWizard])
@@ -559,6 +573,7 @@ export default function Calendario() {
         onChanged={refetch}
         onEdit={openEditWizard}
         appliedBlock={detailApptBlock}
+        appliedAbsence={detailApptAbsence}
         employeeColor={detailAppt?.employeeColor}
       />
     </div>
