@@ -744,12 +744,15 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
   const month = cursor.getMonth()
   return (
     <>
-      <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/40">
+      {/* Separadores reforzados (border-b-2 + gap de 2 px en slate-300)
+          para que la malla del Mes se lea como la rejilla de Semana/Dia
+          en lugar de un grid casi sin lineas. */}
+      <div className="grid grid-cols-7 border-b-2 border-slate-300 bg-slate-50/40">
         {DAYS_ES_SHORT.map((d, i) => (
           <div key={d} className={`px-3 py-3 text-[11px] uppercase tracking-[0.14em] font-semibold ${i >= 5 ? 'text-blue-600' : 'text-slate-500'}`}>{d}</div>
         ))}
       </div>
-      <div className="grid grid-cols-7 grid-rows-6 bg-slate-100 gap-px">
+      <div className="grid grid-cols-7 grid-rows-6 bg-slate-300 gap-[2px]">
         {cells.map((date, idx) => {
           const inMonth = date.getMonth() === month
           const isToday = isSameDay(date, today)
