@@ -1072,8 +1072,8 @@
       "item": [
         {
           "name": "POST happy",
-          "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","pm.collectionVariables.set('boothId',pm.response.json().id);"]}}],
-          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths"]},"body":{"mode":"raw","raw":"{\"name\":\"Sala Test-{{uniqSuffix}}\"}"}}
+          "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","const j=pm.response.json();","pm.collectionVariables.set('boothId',j.id);","pm.test('color guardado',()=>pm.expect(j.color).to.eql('cyan'));"]}}],
+          "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths"]},"body":{"mode":"raw","raw":"{\"name\":\"Sala Test-{{uniqSuffix}}\",\"color\":\"cyan\"}"}}
         },
         {
           "name": "POST nombre duplicado -> 409",
@@ -1098,7 +1098,18 @@
         {
           "name": "PUT update",
           "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
-          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths/{{boothId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths","{{boothId}}"]},"body":{"mode":"raw","raw":"{\"name\":\"Sala renombrada-{{uniqSuffix}}\"}"}}
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('color actualizado a amber',()=>pm.expect(pm.response.json().color).to.eql('amber'));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths/{{boothId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths","{{boothId}}"]},"body":{"mode":"raw","raw":"{\"name\":\"Sala renombrada-{{uniqSuffix}}\",\"color\":\"amber\"}"}}
+        },
+        {
+          "name": "[L] PUT booth color invalido -> 400",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400 paleta no permitida',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths/{{boothId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths","{{boothId}}"]},"body":{"mode":"raw","raw":"{\"name\":\"Sala renombrada-{{uniqSuffix}}\",\"color\":\"morado\"}"}}
+        },
+        {
+          "name": "[L] PUT booth color null (sin color) -> 200",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('color volvio a null',()=>pm.expect(pm.response.json().color).to.eql(null));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/booths/{{boothId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","booths","{{boothId}}"]},"body":{"mode":"raw","raw":"{\"name\":\"Sala renombrada-{{uniqSuffix}}\",\"color\":null}"}}
         },
         {
           "name": "POST boothToDelete",
