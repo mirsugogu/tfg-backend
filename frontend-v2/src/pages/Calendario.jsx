@@ -544,9 +544,19 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
           const dayEvents = eventsByDay.get(keyOf(date)) || []
           const overflow = dayEvents.length - 3
           const shown = overflow > 0 ? dayEvents.slice(0, 2) : dayEvents.slice(0, 3)
-          const dayRevenue = dayEvents
-            .filter((a) => a.statusName !== 'CANCELLED' && a.statusName !== 'NO_SHOW')
-            .reduce((acc, a) => acc + parseFloat(totalBooked(a.bookedServices)), 0)
+          const activeAppts = dayEvents.filter((a) => a.statusName !== 'CANCELLED' && a.statusName !== 'NO_SHOW')
+          const dayRevenue = activeAppts.reduce((acc, a) => acc + parseFloat(totalBooked(a.bookedServices)), 0)
+          // [J] Heatmap por densidad de citas activas: cuanto mas ocupado el
+          // dia, mas saturado el fondo. Umbrales 1/3/6 ajustados a un negocio
+          // pequeno-mediano. Dias fuera del mes mantienen su gris claro y
+          // hoy conserva su acento (chip con el numero del dia).
+          const heat = activeAppts.length
+          const heatBg = !inMonth
+            ? 'bg-slate-50/60 hover:bg-slate-50'
+            : heat >= 6 ? 'bg-blue-100/80 hover:bg-blue-200/60'
+            : heat >= 3 ? 'bg-blue-50/70 hover:bg-blue-100/60'
+            : heat >= 1 ? 'bg-blue-50/40 hover:bg-blue-50/70'
+            : 'bg-white hover:bg-blue-50/40'
           // En la vista Mes no hay sub-columnas por recurso, asi que
           // mostramos cualquier bloqueo que aplique al dia (global o no);
           // el badge se imprime con el primer reason encontrado.
@@ -565,7 +575,7 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
             <div
               key={idx}
               onClick={() => onOpenDay(date)}
-              className={`group relative min-h-[120px] p-2 transition ${inMonth ? 'bg-white hover:bg-blue-50/40' : 'bg-slate-50/60 hover:bg-slate-50'} ${hasBlock ? 'ring-1 ring-inset ring-rose-200 cursor-not-allowed' : 'cursor-pointer'}`}
+              className={`group relative min-h-[120px] p-2 transition ${heatBg} ${hasBlock ? 'ring-1 ring-inset ring-rose-200 cursor-not-allowed' : 'cursor-pointer'}`}
               title={hasBlock ? labelForBlock(uniqueDayBlocks[0]) : 'Ver el día'}
               style={hasBlock ? { backgroundImage: 'repeating-linear-gradient(45deg, rgba(244,63,94,0.08) 0 6px, transparent 6px 14px)' } : undefined}
             >
