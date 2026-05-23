@@ -4,7 +4,7 @@ import {
   Building2, UserCircle, MapPin, ArrowLeft, ArrowRight, Check,
   AlertCircle, AlertTriangle, Eye, EyeOff, Info, Lock,
 } from 'lucide-react'
-import { Input } from '@/components/ui/Input'
+import { Input, INPUT_SANITIZE } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { LogoMark } from '@/components/ui/LogoMark'
 import { LocationMap } from '@/components/ui/LocationMap'
@@ -239,7 +239,7 @@ export default function Register() {
                         </p>
                       )}
                     </div>
-                    <Input label="Teléfono del negocio" value={form.bizPhone} onChange={(e) => set('bizPhone', e.target.value)} placeholder="600 000 000" />
+                    <Input label="Teléfono del negocio" value={form.bizPhone} onChange={(e) => set('bizPhone', e.target.value)} placeholder="600 000 000" sanitize={INPUT_SANITIZE.PHONE} inputMode="tel" />
                   </div>
                 </div>
               </div>
@@ -253,7 +253,7 @@ export default function Register() {
                   <Input label="Dirección" value={form.bizAddress} onChange={(e) => set('bizAddress', e.target.value)} placeholder="Calle Mayor 5" />
                   <div className="grid sm:grid-cols-2 gap-3">
                     <Input label="Ciudad" value={form.bizCity} onChange={(e) => set('bizCity', e.target.value)} placeholder="Madrid" />
-                    <Input label="Código postal" value={form.bizPostalCode} onChange={(e) => set('bizPostalCode', e.target.value)} placeholder="28013" />
+                    <Input label="Código postal" value={form.bizPostalCode} onChange={(e) => set('bizPostalCode', e.target.value)} placeholder="28013" sanitize={INPUT_SANITIZE.DIGITS_ONLY} inputMode="numeric" />
                   </div>
                   {coords ? (
                     <LocationMap lat={coords.lat} lon={coords.lon} />

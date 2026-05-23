@@ -5,7 +5,7 @@ import {
   ExternalLink, AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Input, INPUT_SANITIZE } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
@@ -232,7 +232,7 @@ function BusinessTab({ bId, isAdmin }) {
         <div className="grid sm:grid-cols-2 gap-4">
           <Input label="Nombre *" value={form.name} onChange={(e) => set('name', e.target.value)} disabled={!isAdmin} />
           <Input label="Email *" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} disabled={!isAdmin} />
-          <Input label="Teléfono" value={form.phone} onChange={(e) => set('phone', e.target.value)} disabled={!isAdmin} />
+          <Input label="Teléfono" value={form.phone} onChange={(e) => set('phone', e.target.value)} disabled={!isAdmin} sanitize={INPUT_SANITIZE.PHONE} inputMode="tel" />
           <Select
             label="Intervalo entre citas"
             value={form.appointmentInterval}
@@ -253,7 +253,7 @@ function BusinessTab({ bId, isAdmin }) {
           <div className="grid sm:grid-cols-2 gap-4">
             <Input label="Dirección" value={form.address} onChange={(e) => set('address', e.target.value)} disabled={!isAdmin} />
             <Input label="Ciudad" value={form.city} onChange={(e) => set('city', e.target.value)} disabled={!isAdmin} />
-            <Input label="Código postal" value={form.postalCode} onChange={(e) => set('postalCode', e.target.value)} disabled={!isAdmin} />
+            <Input label="Código postal" value={form.postalCode} onChange={(e) => set('postalCode', e.target.value)} disabled={!isAdmin} sanitize={INPUT_SANITIZE.DIGITS_ONLY} inputMode="numeric" />
             <Input label="Provincia / Estado" value={form.state} onChange={(e) => set('state', e.target.value)} disabled={!isAdmin} />
             <Input label="País" value={form.country} onChange={(e) => set('country', e.target.value)} disabled={!isAdmin} />
           </div>

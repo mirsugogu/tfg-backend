@@ -5,7 +5,7 @@ import {
   List, LayoutGrid, RefreshCw,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Input, INPUT_SANITIZE } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Modal } from '@/components/ui/Modal'
 import { Pagination } from '@/components/ui/Pagination'
@@ -707,7 +707,7 @@ export default function Clientes() {
         <div className="space-y-4">
           <Input label="Nombre completo *" name="fullName" value={form.fullName} onChange={handleChange} placeholder="Nombre y apellidos" />
           <Input label="Email" name="email" type="email" value={form.email} onChange={handleChange} placeholder="cliente@email.com" />
-          <Input label="Teléfono" name="phone" value={form.phone} onChange={handleChange} placeholder="600 000 000" />
+          <Input label="Teléfono" name="phone" value={form.phone} onChange={handleChange} placeholder="600 000 000" sanitize={INPUT_SANITIZE.PHONE} inputMode="tel" />
           <Textarea label="Notas" name="notes" value={form.notes} onChange={handleChange} placeholder="Observaciones, alergias, preferencias…" />
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>

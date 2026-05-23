@@ -5,7 +5,7 @@ import {
   Eye, EyeOff, Check, X, RefreshCw, Building2, AlertCircle, ArrowRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Input, INPUT_SANITIZE } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { useAuth } from '@/context/AuthContext'
@@ -279,6 +279,8 @@ export default function Perfil() {
             value={profile.phone}
             onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))}
             placeholder="600 000 000"
+            sanitize={INPUT_SANITIZE.PHONE}
+            inputMode="tel"
           />
           {me?.createdAt && (
             <p className="text-[11px] text-slate-400 flex items-center gap-1">

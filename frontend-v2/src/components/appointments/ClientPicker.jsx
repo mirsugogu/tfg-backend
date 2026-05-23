@@ -3,7 +3,7 @@ import { Search, X, UserPlus, Check, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import api, { getErrorMessage } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
-import { Input } from '@/components/ui/Input'
+import { Input, INPUT_SANITIZE } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 
 /**
@@ -180,7 +180,8 @@ export function ClientPicker({ bId, value, onChange, label, error }) {
                   <Input label="Email" type="email" value={newClient.email}
                     onChange={(e) => setNewClient((p) => ({ ...p, email: e.target.value }))} />
                   <Input label="Teléfono" value={newClient.phone}
-                    onChange={(e) => setNewClient((p) => ({ ...p, phone: e.target.value }))} />
+                    onChange={(e) => setNewClient((p) => ({ ...p, phone: e.target.value }))}
+                    sanitize={INPUT_SANITIZE.PHONE} inputMode="tel" />
                   <div className="flex gap-2 pt-1">
                     <Button variant="outline" onClick={() => setCreating(false)} className="flex-1">Cancelar</Button>
                     <Button onClick={submitNewClient} loading={savingNew} className="flex-1">Crear</Button>

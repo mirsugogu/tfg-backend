@@ -4,7 +4,7 @@ import {
   Calendar, Clock, UserMinus, Users, X, RefreshCw, ChevronRight, ArchiveRestore,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { Input, INPUT_SANITIZE } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { Pagination } from '@/components/ui/Pagination'
@@ -499,6 +499,8 @@ export default function Empleados() {
             onChange={handleChange}
             placeholder="600 000 000"
             disabled={modal === 'edit'}
+            sanitize={INPUT_SANITIZE.PHONE}
+            inputMode="tel"
           />
           {modal === 'create' && (
             <Input

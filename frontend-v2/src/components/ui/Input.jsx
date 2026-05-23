@@ -2,6 +2,24 @@ import { useId } from 'react'
 import { cn } from '@/lib/utils'
 
 /**
+ * Sanitizadores predefinidos que se pueden pasar a la prop `sanitize` del
+ * Input. Cada uno es una regex que MATCHEA los caracteres a eliminar (la
+ * regex se aplica con .replace(regex, '')).
+ *
+ * - DIGITS_ONLY: solo digitos (codigo postal, DNI numerico, etc.).
+ * - PHONE: digitos + simbolos comunes de telefonia internacional. Permite
+ *   formatos como "+34 600 000 000" o "(91) 555 0000" sin imponer un pais.
+ *
+ * Aplicar uno de estos a un Input garantiza que el usuario no pueda
+ * teclear (ni pegar) caracteres invalidos: el setter nativo del <input>
+ * reescribe el value antes de que llegue al onChange del caller.
+ */
+export const INPUT_SANITIZE = {
+  DIGITS_ONLY: /[^0-9]/g,
+  PHONE: /[^0-9+\s()\-]/g,
+}
+
+/**
  * Teclas de edición/navegación que NUNCA se filtran, sea cual sea el type.
  * Sin esta lista, el handler que sanea inputs numéricos rompería el borrado
  * y el desplazamiento con flechas.
@@ -42,7 +60,7 @@ function saneNumericKey(e, allowDecimal, userOnKeyDown) {
   userOnKeyDown?.(e)
 }
 
-export function Input({ className, label, error, id, onKeyDown, ...props }) {
+export function Input({ className, label, error, id, onKeyDown, onChange, sanitize, ...props }) {
   // useId genera un id estable y unico por instancia: asi la <label> queda
   // asociada al <input> (htmlFor/id) y los lectores de pantalla la anuncian
   // al enfocar el campo. Si el caller pasa `id` explicito, ese tiene prioridad.
@@ -59,6 +77,23 @@ export function Input({ className, label, error, id, onKeyDown, ...props }) {
     ? (e) => saneNumericKey(e, allowDecimal, onKeyDown)
     : onKeyDown
 
+  // Sanitize: cubre lo que el filtro de tecla no llega a tapar (pegar con
+  // raton, autocompletar del navegador, drag&drop, IME). Reescribe el
+  // value DOM con el setter nativo para que React detecte el cambio
+  // sintetico y propague el onChange con el valor ya limpio.
+  const handleChange = (e) => {
+    if (sanitize) {
+      const cleaned = e.target.value.replace(sanitize, '')
+      if (cleaned !== e.target.value) {
+        const setter = Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype, 'value',
+        )?.set
+        setter?.call(e.target, cleaned)
+      }
+    }
+    onChange?.(e)
+  }
+
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
@@ -67,6 +102,7 @@ export function Input({ className, label, error, id, onKeyDown, ...props }) {
       <input
         id={fieldId}
         onKeyDown={handleKeyDown}
+        onChange={handleChange}
         className={cn(
           'h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-[#1f2c4a] placeholder:text-slate-400',
           'transition-all duration-150',
