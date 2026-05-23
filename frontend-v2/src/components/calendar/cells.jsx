@@ -64,12 +64,20 @@ export function NowLine({ now, dayStart, dayEnd, hourPx }) {
 
 /*
  * PositionedEvent — cápsula de cita en la rejilla Día/Semana. Bloque de
- * color SÓLIDO y sin texto: la posición en la rejilla ya comunica la hora
- * y el color comunica estado/empleado/cabina, así que la agenda se lee de
- * un vistazo. El detalle completo va en el tooltip (hover) y al hacer clic.
- * Al no llevar texto encima, el fondo puede ir mucho más saturado (s.dot,
- * tono -500) sin problemas de contraste.
+ * color sólido (s.dot, tono -500) con texto adaptativo según altura:
+ *   - height >= 44 px (≈30 min en densidad cómoda): 2 líneas, hora + nombre.
+ *   - 28 px <= height < 44 px (≈15 min cómoda o 30 min compacta): nombre solo,
+ *     truncado; la hora se infiere de la posición en la rejilla.
+ *   - height < 28 px (citas muy cortas o vista densa al máximo): sin texto,
+ *     el color y la posición siguen comunicando la información esencial.
+ *
+ * Tooltip (title) y aria-label conservan SIEMPRE la información completa
+ * para el hover y los lectores de pantalla, independientemente del modo
+ * visual elegido.
  */
+const POS_EVENT_TEXT_HEIGHT      = 28
+const POS_EVENT_TWO_LINES_HEIGHT = 44
+
 export function PositionedEvent({ appt, onClick, col, cols, colorBy, dayStart, hourPx }) {
   const topPx = ((minutesOf(appt.startDateTime) - dayStart * 60) / 60) * hourPx
   // Sin "- 4": el bloque ocupa el alto completo de su franja horaria.
@@ -78,9 +86,12 @@ export function PositionedEvent({ appt, onClick, col, cols, colorBy, dayStart, h
   const s = styleFor(appt, colorBy)
   const isInProgress = appt.statusName === 'IN_PROGRESS'
   const isTerminal = appt.statusName === 'CANCELLED' || appt.statusName === 'NO_SHOW'
-  // El bloque no tiene texto: title + aria-label conservan la info para el
-  // hover y para lectores de pantalla.
-  const label = `${appt.clientName} · ${apptHHMM(appt.startDateTime)}–${apptHHMM(appt.endDateTime)} · ${appt.userFullName}${appt.boothName ? ' · ' + appt.boothName : ''}`
+  const startHHMM = apptHHMM(appt.startDateTime)
+  const label = `${appt.clientName} · ${startHHMM}–${apptHHMM(appt.endDateTime)} · ${appt.userFullName}${appt.boothName ? ' · ' + appt.boothName : ''}`
+
+  const showText     = heightPx >= POS_EVENT_TEXT_HEIGHT
+  const showTwoLines = heightPx >= POS_EVENT_TWO_LINES_HEIGHT
+
   return (
     <button
       onClick={(e) => { e.stopPropagation(); onClick(appt) }}
@@ -90,8 +101,21 @@ export function PositionedEvent({ appt, onClick, col, cols, colorBy, dayStart, h
         top: `${topPx}px`, height: `${heightPx}px`,
         left: `${col * widthPct}%`, width: `${widthPct}%`,
       }}
-      className={`absolute ${s.dot} ring-1 ring-black/10 overflow-hidden transition hover:brightness-110 ${isInProgress ? 'animate-pulse' : ''} ${isTerminal ? 'opacity-60' : ''}`}
-    />
+      className={`absolute ${s.dot} ring-1 ring-black/10 overflow-hidden transition hover:brightness-110 text-left ${isInProgress ? 'animate-pulse' : ''} ${isTerminal ? 'opacity-60' : ''}`}
+    >
+      {showText && (
+        <div className="flex flex-col h-full px-1.5 py-0.5 text-white leading-tight">
+          {showTwoLines && (
+            <span className="text-[10px] font-bold tabular-nums opacity-90">
+              {startHHMM}
+            </span>
+          )}
+          <span className={`text-[11px] font-semibold truncate ${isTerminal ? 'line-through' : ''}`}>
+            {appt.clientName}
+          </span>
+        </div>
+      )}
+    </button>
   )
 }
 
