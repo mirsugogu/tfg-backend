@@ -25,6 +25,7 @@ import {
 } from '@/components/calendar/cells'
 import { ResourceDayGrid }  from '@/components/calendar/ResourceDayGrid'
 import { WeekResourceGrid } from '@/components/calendar/WeekResourceGrid'
+import { MiniCalendarPopover } from '@/components/calendar/MiniCalendar'
 
 /* ============================================================
    CALENDARIO
@@ -369,6 +370,7 @@ export default function Calendario() {
             <button onClick={goPrev} title="Anterior (←)" aria-label="Anterior" className="w-9 h-9 rounded-xl border border-slate-200 text-slate-500 hover:text-[#1e3a5f] hover:border-blue-300 hover:bg-blue-50 transition flex items-center justify-center"><ChevronLeft size={16} /></button>
             <button onClick={goNext} title="Siguiente (→)" aria-label="Siguiente" className="w-9 h-9 rounded-xl border border-slate-200 text-slate-500 hover:text-[#1e3a5f] hover:border-blue-300 hover:bg-blue-50 transition flex items-center justify-center"><ChevronRight size={16} /></button>
             <button onClick={goToday} title="Hoy (T)" className="ml-1 px-3 h-9 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:text-[#1e3a5f] hover:border-blue-300 hover:bg-blue-50 transition">Hoy</button>
+            <MiniCalendarPopover cursor={cursor} today={today} onPick={setCursor} />
           </div>
           <div className="flex-1 min-w-[180px] text-center">
             <span className="text-xl md:text-2xl font-bold text-[#1e3a5f] capitalize">{headerText}</span>
@@ -494,6 +496,7 @@ export default function Calendario() {
         onChanged={refetch}
         onEdit={openEditWizard}
         appliedBlock={detailApptBlock}
+        employeeColor={detailAppt?.employeeColor}
       />
     </div>
   )
