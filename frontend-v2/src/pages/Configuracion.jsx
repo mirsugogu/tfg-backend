@@ -635,8 +635,29 @@ function HoursTab({ bId, isAdmin }) {
     }, 0)
   }, [hours])
 
-  // Visual range for grid
-  const DAY_START = 8, DAY_END = 22, total = DAY_END - DAY_START
+  // Rango visual de la rejilla, adaptativo al horario realmente
+  // configurado. Si el negocio abre 2:00-22:00 la barra ya no se
+  // calcula sobre 8-22 (lo que producia width > 100% y desbordaba la
+  // tarjeta) sino sobre 2-22. Defaults 8-22 si no hay nada que pintar.
+  // Cap defensivo [0, 24] por si alguna fila tiene una hora rara.
+  const { DAY_START, DAY_END } = useMemo(() => {
+    let minH = 24, maxH = 0
+    ;(hours ?? []).forEach((h) => {
+      if (h.isClosed || !h.startTime || !h.endTime) return
+      const [sh, sm] = h.startTime.slice(0, 5).split(':').map(Number)
+      const [eh, em] = h.endTime.slice(0, 5).split(':').map(Number)
+      const s = sh + sm / 60
+      const e = eh + em / 60
+      if (s < minH) minH = s
+      if (e > maxH) maxH = e
+    })
+    if (minH === 24 || maxH === 0) return { DAY_START: 8, DAY_END: 22 }
+    return {
+      DAY_START: Math.max(0, Math.floor(minH)),
+      DAY_END: Math.min(24, Math.ceil(maxH)),
+    }
+  }, [hours])
+  const total = DAY_END - DAY_START
 
   return (
     <div>
