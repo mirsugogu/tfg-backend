@@ -1,6 +1,9 @@
 # Frontend v2 — Progreso
 
-> **Snapshot**: 2026-05-21, tras el layout fluido full-width y su verificación 2K/4K.
+> **Snapshot vigente**: 2026-05-23, tras los bloques del backlog del tester
+> y las sesiones de pulido posteriores (ver §11).
+> **Snapshot anterior** (referencia para §1-§10): 2026-05-21, tras el layout
+> fluido full-width y su verificación 2K/4K.
 > **Objetivo**: SPA del SaaS Óptima, adaptada al backend real (auditado en
 > `docs/audit/`).
 > **Para retomarlo en otra sesión**: lee esta página entera. El backend
@@ -389,3 +392,83 @@ npm run build       # build de producción (verificación)
 - Cita `archivo:línea` cuando hagas referencia a código.
 - Si encuentras algo crítico que rompa el plan, **párate y avisa**.
 - **No tocar el backend.** Lectura sí, edición no.
+
+---
+
+## 11. Trabajo posterior (2026-05-22 → 2026-05-23)
+
+El detalle granular vive en `docs/BACKLOG.md` ("Trabajo posterior al
+backlog"). Esto es el resumen ejecutivo de la nueva vertical y los
+puntos donde la arquitectura cambió respecto a §3-§10.
+
+### Nueva vertical: backlog del tester
+Documento `docs/BACKLOG.md` con 13 puntos de feedback de un tester. Estado
+al cerrar la sesión: 11 hechos + 2 decisiones conscientes (P3, P4) + P11
+sin acción (confusión del tester). Los `commits` están listados ahí; el
+hash más reciente es `0d40082`.
+
+### Cambios de contrato del backend que el frontend ahora consume
+
+| Endpoint | Estado | Quién lo usa |
+|---|---|---|
+| `PUT /api/businesses/{id}/appointments/{id}` (P9) | Nuevo | `AppointmentWizard` en modo edit + drag-and-drop del calendario. |
+| `GET /api/businesses/{id}/availability?excludeAppointmentId=` | Param nuevo | Wizard en modo edit (para que el slot original no salga ocupado por sí mismo). |
+| `GET /api/clients?search=` | Param nuevo | `ClientPicker` (autocompletado server-side). |
+| `GET /api/businesses/{id}/absences?from&to` | Nuevo | Calendario, para pintar las franjas rojas de ausencias. |
+| `PUT /api/businesses/{id}/hours/{id}` multi-tramo | Cambio | `HoursTab` con turno partido. |
+| `POST/PUT /api/businesses/{id}/booths` con `color` | Campo nuevo | `BoothsTab` con picker de color. |
+
+### Componentes nuevos
+- `components/calendar/drag.jsx` — hook `useDragAppointment` para el
+  drag-and-drop sin librerías (umbral 5 px, ghost via createPortal,
+  hit-test sobre `data-cal-cell`).
+- `components/calendar/MiniCalendar.jsx` — navegación rápida por fecha.
+- `components/calendar/cells.jsx::ApptHoverCard` — tarjeta flotante con
+  el resumen de la cita al hacer hover.
+- `components/clients/ClientPicker.jsx` — buscador server-side de
+  clientes con alta al vuelo desde el wizard.
+- `lib/employeeColor.js` — utilidad `dotClassFromColorAndId` que
+  resuelve la paleta del empleado (color de membership o fallback por
+  id).
+
+### Calendario — reescritura defensiva
+La rejilla del calendario gana cuatro capas de defensa que no estaban:
+
+1. **`BlockOverlay`** sobre franjas/columnas dentro de un `schedule_block`,
+   con click bloqueado en los slots.
+2. **`AbsenceOverlay`** rojo sobre las horas de ausencia del empleado
+   (clamp al alto del grid, no se sale).
+3. **Wizard guidance**: si se intenta editar una cita que cae en un
+   bloqueo o ausencia, toast guía + banner rosa en el detalle.
+4. **Backend 409** sigue siendo la última red.
+
+Vista Mes: heatmap por densidad de citas activas (umbrales 1/3/6),
+separadores tipo Semana (border 2 px slate-300), botón "+" oculto si el
+día está bloqueado.
+
+`hourPx` adaptativo: si el horario configurado supera 14 h, 48 px/hora;
+si supera 18 h, 40 px/hora. Cap defensivo `[0, 24]` en `dayStart` /
+`dayEnd`. El modo compacto manual desaparece (commit `e1518ea`).
+
+### Seguridad — revalidación de sesión por request
+`TenantGuardFilter` consulta la membership viva en cada request y la
+compara con los claims del JWT (rol + `is_active`); si cambió algo
+desde el login, devuelve 401 limpio. Resuelve dos bugs de la sesión:
+cambio de rol que no surtía efecto y sesión que persistía tras
+desactivar empleado.
+
+### Configuración / Empleados — fix de horarios
+- Rango visual adaptativo en `HoursTab` y `ScheduleGrid` (los 8-22
+  fijos se desbordaban con horarios extensos).
+- `flatMap` + `isFirstOfDay` por item para arreglar el bug de React
+  reconcile que descolocaba las etiquetas L/M/X… al borrar el primer
+  tramo de un día con turno partido.
+- `openRangesFor` (utilidad común del calendario) ahora devuelve N
+  rangos abiertos por día (turno partido) y `HourSlots::isClosed`
+  invierte la lógica para soportarlo.
+
+### Postman
+La colección `docs/optima-postman-collection-v4.json` se mantiene al día
+en cada cambio del contrato HTTP. Cobertura actual: los 17 controllers
+(verificado por agente externo, 99% → 100% tras añadir el grupo
+`08b - business_absences`).
