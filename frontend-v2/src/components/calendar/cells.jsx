@@ -11,6 +11,7 @@ import { pad2, minutesOf, apptDuration, apptHHMM, styleFor, labelForBlock } from
 import { dotClassFromColorAndId } from '@/lib/employeeColor'
 import { totalBooked } from '@/lib/format'
 import { useDragAppointment } from './drag'
+import { useCatalog } from '@/context/CatalogContext'
 
 /*
  * useApptHover — hook que gestiona el hover de un evento del calendario.
@@ -56,6 +57,10 @@ function useApptHover(appt, employeeColor) {
  * interferir con clicks fuera del propio tooltip.
  */
 function ApptHoverCard({ appt, anchorRect, employeeColor }) {
+  // useCatalog traduce el statusName (CONFIRMED, IN_PROGRESS...) a su
+  // etiqueta en espanol; si el catalogo todavia no esta cargado, hace
+  // fallback al nombre crudo y no rompe el render del hover.
+  const { statusLabel } = useCatalog()
   const CARD_W = 280
   const CARD_H_ESTIMATED = 220
   const margin = 8
@@ -112,7 +117,7 @@ function ApptHoverCard({ appt, anchorRect, employeeColor }) {
 
       <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
         <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">
-          {appt.statusName}
+          {statusLabel(appt.statusName)}
         </span>
         {total != null && (
           <span className="font-bold text-[#1e3a5f] tabular-nums">{total} €</span>
