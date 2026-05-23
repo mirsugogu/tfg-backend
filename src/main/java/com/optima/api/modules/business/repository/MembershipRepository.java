@@ -108,6 +108,18 @@ public interface MembershipRepository extends JpaRepository<Membership, Long> {
     boolean existsByUserIdAndBusinessIdAndIsActiveTrue(Long userId, Long businessId);
 
     /**
+     * Recupera la membership para revalidar la sesion en cada request del
+     * TenantGuardFilter (post-P9 hardening). Carga `role` en JOIN porque el
+     * filter compara role.name del JWT contra el actual en BD para invalidar
+     * sesiones cuyo rol haya cambiado desde la emision del token. Sin el
+     * @EntityGraph se dispararia 1 select LAZY por request.
+     */
+    @EntityGraph(attributePaths = {"role"})
+    @Query("SELECT m FROM Membership m WHERE m.user.id = :userId AND m.business.id = :businessId")
+    Optional<Membership> findForSessionGuard(@Param("userId") Long userId,
+                                             @Param("businessId") Long businessId);
+
+    /**
      * Lista todas las memberships del usuario (sin filtrar negocio). El
      * login la usa para decidir si devuelve identity token o tenant token
      * directo, y el endpoint /api/me/businesses la expone al cliente.

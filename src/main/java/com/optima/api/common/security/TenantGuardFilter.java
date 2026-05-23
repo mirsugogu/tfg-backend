@@ -2,6 +2,8 @@ package com.optima.api.common.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.optima.api.common.exception.ErrorResponse;
+import com.optima.api.modules.business.model.Membership;
+import com.optima.api.modules.business.repository.MembershipRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +19,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -53,6 +57,17 @@ import java.util.regex.Pattern;
  *   /api/businesses/1abc/...  -> matchea; segmento no numerico -> 403.
  *   /api/businesses           -> NO matchea (no hay segmento de negocio).
  *   /api/auth/token           -> NO matchea (login).
+ *
+ * REVALIDACION DE SESION (post-P9 hardening, criticos A y B):
+ * Tras validar el cross-tenant, el filtro verifica en BD que la membership
+ * (userId, businessId) sigue activa Y que el rol del JWT coincide con el
+ * actual. Si cualquiera falla, devuelve 401 con un mensaje accionable
+ * ("tu acceso ha sido revocado" / "tu sesion esta obsoleta"). El
+ * interceptor del frontend (api.js) limpia localStorage en cualquier 401
+ * y redirige a /login, asi un cambio de rol o una desactivacion invalidan
+ * la sesion del afectado a la siguiente request. Coste: +1 query SQL por
+ * request a /api/businesses/{id}/...; con el UNIQUE (id_user, id_business)
+ * sobre memberships, O(1).
  */
 @Component
 @RequiredArgsConstructor
@@ -68,6 +83,7 @@ public class TenantGuardFilter extends OncePerRequestFilter {
             Pattern.compile("^/api/businesses/([^/]+)(/.*)?$");
 
     private final ObjectMapper objectMapper;
+    private final MembershipRepository membershipRepository;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -104,6 +120,30 @@ public class TenantGuardFilter extends OncePerRequestFilter {
                             "No tienes permiso para acceder a recursos de otro negocio");
                     return;
                 }
+
+                // Revalidacion de sesion contra la BD (criticos A y B):
+                //   1) La membership (userId, businessId) debe existir y
+                //      estar activa. Si el admin la desactivo, el JWT del
+                //      afectado deja de ser valido en la siguiente request.
+                //   2) El rol del JWT debe coincidir con el rol actual en
+                //      BD. Si el admin cambio el rol, el JWT con el rol
+                //      antiguo se invalida y el afectado debe re-loguearse.
+                // Se emite 401 (no 403) para que el interceptor de api.js
+                // en el frontend dispare clearSession + redirect a /login.
+                Optional<Membership> membershipOpt = membershipRepository
+                        .findForSessionGuard(principal.userId(), principal.businessId());
+                if (membershipOpt.isEmpty()
+                        || !Boolean.TRUE.equals(membershipOpt.get().getIsActive())) {
+                    writeUnauthorized(response,
+                            "Tu acceso a este negocio ha sido revocado. Vuelve a iniciar sesión.");
+                    return;
+                }
+                String currentRole = membershipOpt.get().getRole().getName();
+                if (!Objects.equals(currentRole, principal.role())) {
+                    writeUnauthorized(response,
+                            "Tu sesión está obsoleta porque tu rol ha cambiado. Vuelve a iniciar sesión.");
+                    return;
+                }
             }
             // Si no hay principal (request publica con path /api/businesses/X/...
             // que es raro porque normalmente esas rutas requieren auth), dejamos
@@ -114,10 +154,18 @@ public class TenantGuardFilter extends OncePerRequestFilter {
     }
 
     private void writeForbidden(HttpServletResponse response, String message) throws IOException {
-        response.setStatus(HttpStatus.FORBIDDEN.value());
+        writeError(response, HttpStatus.FORBIDDEN, message);
+    }
+
+    private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
+        writeError(response, HttpStatus.UNAUTHORIZED, message);
+    }
+
+    private void writeError(HttpServletResponse response, HttpStatus status, String message) throws IOException {
+        response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         ErrorResponse body = new ErrorResponse(
-                403, HttpStatus.FORBIDDEN.getReasonPhrase(),
+                status.value(), status.getReasonPhrase(),
                 message,
                 Instant.now().toString());
         objectMapper.writeValue(response.getOutputStream(), body);
