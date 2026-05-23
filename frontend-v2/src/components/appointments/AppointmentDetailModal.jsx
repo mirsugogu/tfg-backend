@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MapPin } from 'lucide-react'
+import { MapPin, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { StatusBadge, Badge } from '@/components/ui/Badge'
@@ -7,6 +7,16 @@ import { useToast } from '@/components/ui/Toast'
 import { useCatalog } from '@/context/CatalogContext'
 import api, { getErrorMessage } from '@/lib/api'
 import { formatDateTime, totalBooked } from '@/lib/format'
+
+/**
+ * Estados en los que NO aparece el botón "Editar cita".
+ * Espejo del Set NON_EDITABLE_STATUSES de AppointmentService.java (P9):
+ * solo COMPLETED es no-editable, una cita realizada no se reagenda.
+ * CANCELLED y NO_SHOW SI son editables: el caso de uso real es "el cliente
+ * del 21 no se presentó, hoy es 24, lo reagendo al 28". Al guardar, el
+ * backend reseteará automáticamente la cita a PENDING.
+ */
+const NON_EDITABLE_STATUSES = new Set(['COMPLETED'])
 
 /**
  * Máquina de estados de las citas. Copia EXACTA de
@@ -26,15 +36,20 @@ const VALID_TRANSITIONS = {
 
 /**
  * AppointmentDetailModal — detalle de una cita, con cambio de estado
- * (en línea) y marcado de pago. Reutilizable por Citas y Calendario.
+ * (en línea), marcado de pago y acceso al modo edición (P9). Reutilizable
+ * por Citas y Calendario.
  *
  * Props:
  *   appointment  la cita a mostrar; null = modal cerrado.
  *   bId          businessId.
  *   onClose      cerrar el modal.
  *   onChanged    callback tras cambiar estado o pago (el padre refresca).
+ *   onEdit       opcional; si viene, muestra el botón "Editar cita" para
+ *                las citas no terminales. Recibe la cita actual y es el
+ *                padre quien decide qué hacer (típicamente: cerrar este
+ *                modal y abrir el AppointmentWizard en modo edición).
  */
-export function AppointmentDetailModal({ appointment, bId, onClose, onChanged }) {
+export function AppointmentDetailModal({ appointment, bId, onClose, onChanged, onEdit }) {
   const toast = useToast()
   const { statusLabel } = useCatalog()
 
@@ -178,6 +193,20 @@ export function AppointmentDetailModal({ appointment, bId, onClose, onChanged })
             <p className="text-xs text-slate-400 text-center">
               Esta cita está en un estado final y no admite más cambios de estado.
             </p>
+          )}
+
+          {onEdit && !NON_EDITABLE_STATUSES.has(current.statusName) && (
+            <div className="pt-2 border-t border-slate-100 flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(current)}
+                disabled={saving}
+                className="gap-1.5"
+              >
+                <Pencil size={13} /> Editar cita
+              </Button>
+            </div>
           )}
         </div>
       )}

@@ -209,11 +209,18 @@ export default function Calendario() {
   }, [view])
   const goToday = useCallback(() => { const d = new Date(); setCursor(new Date(d.getFullYear(), d.getMonth(), d.getDate())) }, [])
 
-  /* ---- Modales ---- */
-  const [wizard, setWizard] = useState({ open: false, date: null, time: null })
+  /* ---- Modales ----
+     `wizard` cubre tanto "Nueva cita" (date/time precargados) como "Editar
+     cita" (appt presente => modo edición del AppointmentWizard). El detail
+     modal cede el flujo al wizard al pulsar "Editar cita". */
+  const [wizard, setWizard] = useState({ open: false, date: null, time: null, appt: null })
   const [detailAppt, setDetailAppt] = useState(null)
-  const openWizard = useCallback((date = null, time = null) => setWizard({ open: true, date, time }), [])
-  const closeWizard = useCallback(() => setWizard({ open: false, date: null, time: null }), [])
+  const openWizard = useCallback((date = null, time = null) => setWizard({ open: true, date, time, appt: null }), [])
+  const closeWizard = useCallback(() => setWizard({ open: false, date: null, time: null, appt: null }), [])
+  const openEditWizard = useCallback((appt) => {
+    setDetailAppt(null)
+    setWizard({ open: true, date: null, time: null, appt })
+  }, [])
 
   const onSlotClick = useCallback((dayKey, hour) => openWizard(dayKey, `${pad2(hour)}:00`), [openWizard])
   const onCellClick = useCallback((dayKey) => openWizard(dayKey, null), [openWizard])
@@ -432,12 +439,14 @@ export default function Calendario() {
         bId={bId}
         prefillDate={wizard.date}
         prefillTime={wizard.time}
+        appointmentToEdit={wizard.appt}
       />
       <AppointmentDetailModal
         appointment={detailAppt}
         bId={bId}
         onClose={() => setDetailAppt(null)}
         onChanged={refetch}
+        onEdit={openEditWizard}
       />
     </div>
   )

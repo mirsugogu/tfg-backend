@@ -28,6 +28,8 @@
           "const mon1100 = new Date(mon); mon1100.setHours(11); setLocal('nextMon1100', mon1100);",
           "const mon1400 = new Date(mon); mon1400.setHours(14); setLocal('nextMon1400', mon1400);",
           "const wed = nextDow(3); wed.setHours(10,0,0,0); setLocal('nextWed1000', wed);",
+          "const tue1000 = nextDow(2); tue1000.setHours(10,0,0,0); setLocal('nextTue1000', tue1000);",
+          "const tue1100 = nextDow(2); tue1100.setHours(11,0,0,0); setLocal('nextTue1100', tue1100);",
           "const fri = nextDow(5); fri.setHours(23,0,0,0); setLocal('nextFri2300', fri);"
         ]
       }
@@ -857,8 +859,8 @@
           "request": {"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}/status","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId}}","status"]},"body":{"mode":"raw","raw":"{\"statusName\":\"PENDING\"}"}}
         },
         {
-          "name": "PATCH a estado inexistente -> 404",
-          "event": [{"listen":"test","script":{"exec":["pm.test('404',()=>pm.response.to.have.status(404));"]}}],
+          "name": "PATCH a estado inexistente -> 400 (input invalido, no 404)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400 input invalido',()=>pm.response.to.have.status(400));","pm.test('mensaje lista estados',()=>pm.expect(pm.response.json().message).to.include('Estados permitidos'));"]}}],
           "request": {"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}/status","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId}}","status"]},"body":{"mode":"raw","raw":"{\"statusName\":\"INVENTADO\"}"}}
         },
         {
@@ -875,6 +877,46 @@
           "name": "PATCH payment body vacio -> 400",
           "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
           "request": {"method":"PATCH","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}/payment","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId}}","payment"]},"body":{"mode":"raw","raw":"{}"}}
+        },
+        {
+          "name": "[P9] PUT mismo slot solo cambia notas -> 200 (excluding propia cita)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200 no se autosolapa',()=>pm.response.to.have.status(200));","pm.test('notes actualizadas',()=>pm.expect(pm.response.json().notes).to.eql('reagendada misma hora'));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId2}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId2}}"]},"body":{"mode":"raw","raw":"{\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextMon1100}}\",\"notes\":\"reagendada misma hora\",\"serviceIds\":[{{serviceId}},{{serviceId2}}]}"}}
+        },
+        {
+          "name": "[P9] PUT reagendar a Martes 10:00 con 1 servicio -> 200 (recongela bookedServices)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","const j=pm.response.json();","pm.test('startDateTime movido al martes 10:00',()=>pm.expect(j.startDateTime).to.include('10:00'));","pm.test('bookedServices recreados con 1',()=>pm.expect(j.bookedServices.length).to.eql(1));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId2}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId2}}"]},"body":{"mode":"raw","raw":"{\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextTue1000}}\",\"notes\":\"movida al martes\",\"serviceIds\":[{{serviceId}}]}"}}
+        },
+        {
+          "name": "[P9] PUT restaurar a Martes 11:00 con 2 servicios -> 200 (re-congelacion a 2)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200 vuelve a 2 servicios',()=>pm.response.to.have.status(200));","pm.test('bookedServices recreados con 2',()=>pm.expect(pm.response.json().bookedServices.length).to.eql(2));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId2}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId2}}"]},"body":{"mode":"raw","raw":"{\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextTue1100}}\",\"notes\":\"restaurada a 2 servicios\",\"serviceIds\":[{{serviceId}},{{serviceId2}}]}"}}
+        },
+        {
+          "name": "[P9] PUT sin startDateTime -> 400 (NotNull)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId2}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId2}}"]},"body":{"mode":"raw","raw":"{\"membershipId\":{{employeeUserId}},\"serviceIds\":[{{serviceId}}]}"}}
+        },
+        {
+          "name": "[P9] PUT serviceIds vacio -> 400 (NotEmpty)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId2}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId2}}"]},"body":{"mode":"raw","raw":"{\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextTue1000}}\",\"serviceIds\":[]}"}}
+        },
+        {
+          "name": "[P9] PUT startDateTime en el pasado -> 400 (FutureOrPresent)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId2}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId2}}"]},"body":{"mode":"raw","raw":"{\"membershipId\":{{employeeUserId}},\"startDateTime\":\"2024-01-01T10:00:00\",\"serviceIds\":[{{serviceId}}]}"}}
+        },
+        {
+          "name": "[P9] PUT a cita en estado COMPLETED ({{appointmentId}}) -> 400",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400 estado terminal',()=>pm.response.to.have.status(400));","pm.test('mensaje COMPLETED',()=>pm.expect(pm.response.json().message).to.include('COMPLETED'));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/{{appointmentId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","{{appointmentId}}"]},"body":{"mode":"raw","raw":"{\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextTue1000}}\",\"serviceIds\":[{{serviceId}}]}"}}
+        },
+        {
+          "name": "[P9] PUT a cita inexistente -> 404",
+          "event": [{"listen":"test","script":{"exec":["pm.test('404',()=>pm.response.to.have.status(404));"]}}],
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/appointments/99999","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","appointments","99999"]},"body":{"mode":"raw","raw":"{\"membershipId\":{{employeeUserId}},\"startDateTime\":\"{{nextTue1000}}\",\"serviceIds\":[{{serviceId}}]}"}}
         },
         {
           "name": "DELETE serviceId2 (soft, para test desactivado)",

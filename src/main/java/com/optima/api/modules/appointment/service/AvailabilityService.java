@@ -95,12 +95,18 @@ public class AvailabilityService {
      *                    longitud de cada slot.
      * @param membershipId  opcional; si viene, restringe a ese empleado.
      * @param boothId     opcional; si viene, restringe a esa cabina.
+     * @param excludeAppointmentId  opcional (P9): id de cita a ignorar al
+     *                              calcular el "ocupado por citas activas".
+     *                              Pensado para el wizard en modo edicion:
+     *                              la propia cita que se reagenda no debe
+     *                              tapar su slot original ni los nuevos.
      */
     public AvailabilityResponse getAvailability(Long businessId,
                                                 LocalDate date,
                                                 List<Long> serviceIds,
                                                 Long membershipId,
-                                                Long boothId) {
+                                                Long boothId,
+                                                Long excludeAppointmentId) {
 
         // 1) Verificar negocio
         Business business = businessRepository.findById(businessId)
@@ -151,12 +157,20 @@ public class AvailabilityService {
         //    constraint cabina libre solo aplica si la lista NO esta vacia.
         List<Booth> candidateBooths = resolveBoothCandidates(businessId, boothId);
 
-        // 7) Citas activas del dia agrupadas por empleado y por cabina
+        // 7) Citas activas del dia agrupadas por empleado y por cabina.
+        //    Si viene excludeAppointmentId (P9, modo edicion del wizard),
+        //    se filtra esa cita en memoria para que no tape su propio slot.
+        //    Se filtra aqui y no en el repo para mantener el metodo
+        //    findActiveByBusinessAndDay con una sola responsabilidad.
         LocalDateTime dayWindowStart = date.atStartOfDay();
         LocalDateTime dayWindowEnd = date.plusDays(1).atStartOfDay();
         List<Appointment> activeAppointments =
                 appointmentRepository.findActiveByBusinessAndDay(
-                        businessId, dayWindowStart, dayWindowEnd);
+                        businessId, dayWindowStart, dayWindowEnd)
+                        .stream()
+                        .filter(a -> excludeAppointmentId == null
+                                || !excludeAppointmentId.equals(a.getId()))
+                        .toList();
 
         // 8) Recorrer memberships (empleados) y construir slots.
         //    Precarga batch (anti-N+1): UNA query a employee_schedules y UNA

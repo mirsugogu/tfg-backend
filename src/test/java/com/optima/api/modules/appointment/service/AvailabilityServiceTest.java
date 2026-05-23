@@ -80,7 +80,7 @@ class AvailabilityServiceTest {
                 .thenReturn(java.util.List.of(sunday));
 
         AvailabilityResponse response = availabilityService.getAvailability(
-                businessId, date, serviceIds, null, null);
+                businessId, date, serviceIds, null, null, null);
 
         assertThat(response.date()).isEqualTo(date);
         assertThat(response.businessId()).isEqualTo(businessId);

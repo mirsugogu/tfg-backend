@@ -1,6 +1,7 @@
 package com.optima.api.modules.appointment.controller;
 
 import com.optima.api.modules.appointment.dto.request.CreateAppointmentRequest;
+import com.optima.api.modules.appointment.dto.request.UpdateAppointmentRequest;
 import com.optima.api.modules.appointment.dto.request.UpdateAppointmentStatusRequest;
 import com.optima.api.modules.appointment.dto.request.UpdatePaymentRequest;
 import com.optima.api.modules.appointment.dto.response.AppointmentResponse;
@@ -40,11 +41,12 @@ import java.time.LocalDate;
  *   GET    .../appointments              busqueda paginada con filtros
  *                                          (from, to, membershipId).
  *   GET    .../appointments/{id}         detalle.
+ *   PUT    .../appointments/{id}         editar (reagendar) — P9.
  *   PATCH  .../appointments/{id}/status  cambiar estado.
  *   PATCH  .../appointments/{id}/payment marcar pagada / no pagada.
  *
- * NO hay PUT ni DELETE: una cita una vez creada solo cambia de estado
- * (la maquina de estados vive en AppointmentValidator.validateStatusTransition).
+ * NO hay DELETE: las citas no se borran; pasan a CANCELLED via
+ * PATCH /status. El estado cumple la funcion de soft delete.
  */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/appointments")
@@ -105,6 +107,27 @@ public class AppointmentController {
     public AppointmentResponse getAppointmentById(@PathVariable @Positive Long businessId,
                                                   @PathVariable @Positive Long id) {
         return appointmentService.getAppointmentById(businessId, id);
+    }
+
+    /**
+     * PUT /api/businesses/{businessId}/appointments/{id} - Edita / reagenda
+     * una cita existente (P9 del BACKLOG): permite cambiar empleado, cabina,
+     * fecha-hora, servicios y notas. El cliente y el estado/pago no se
+     * tocan aqui (estado y pago tienen sus propios PATCH).
+     *
+     * Reaplica toda la cadena de validacion de POST (horario del negocio,
+     * solape del empleado/cabina, ausencias, bloqueos, intervalo, cabina
+     * activa) excluyendo la propia cita del check de solape. Re-congela
+     * los precios de los servicios al precio actual del catalogo.
+     *
+     * 400 si la cita esta en estado terminal (COMPLETED / CANCELLED /
+     * NO_SHOW): no se reagendan citas finalizadas.
+     */
+    @PutMapping("/{id}")
+    public AppointmentResponse updateAppointment(@PathVariable @Positive Long businessId,
+                                                 @PathVariable @Positive Long id,
+                                                 @Valid @RequestBody UpdateAppointmentRequest request) {
+        return appointmentService.updateAppointment(businessId, id, request);
     }
 
     /**

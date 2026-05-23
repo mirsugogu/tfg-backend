@@ -46,4 +46,12 @@ public interface BookedServiceRepository extends JpaRepository<BookedService, Lo
      * appointmentId.
      */
     List<BookedService> findAllByAppointmentIdIn(Collection<Long> appointmentIds);
+
+    /**
+     * Borra todos los servicios reservados de una cita concreta. Usado por
+     * updateAppointment (P9) cuando el editor cambia el conjunto de servicios:
+     * la politica es re-congelar precios al precio actual del catalogo, asi
+     * que se borra y se vuelve a crear con saveAll en vez de hacer diffs.
+     */
+    void deleteAllByAppointmentId(Long appointmentId);
 }

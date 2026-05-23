@@ -247,9 +247,21 @@ export default function Citas() {
   )
   const hasServerFilters = Boolean(fromDate || toDate || employeeFilter)
 
-  /* ---- Modales compartidos ---- */
+  /* ---- Modales compartidos ----
+     wizardOpen abre el asistente en modo "Nueva cita". editingAppt lo abre
+     en modo edición (P9): el wizard recibe la cita y oculta el ClientPicker.
+     El detail modal cede el flujo al wizard al pulsar "Editar cita". */
   const [wizardOpen, setWizardOpen] = useState(false)
+  const [editingAppt, setEditingAppt] = useState(null)
   const [detailAppt, setDetailAppt] = useState(null)
+  // startEditing apaga explícitamente cualquier otro estado que pudiera
+  // mantener el wizard abierto en modo crear; así no hay solape de modos.
+  const startEditing = (appt) => {
+    setDetailAppt(null)
+    setWizardOpen(false)
+    setEditingAppt(appt)
+  }
+  const closeWizard = () => { setWizardOpen(false); setEditingAppt(null) }
 
   /* ============================================================
      RENDER
@@ -496,16 +508,18 @@ export default function Citas() {
 
       {/* Modales compartidos */}
       <AppointmentWizard
-        open={wizardOpen}
-        onClose={() => setWizardOpen(false)}
+        open={wizardOpen || Boolean(editingAppt)}
+        onClose={closeWizard}
         onCreated={refresh}
         bId={bId}
+        appointmentToEdit={editingAppt}
       />
       <AppointmentDetailModal
         appointment={detailAppt}
         bId={bId}
         onClose={() => setDetailAppt(null)}
         onChanged={refresh}
+        onEdit={startEditing}
       />
     </div>
   )

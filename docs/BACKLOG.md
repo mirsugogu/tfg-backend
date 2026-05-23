@@ -15,14 +15,14 @@ Es un backlog **independiente** del *"Informe de Calidad"* anterior
 | # | Tema | Estado |
 |---|------|--------|
 | P1-empleado | Turno partido — horario del empleado | ✅ Hecho — commit `45e7f18` |
-| P1-negocio  | Turno partido — horario del negocio | ✅ Hecho — sin commit |
+| P1-negocio  | Turno partido — horario del negocio | ✅ Hecho — commit `16676d7` |
 | P2 | Copiar horario L→V para el empleado | ✅ Hecho — commit `9728e35` |
 | P3 | Nombre de servicio único por categoría (no por negocio) | ✅ Decisión: se mantiene |
 | P4 | Panel de stats en Catálogo ocupa mucho | ✅ Decisión: se mantiene |
 | P5 | Crear cliente al vuelo desde la nueva cita | ✅ Hecho — commit `c512729` (+ fix `659ff37`) |
 | P6 + P7 | Filtros del calendario que esconden citas | ✅ Hecho — commit `f873b9e` |
 | P8 | "Color por cabina" poco visible | ✅ Hecho — commit `3c1e229` |
-| P9 | Editar / reprogramar una cita | ⬜ Pendiente — grande |
+| P9 | Editar / reprogramar una cita | ✅ Hecho — sin commit |
 | P10 | Toggle densidad no afecta a la vista Mes | ⬜ Opcional |
 | P11 | Color del selector "Agrupar" | ✅ Nada que hacer — confusión del tester |
 | P12 | Las citas canceladas pierden su señal visual | ✅ Hecho — commit `c1a3966` |
@@ -114,7 +114,7 @@ del frontend y arranque del backend verdes.
 
 ---
 
-### P1-negocio — Horario partido del negocio — sin commit
+### P1-negocio — Horario partido del negocio — `16676d7`
 Cierra la asimetría con P1-empleado. Aplicado con simetría al patrón de
 `EmployeeScheduleService` (overlap `A<D AND C<B`).
 - **Schema:** quitado `uq_business_hours_day` en `docs/schema_v20.sql`. La BD
@@ -153,20 +153,43 @@ Ordenado por relación esfuerzo / valor.
 Mes usa celdas `min-h-[120px]` fijas (`Calendario.jsx:486`). Si el tester lo
 probó en Mes, no vio nada. Decidir: extender a Mes, o dejarlo.
 
-### P9 — Editar / reprogramar una cita  ·  ~1-2 días  ·  full-stack  ·  GRANDE
-Hoy una cita creada solo cambia de estado y de pago. No se puede cambiar día,
-hora, empleado ni servicios. El tester tiene toda la razón.
-- **Backend:** solo `PATCH .../{id}/status` y `PATCH .../{id}/payment`
-  (`AppointmentController.java:122`, `:138`). No hay PUT ni DELETE (lo dice el
-  Javadoc, `:46-48`).
-  - Nuevo endpoint + método que reaplique toda la cadena de validación de
-    `createAppointment` (horario, solape, cabina, bloqueos…).
-  - Cuidado con el anti-doble-reserva a nivel BD (`active_slot_key` /
-    `active_booth_slot_key`) y con regenerar `appointment_services` (precios e
-    IVA congelados) si cambian los servicios.
-- **Frontend:** modo edición en `AppointmentDetailModal.jsx` o reutilizar
-  `AppointmentWizard` en modo "editar".
-- Actualizar tests + colección Postman.
+### P9 — Editar / reprogramar una cita — sin commit
+Nuevo `PUT /api/businesses/{businessId}/appointments/{id}` que reaplica
+toda la cadena de validación de `createAppointment` excluyendo la propia
+cita del check de solape. Una cita en COMPLETED no se reagenda (400); una
+CANCELLED / NO_SHOW sí, y al guardar vuelve a PENDING (ciclo de vida nuevo).
+- **Backend:**
+  - `AppointmentRepository`: `+findByIdAndBusinessIdForUpdate` (lock
+    pesimista) y `+existsOverlapping*Excluding` para que el solape ignore
+    la propia cita en edit.
+  - `BookedServiceRepository`: `+deleteAllByAppointmentId` para re-congelar
+    precios al editar (decisión consciente: los precios se recongelan al
+    valor actual del catálogo, no se conservan los antiguos).
+  - `AppointmentValidator`: `validateNoOverlap` y `validateNoBoothOverlap`
+    aceptan `excludeAppointmentId` opcional.
+  - `AppointmentService`: nuevo `updateAppointment` con 16 pasos de
+    validación, lock pesimista sobre la cita, reset CANCELLED/NO_SHOW →
+    PENDING y borrado/recreación de `BookedService`.
+  - `AppointmentController`: nuevo `PUT /{id}`.
+  - `UpdateAppointmentRequest`: DTO sin `clientId` (la cita pertenece al
+    cliente original) ni `@FutureOrPresent` (permite editar notas/servicios
+    de citas pasadas sin reagendar).
+  - `AvailabilityController` + `AvailabilityService`: `+excludeAppointmentId`
+    opcional para que el wizard en modo edit no muestre el slot original
+    como ocupado por sí mismo.
+- **Frontend:**
+  - `AppointmentDetailModal`: botón "Editar cita" condicional (solo si no
+    está en COMPLETED).
+  - `AppointmentWizard`: nueva prop `appointmentToEdit`; precarga el form
+    desde la cita, bloquea el cliente con panel informativo (no toca el
+    componente `ClientPicker`), título dinámico, slot original
+    pre-seleccionado, `PUT` en lugar de `POST`.
+  - `Calendario.jsx` y `Citas.jsx`: cableado del flujo detail → wizard
+    edit.
+- **Tests:** 33/33 verdes (+2 tests del update: COMPLETED → 400 y
+  CANCELLED → PENDING).
+- **Postman:** 8 casos nuevos del PUT (happy path con re-congelación 2→1
+  y 1→2 servicios, validaciones, 404, 400 estado terminal).
 
 ---
 

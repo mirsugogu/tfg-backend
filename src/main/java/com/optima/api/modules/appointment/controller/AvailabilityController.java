@@ -58,8 +58,12 @@ public class AvailabilityController {
      * y devuelve la lista plana de slots.
      *
      * Filtros opcionales:
-     *   membershipId  restringe a un empleado concreto.
-     *   boothId       restringe a una cabina concreta.
+     *   membershipId          restringe a un empleado concreto.
+     *   boothId               restringe a una cabina concreta.
+     *   excludeAppointmentId  excluye una cita concreta del calculo (P9):
+     *                         el wizard en modo edicion la usa para que la
+     *                         propia cita que se esta editando no aparezca
+     *                         como ocupando su propio slot.
      */
     @GetMapping
     public AvailabilityResponse getAvailability(
@@ -76,9 +80,11 @@ public class AvailabilityController {
 
             @RequestParam(required = false) @Positive Long membershipId,
 
-            @RequestParam(required = false) @Positive Long boothId) {
+            @RequestParam(required = false) @Positive Long boothId,
+
+            @RequestParam(required = false) @Positive Long excludeAppointmentId) {
 
         return availabilityService.getAvailability(
-                businessId, date, serviceIds, membershipId, boothId);
+                businessId, date, serviceIds, membershipId, boothId, excludeAppointmentId);
     }
 }

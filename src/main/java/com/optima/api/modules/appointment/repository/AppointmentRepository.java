@@ -1,10 +1,12 @@
 package com.optima.api.modules.appointment.repository;
 
 import com.optima.api.modules.appointment.model.Appointment;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -37,6 +39,17 @@ import java.util.Optional;
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 
     Optional<Appointment> findByIdAndBusinessId(Long id, Long businessId);
+
+    /**
+     * Variante con lock pesimista (SELECT ... FOR UPDATE) sobre la fila de la
+     * cita. Usado por updateAppointment para serializar dos PUT concurrentes
+     * sobre la misma cita. Sigue el patron de MembershipRepository y
+     * BoothRepository.findByIdAndBusinessIdForUpdate.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Appointment a WHERE a.id = :id AND a.business.id = :businessId")
+    Optional<Appointment> findByIdAndBusinessIdForUpdate(@Param("id") Long id,
+                                                        @Param("businessId") Long businessId);
 
     /**
      * Busqueda paginada de citas con filtros opcionales.
@@ -96,6 +109,27 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     );
 
     /**
+     * Variante de existsOverlappingAppointment que excluye una cita concreta
+     * del check. Usada en updateAppointment (P9): al reagendar una cita, su
+     * propio slot original NO debe considerarse "otra cita solapada" consigo
+     * misma. Misma logica de solape (A<D AND C<B) y mismos estados activos.
+     */
+    @Query("""
+            SELECT COUNT(a) > 0 FROM Appointment a
+            WHERE a.membership.id = :membershipId
+              AND a.id <> :excludeId
+              AND a.startDateTime < :endDateTime
+              AND a.endDateTime > :startDateTime
+              AND a.status.name IN ('PENDING', 'CONFIRMED', 'IN_PROGRESS')
+            """)
+    boolean existsOverlappingAppointmentExcluding(
+            @Param("membershipId") Long membershipId,
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime,
+            @Param("excludeId") Long excludeId
+    );
+
+    /**
      * Comprueba si una cabina tiene alguna cita que se solape con el rango dado.
      *
      * Misma logica de solape que en el caso de empleado: A < D AND C < B.
@@ -114,6 +148,27 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("boothId") Long boothId,
             @Param("startDateTime") LocalDateTime startDateTime,
             @Param("endDateTime") LocalDateTime endDateTime
+    );
+
+    /**
+     * Variante de existsOverlappingBoothAppointment que excluye una cita
+     * concreta del check. Usada en updateAppointment (P9): si la cita
+     * editada conserva su cabina y solo cambia minutos, su propio slot
+     * original no debe contar como ocupante de la cabina.
+     */
+    @Query("""
+            SELECT COUNT(a) > 0 FROM Appointment a
+            WHERE a.booth.id = :boothId
+              AND a.id <> :excludeId
+              AND a.startDateTime < :endDateTime
+              AND a.endDateTime > :startDateTime
+              AND a.status.name IN ('PENDING', 'CONFIRMED', 'IN_PROGRESS')
+            """)
+    boolean existsOverlappingBoothAppointmentExcluding(
+            @Param("boothId") Long boothId,
+            @Param("startDateTime") LocalDateTime startDateTime,
+            @Param("endDateTime") LocalDateTime endDateTime,
+            @Param("excludeId") Long excludeId
     );
 
     /**

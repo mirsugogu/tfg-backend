@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Check, ArrowRight, ArrowLeft, User, CalendarDays, Clock, MapPin } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Check, ArrowRight, ArrowLeft, User, CalendarDays, Clock, MapPin, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -55,25 +55,45 @@ function Stepper({ step }) {
 }
 
 /**
- * AppointmentWizard — asistente "Nueva cita" en 3 pasos, reutilizable por
- * las pantallas Citas y Clientes y por el Calendario.
+ * AppointmentWizard — asistente de 3 pasos para crear o editar una cita.
+ * Reutilizable por Citas, Clientes y Calendario.
+ *
+ * Modos:
+ *   - Crear (default): paso 1 elige cliente con ClientPicker; paso 3 POST.
+ *   - Editar (P9): prop `appointmentToEdit` con la cita. Precarga todos los
+ *     campos del form, el cliente queda bloqueado (panel informativo en
+ *     lugar del ClientPicker) y el paso 3 hace PUT. El GET /availability
+ *     se invoca con excludeAppointmentId para que la propia cita no tape
+ *     su slot original.
  *
  * Props:
- *   open         abre / cierra el modal.
- *   onClose      cerrar sin crear.
- *   onCreated    callback tras crear con éxito (el padre refresca su lista).
- *   bId          businessId.
- *   prefillDate  'YYYY-MM-DD' opcional (p. ej. el día pulsado en el calendario).
- *   prefillTime  'HH:mm' opcional; si coincide con un hueco, se preselecciona.
- *   prefillClientId  id de cliente opcional; preselecciona el cliente (p. ej.
- *                    al abrir el asistente desde la ficha de un cliente).
+ *   open               abre / cierra el modal.
+ *   onClose            cerrar sin guardar.
+ *   onCreated          callback tras crear o editar con éxito (el padre
+ *                      refresca su lista). Nombre conservado por
+ *                      compatibilidad con los callers actuales.
+ *   bId                businessId.
+ *   prefillDate        'YYYY-MM-DD' opcional (p. ej. el día pulsado en el
+ *                      calendario). Ignorado en modo editar.
+ *   prefillTime        'HH:mm' opcional; si coincide con un hueco, se
+ *                      preselecciona. En modo editar se calcula desde la
+ *                      hora actual de la cita.
+ *   prefillClientId    id de cliente opcional; preselecciona el cliente
+ *                      (p. ej. al abrir desde la ficha de un cliente).
+ *                      Ignorado en modo editar.
+ *   appointmentToEdit  cita a editar (P9). null = modo crear.
  *
- * Pasos: 1) datos básicos → 2) GET /availability (huecos) → 3) confirmar + POST.
- * Consultar la disponibilidad ANTES de crear mitiga la race condition del
- * backend (auditoría D.2): el usuario solo elige un hueco recién calculado
- * como libre, y el botón "Crear" queda bloqueado durante la petición.
+ * Pasos: 1) datos básicos → 2) GET /availability (huecos) → 3) confirmar
+ * + POST/PUT. Consultar la disponibilidad ANTES de crear/editar mitiga la
+ * race condition del backend (auditoría D.2): el usuario solo elige un
+ * hueco recién calculado como libre, y el botón "Guardar" queda bloqueado
+ * durante la petición.
  */
-export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, prefillTime, prefillClientId }) {
+export function AppointmentWizard({
+  open, onClose, onCreated, bId,
+  prefillDate, prefillTime, prefillClientId,
+  appointmentToEdit,
+}) {
   const toast = useToast()
 
   const [aux, setAux] = useState({ employees: [], services: [], booths: [] })
@@ -108,17 +128,46 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
     })
   }, [bId, toast])
 
-  // Al abrir el asistente se reinicia al paso 1 con la fecha precargada.
+  // Al abrir el asistente se reinicia al paso 1.
+  // En modo editar (P9) precarga todos los campos desde la cita; en modo
+  // crear aplica los prefill opcionales del padre (fecha del calendario,
+  // cliente desde su ficha).
+  //
+  // Importante: la dependencia es `appointmentToEdit?.id`, no el objeto en
+  // si. Asi un rerender del padre que reasigne la prop con un objeto nuevo
+  // (mismo id, distinta referencia) NO reescribe el form mientras el
+  // usuario lo esta editando.
+  const editingId = appointmentToEdit?.id ?? null
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    if (appointmentToEdit) {
+      setForm({
+        clientId:     appointmentToEdit.clientId,
+        clientName:   appointmentToEdit.clientName ?? '',
+        membershipId: String(appointmentToEdit.membershipId ?? ''),
+        boothId:      appointmentToEdit.boothId != null ? String(appointmentToEdit.boothId) : '',
+        serviceIds:   (appointmentToEdit.bookedServices ?? []).map((b) => b.serviceId),
+        date:         appointmentToEdit.startDateTime.slice(0, 10),
+        notes:        appointmentToEdit.notes ?? '',
+      })
+    } else {
       setForm({ ...emptyForm, date: prefillDate || todayStr(), clientId: prefillClientId || '' })
-      setStep(1)
-      setSlots([])
-      setSelectedSlot(null)
-      setTotalDuration(0)
-      setNoSchedule(false)
     }
-  }, [open, prefillDate, prefillClientId])
+    setStep(1)
+    setSlots([])
+    setSelectedSlot(null)
+    setTotalDuration(0)
+    setNoSchedule(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, prefillDate, prefillClientId, editingId])
+
+  // En modo editar, el prefillTime efectivo es la hora actual de la cita,
+  // así el paso 2 preselecciona el slot original tras consultar disponibilidad.
+  const isEdit = Boolean(appointmentToEdit)
+  const effectivePrefillTime = useMemo(
+    () => isEdit ? appointmentToEdit.startDateTime.slice(11, 16) : prefillTime,
+    [isEdit, appointmentToEdit, prefillTime],
+  )
 
   const toggleService = (id) => {
     setForm((p) => ({
@@ -154,6 +203,9 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
       serviceIds.forEach((id) => qs.append('serviceIds', id))
       qs.set('membershipId', membershipId)
       if (form.boothId) qs.set('boothId', form.boothId)
+      // En modo editar: el propio slot de la cita NO debe figurar como
+      // ocupado. El backend filtra la cita por id antes de calcular slots.
+      if (isEdit) qs.set('excludeAppointmentId', appointmentToEdit.id)
 
       const { data } = await api.get(`/api/businesses/${bId}/availability?${qs.toString()}`)
 
@@ -164,9 +216,10 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
       )
       setSlots(fresh)
       setTotalDuration(data.totalDurationMinutes ?? 0)
-      // Si se abrió desde un hueco del calendario, preselecciona ese tramo.
-      if (prefillTime) {
-        setSelectedSlot(fresh.find((s) => hhmm(s.startTime) === prefillTime) ?? null)
+      // Preselecciona el slot indicado (en edit, el slot actual de la cita;
+      // en create, el hueco pulsado en el calendario si vino prefillTime).
+      if (effectivePrefillTime) {
+        setSelectedSlot(fresh.find((s) => hhmm(s.startTime) === effectivePrefillTime) ?? null)
       }
       // Sin huecos: distinguimos "empleado sin horario semanal" del resto de
       // causas (agenda llena, ausencias…) para dar un mensaje accionable.
@@ -184,8 +237,8 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
     }
   }
 
-  /** Paso 3: crea la cita con los datos del hueco elegido. */
-  const handleCreate = async () => {
+  /** Paso 3: crea o edita la cita con los datos del hueco elegido. */
+  const handleSave = async () => {
     if (!selectedSlot) {
       toast({ type: 'error', message: 'Selecciona un hueco disponible.' })
       return
@@ -195,38 +248,71 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
       // membershipId y boothId se toman del SLOT (fuente de verdad de lo
       // que el backend calculó como libre). startDateTime SIN sufijo 'Z'
       // (auditoría H.005: el backend lo ignora y guarda como local).
-      await api.post(`/api/businesses/${bId}/appointments`, {
-        clientId:      Number(form.clientId),
+      // En modo editar el clientId NO viaja: la decisión de diseño (P9)
+      // es que la cita pertenece al cliente original.
+      const body = {
         membershipId:  selectedSlot.membershipId,
         boothId:       selectedSlot.boothId ?? null,
         startDateTime: `${form.date}T${toHms(selectedSlot.startTime)}`,
         serviceIds:    form.serviceIds.map(Number),
         notes:         form.notes || null,
-      })
-      toast({ type: 'success', message: 'Cita creada correctamente.' })
+      }
+      if (isEdit) {
+        await api.put(`/api/businesses/${bId}/appointments/${appointmentToEdit.id}`, body)
+        toast({ type: 'success', message: 'Cita actualizada correctamente.' })
+      } else {
+        await api.post(`/api/businesses/${bId}/appointments`, {
+          ...body,
+          clientId: Number(form.clientId),
+        })
+        toast({ type: 'success', message: 'Cita creada correctamente.' })
+      }
       onCreated?.()
       onClose()
     } catch (err) {
-      toast({ type: 'error', message: getErrorMessage(err, 'No se pudo crear la cita.') })
+      const fallback = isEdit ? 'No se pudo guardar la cita.' : 'No se pudo crear la cita.'
+      toast({ type: 'error', message: getErrorMessage(err, fallback) })
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Nueva cita" size="lg">
+    <Modal open={open} onClose={onClose} title={isEdit ? 'Editar cita' : 'Nueva cita'} size="lg">
       <Stepper step={step} />
 
       {/* PASO 1 — Datos básicos */}
       {step === 1 && (
         <div className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
-            <ClientPicker
-              bId={bId}
-              label="Cliente *"
-              value={form.clientId}
-              onChange={(c) => setForm((p) => ({ ...p, clientId: c?.id ?? '', clientName: c?.fullName ?? '' }))}
-            />
+            {isEdit ? (
+              // En edit el cliente queda fijo (decisión P9: la cita pertenece
+              // al cliente original; si hay que cambiar de cliente, se cancela
+              // esta y se crea otra). Panel informativo en lugar del picker.
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block mb-2">
+                  Cliente
+                </label>
+                <div className="h-11 rounded-2xl border border-slate-200 bg-slate-50 px-3.5 flex items-center justify-between gap-2 text-sm">
+                  <span className="font-semibold text-[#1e3a5f] truncate">
+                    {form.clientName || '—'}
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider shrink-0"
+                    title="El cliente no se puede cambiar al editar una cita"
+                  >
+                    <Lock size={11} /> Fijo
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <ClientPicker
+                bId={bId}
+                label="Cliente *"
+                value={form.clientId}
+                onChange={(c) => setForm((p) => ({ ...p, clientId: c?.id ?? '', clientName: c?.fullName ?? '' }))}
+              />
+            )}
             <Select
               label="Empleado *"
               value={form.membershipId}
@@ -423,8 +509,8 @@ export function AppointmentWizard({ open, onClose, onCreated, bId, prefillDate, 
             <Button variant="outline" onClick={() => setStep(2)} className="flex-1 gap-1.5" disabled={saving}>
               <ArrowLeft size={16} /> Atrás
             </Button>
-            <Button onClick={handleCreate} loading={saving} className="flex-1">
-              Crear cita
+            <Button onClick={handleSave} loading={saving} className="flex-1">
+              {isEdit ? 'Guardar cambios' : 'Crear cita'}
             </Button>
           </div>
         </div>

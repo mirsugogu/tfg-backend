@@ -1,6 +1,7 @@
 package com.optima.api.modules.appointment.service;
 
 import com.optima.api.modules.appointment.dto.request.CreateAppointmentRequest;
+import com.optima.api.modules.appointment.dto.request.UpdateAppointmentRequest;
 import com.optima.api.modules.appointment.dto.request.UpdateAppointmentStatusRequest;
 import com.optima.api.modules.appointment.dto.request.UpdatePaymentRequest;
 import com.optima.api.modules.appointment.dto.response.AppointmentResponse;
@@ -234,11 +235,14 @@ public class AppointmentService {
                 endDateTime
         );
 
-        // 8. Validar que no hay solapamiento con otra cita del empleado
+        // 8. Validar que no hay solapamiento con otra cita del empleado.
+        //    excludeAppointmentId=null porque es una creacion: no hay "propia
+        //    cita" que excluir del check.
         validator.validateNoOverlap(
                 request.membershipId(),
                 request.startDateTime(),
-                endDateTime
+                endDateTime,
+                null
         );
 
         // 8a. La cita no puede caer sobre una ausencia registrada del empleado.
@@ -278,7 +282,8 @@ public class AppointmentService {
             validator.validateNoBoothOverlap(
                     request.boothId(),
                     request.startDateTime(),
-                    endDateTime
+                    endDateTime,
+                    null
             );
         }
 
@@ -488,6 +493,273 @@ public class AppointmentService {
         List<BookedService> bookedServices =
                 bookedServiceRepository.findAllByAppointmentId(updated.getId());
         return AppointmentResponse.from(updated, bookedServices);
+    }
+
+    /**
+     * Estados en los que NO se permite editar la cita (P9).
+     *
+     * Solo COMPLETED es estrictamente no-editable: una cita ya realizada no
+     * se reagenda. Las terminales "negativas" (CANCELLED, NO_SHOW) SI son
+     * editables porque el caso de uso real es justo ese: el cliente del
+     * dia 21 no se presento, hoy es 24, el admin lo reagenda al 28. Al
+     * reagendar, su ciclo de vida vuelve a PENDING (ver updateAppointment).
+     */
+    private static final Set<String> NON_EDITABLE_STATUSES = Set.of("COMPLETED");
+
+    /**
+     * Estados que al reagendar deben volver a PENDING (P9). Una cita
+     * CANCELLED/NO_SHOW que se "rescata" reagendandola arranca un ciclo de
+     * vida nuevo: el estado actual deja de aplicar.
+     */
+    private static final Set<String> RESET_TO_PENDING_ON_EDIT =
+            Set.of("CANCELLED", "NO_SHOW");
+
+    /**
+     * Edita una cita existente (P9): reagendar (cambio de hora/empleado/
+     * cabina/servicios). Reaplica la misma cadena de validacion que
+     * createAppointment pero excluyendo la propia cita de los checks de
+     * solape, y re-congela los precios al precio actual del catalogo.
+     *
+     * QUE PUEDE CAMBIAR:
+     *   membershipId, boothId, startDateTime, serviceIds, notes.
+     * QUE NO PUEDE CAMBIAR DIRECTAMENTE:
+     *   clientId (decision P9: la cita es del cliente que la pidio).
+     *   isPaid (sigue su PATCH /payment).
+     * QUE PUEDE CAMBIAR DE FORMA INDIRECTA:
+     *   statusName: si la cita esta en CANCELLED o NO_SHOW, al reagendarla
+     *   vuelve a PENDING (ver RESET_TO_PENDING_ON_EDIT). Asi una cita que
+     *   "no se llego a realizar" puede aprovecharse para una fecha nueva.
+     *
+     * 400 si la cita esta en estado COMPLETED: ya se realizo, no tiene
+     * sentido reagendarla. Para algo distinto, se crea otra cita.
+     *
+     * Precios congelados al editar (decision P9): se borran los
+     * BookedService existentes y se recrean con el precio y % de IVA actuales
+     * del catalogo. Asi una cita renegociada refleja el precio acordado en
+     * el momento de la re-negociacion.
+     *
+     * Locks (mismo patron que createAppointment + lock adicional de la
+     * propia cita):
+     *   1. Lock sobre la cita (findByIdAndBusinessIdForUpdate de Appointment):
+     *      serializa dos PUT concurrentes sobre la misma cita.
+     *   2. Lock sobre la membership: serializa dos PUT que reagendan citas
+     *      distintas al mismo empleado.
+     *   3. Lock sobre la cabina (si lleva): idem para la cabina.
+     *
+     * UNIQUE active_slot_key / active_booth_slot_key: la red de seguridad
+     * final de BD se mantiene (try/catch de DataIntegrityViolationException),
+     * igual que en createAppointment.
+     */
+    public AppointmentResponse updateAppointment(Long businessId,
+                                                 Long appointmentId,
+                                                 UpdateAppointmentRequest request) {
+
+        // 1. Lock pesimista sobre la propia cita (cross-tenant safe).
+        Appointment appointment = appointmentRepository
+                .findByIdAndBusinessIdForUpdate(appointmentId, businessId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "No se encontró la cita con ID: " + appointmentId
+                                + " en el negocio con ID: " + businessId
+                ));
+
+        // 2. Estado no editable (solo COMPLETED): rechazo temprano antes
+        //    de validar nada mas.
+        String currentStatus = appointment.getStatus().getName();
+        if (NON_EDITABLE_STATUSES.contains(currentStatus)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "No se puede editar una cita en estado " + currentStatus
+            );
+        }
+
+        // 3. Negocio (necesitamos el appointmentInterval).
+        Business business = businessRepository.findById(businessId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "No se encontró el negocio con ID: " + businessId
+                ));
+        if (!Boolean.TRUE.equals(business.getIsActive())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El negocio con ID: " + businessId + " está desactivado"
+            );
+        }
+
+        // 4. Cross-tenant + lock pesimista del nuevo empleado.
+        Membership membership = membershipRepository
+                .findByIdAndBusinessIdForUpdate(request.membershipId(), businessId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "No se encontró el empleado con ID: " + request.membershipId()
+                                + " en el negocio con ID: " + businessId
+                ));
+        if (!membership.getIsActive()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El empleado con ID: " + request.membershipId() + " está desactivado"
+            );
+        }
+
+        // 5. Intervalo del negocio.
+        validator.validateAppointmentInterval(
+                request.startDateTime(),
+                business.getAppointmentInterval()
+        );
+
+        // 6. Servicios cross-tenant + activos.
+        List<BusinessService> services = new ArrayList<>();
+        for (Long serviceId : request.serviceIds()) {
+            BusinessService service = serviceRepository
+                    .findByIdAndBusinessId(serviceId, businessId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "No se encontró el servicio con ID: " + serviceId
+                                    + " en el negocio con ID: " + businessId
+                    ));
+            if (!service.getIsActive()) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "El servicio con ID: " + serviceId + " está desactivado"
+                );
+            }
+            services.add(service);
+        }
+
+        // 7. endDateTime recalculado segun la duracion actual de los servicios.
+        int totalMinutes = services.stream()
+                .mapToInt(BusinessService::getDurationMinutes)
+                .sum();
+        LocalDateTime endDateTime = request.startDateTime().plusMinutes(totalMinutes);
+
+        // 8. Horario de apertura del negocio.
+        validator.validateBusinessHours(
+                businessId,
+                request.startDateTime(),
+                endDateTime
+        );
+
+        // 9. Horario del empleado.
+        validator.validateEmployeeSchedule(
+                request.membershipId(),
+                request.startDateTime(),
+                endDateTime
+        );
+
+        // 10. No solape con otra cita del empleado, EXCLUYENDO la propia cita.
+        validator.validateNoOverlap(
+                request.membershipId(),
+                request.startDateTime(),
+                endDateTime,
+                appointmentId
+        );
+
+        // 11. No solape con ausencia del empleado.
+        validator.validateNoEmployeeAbsence(
+                request.membershipId(),
+                request.startDateTime(),
+                endDateTime
+        );
+
+        // 12. Cabina (si cambia o se mantiene): cross-tenant + lock + activa +
+        //     overlap excluyendo la propia cita.
+        Booth booth = null;
+        if (request.boothId() != null) {
+            booth = boothRepository
+                    .findByIdAndBusinessIdForUpdate(request.boothId(), businessId)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND,
+                            "No se encontró la cabina con ID: " + request.boothId()
+                                    + " en el negocio con ID: " + businessId
+                    ));
+            if (!booth.getIsActive()) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "La cabina con ID: " + request.boothId() + " está desactivada"
+                );
+            }
+            validator.validateNoBoothOverlap(
+                    request.boothId(),
+                    request.startDateTime(),
+                    endDateTime,
+                    appointmentId
+            );
+        }
+
+        // 13. Bloqueos de agenda.
+        validator.validateNoScheduleBlock(
+                businessId,
+                request.membershipId(),
+                request.boothId(),
+                request.startDateTime()
+        );
+
+        // 14. Mutar la cita. createdAt/isPaid/client se conservan.
+        //     Si venia de CANCELLED o NO_SHOW, el reagendado equivale a un
+        //     ciclo de vida nuevo: el estado vuelve a PENDING para que
+        //     pueda transicionar normalmente (CONFIRMED -> IN_PROGRESS -> ...).
+        //     En cualquier otro estado activo el estado se conserva.
+        if (RESET_TO_PENDING_ON_EDIT.contains(currentStatus)) {
+            AppointmentStatus pending = statusRepository.findByName("PENDING")
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Error de configuración: no se encontró el estado PENDING "
+                                    + "en la base de datos."
+                    ));
+            appointment.setStatus(pending);
+        }
+        appointment.setMembership(membership);
+        appointment.setBooth(booth);
+        appointment.setStartDateTime(request.startDateTime());
+        appointment.setEndDateTime(endDateTime);
+        appointment.setNotes(request.notes());
+
+        // 15. saveAndFlush: si el UPDATE viola uq_appointment_active_slot o
+        //     uq_appointment_active_booth_slot (race condition residual a
+        //     pesar de los locks), MySQL devuelve la violacion AHORA, no al
+        //     commit. Se traduce a 409 con mensaje especifico.
+        Appointment saved;
+        try {
+            saved = appointmentRepository.saveAndFlush(appointment);
+        } catch (DataIntegrityViolationException ex) {
+            String msg = ex.getMessage() == null ? "" : ex.getMessage();
+            if (msg.contains("uq_appointment_active_slot")) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "El empleado ya tiene una cita en ese horario"
+                );
+            }
+            if (msg.contains("uq_appointment_active_booth_slot")) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "La cabina ya tiene una cita en ese horario"
+                );
+            }
+            throw ex;
+        }
+
+        // 16. Re-congelar precios: borrar los BookedService actuales y
+        //     recrear con los precios e IVA actuales del catalogo. Asi una
+        //     cita renegociada refleja el acuerdo del momento de la edicion
+        //     (decision P9; documentada en la memoria del TFG).
+        //     flush() entre el delete y el saveAll para asegurar el orden
+        //     SQL: si Hibernate reordenara, podriamos chocar con FKs.
+        bookedServiceRepository.deleteAllByAppointmentId(saved.getId());
+        bookedServiceRepository.flush();
+
+        List<BookedService> bookedServices = new ArrayList<>();
+        for (BusinessService service : services) {
+            BookedService booked = new BookedService();
+            booked.setAppointment(saved);
+            booked.setService(service);
+            booked.setAppliedPrice(service.getPrice());
+            booked.setAppliedTaxPercentage(service.getTax().getPercentage());
+            bookedServices.add(booked);
+        }
+        List<BookedService> savedBookedServices =
+                bookedServiceRepository.saveAll(bookedServices);
+
+        return AppointmentResponse.from(saved, savedBookedServices);
     }
 
     /**

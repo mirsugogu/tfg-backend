@@ -80,16 +80,24 @@ public class AppointmentValidator {
     );
 
     /**
-     * Comprobar que no hay otra cita que se solape
-     * con el mismo empleado en el rango de tiempo dado.
+     * Comprobar que no hay otra cita que se solape con el mismo empleado en
+     * el rango de tiempo dado.
+     *
+     * @param excludeAppointmentId  id de cita a excluir del check (P9): al
+     *                              reagendar una cita existente, su propio
+     *                              slot original no cuenta como "otra cita
+     *                              solapada". null en createAppointment.
      */
     public void validateNoOverlap(Long membershipId,
                                   LocalDateTime startDateTime,
-                                  LocalDateTime endDateTime) {
+                                  LocalDateTime endDateTime,
+                                  Long excludeAppointmentId) {
 
-        boolean hasOverlap = appointmentRepository.existsOverlappingAppointment(
-                membershipId, startDateTime, endDateTime
-        );
+        boolean hasOverlap = (excludeAppointmentId == null)
+                ? appointmentRepository.existsOverlappingAppointment(
+                        membershipId, startDateTime, endDateTime)
+                : appointmentRepository.existsOverlappingAppointmentExcluding(
+                        membershipId, startDateTime, endDateTime, excludeAppointmentId);
 
         if (hasOverlap) {
             throw new ResponseStatusException(
@@ -132,14 +140,20 @@ public class AppointmentValidator {
      * Validacion ortogonal a la del empleado: comprueba que la cabina no
      * esta ocupada por otra cita activa en el rango. Solo se invoca cuando
      * la cita lleva boothId (no aplica si el negocio no usa cabinas).
+     *
+     * @param excludeAppointmentId  id de cita a excluir del check (P9):
+     *                              misma semantica que en validateNoOverlap.
      */
     public void validateNoBoothOverlap(Long boothId,
                                        LocalDateTime startDateTime,
-                                       LocalDateTime endDateTime) {
+                                       LocalDateTime endDateTime,
+                                       Long excludeAppointmentId) {
 
-        boolean hasOverlap = appointmentRepository.existsOverlappingBoothAppointment(
-                boothId, startDateTime, endDateTime
-        );
+        boolean hasOverlap = (excludeAppointmentId == null)
+                ? appointmentRepository.existsOverlappingBoothAppointment(
+                        boothId, startDateTime, endDateTime)
+                : appointmentRepository.existsOverlappingBoothAppointmentExcluding(
+                        boothId, startDateTime, endDateTime, excludeAppointmentId);
 
         if (hasOverlap) {
             throw new ResponseStatusException(
