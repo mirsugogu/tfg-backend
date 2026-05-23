@@ -1,5 +1,10 @@
 # Frontend-v2 — Optima — 14 pasos hechos + pulido visual EN CURSO
 
+> **OBSOLETO desde 2026-05-23.** Este documento es la versión corta del
+> snapshot del 2026-05-20. La fuente vigente es **`frontend-v2/PROGRESS.md`**
+> (incluye la §11 con todo lo posterior: backlog del tester, drag-and-drop,
+> revalidación de sesión, etc.).
+>
 > Frontend del TFG **Optima** (SaaS multi-tenant de gestión de citas).
 > Plan de 14 pasos terminado; ahora en **fase de pulido visual**.
 > **Última actualización: 2026-05-20.**
