@@ -2,6 +2,7 @@ package com.optima.api.modules.business.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -51,6 +52,10 @@ public record CreateBusinessRequest(
         String email,
 
         @Size(max = 20, message = "El teléfono no puede superar los 20 caracteres")
+        @Pattern(
+                regexp = "^$|^[0-9+\\s()-]{6,20}$",
+                message = "El teléfono solo admite dígitos y los símbolos + - ( ) y espacios (6-20 caracteres)"
+        )
         String phone,
 
         @Size(max = 255, message = "La dirección no puede superar los 255 caracteres")
@@ -66,6 +71,10 @@ public record CreateBusinessRequest(
         String country,
 
         @Size(max = 20, message = "El código postal no puede superar los 20 caracteres")
+        @Pattern(
+                regexp = "^$|^[0-9]{4,10}$",
+                message = "El código postal solo admite dígitos (4-10)"
+        )
         String postalCode,
 
         Integer appointmentInterval
