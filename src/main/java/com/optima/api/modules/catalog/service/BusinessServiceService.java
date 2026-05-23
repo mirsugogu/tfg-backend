@@ -156,16 +156,18 @@ public class BusinessServiceService {
      * Actualiza los campos editables de un servicio: name, description,
      * price, durationMinutes, categoryId, taxId. La nueva categoría y el
      * nuevo impuesto deben pertenecer al mismo negocio; si se cambian,
-     * además deben estar activos. No permite operar sobre un servicio
-     * desactivado.
+     * además deben estar activos.
+     *
+     * Editable aunque el servicio este archivado: tipico caso de "rescatar"
+     * un servicio cuya categoria fue archivada. Si el admin lo edita para
+     * apuntarlo a otra categoria activa, despues puede reactivarlo. El
+     * servicio se mantiene en su estado actual (isActive no se toca aqui);
+     * la reactivacion sigue siendo un endpoint aparte. Los precios de las
+     * citas historicas no se ven afectados porque BookedService guarda
+     * precio e IVA congelados.
      */
     public BusinessServiceResponse updateService(Long businessId, Long id, UpdateServiceRequest request) {
         BusinessService service = findOrThrow(businessId, id);
-
-        if (!service.getIsActive()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "El servicio está desactivado");
-        }
 
         // Validar unicidad del nombre solo si ha cambiado
         String newName = request.name().trim();

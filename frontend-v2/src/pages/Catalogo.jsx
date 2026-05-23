@@ -916,7 +916,18 @@ function ServiceCard({ service, taxes, isAdmin, archived, onOpen, onEdit, onArch
         </div>
         {isAdmin && (
           archived ? (
-            <div onClick={(e) => e.stopPropagation()}>
+            // Servicios archivados: ademas de "Restaurar", se permite "Editar"
+            // para poder reasignar categoria/impuesto a uno activo antes de
+            // reactivar (deadlock que aparecia si la categoria del servicio
+            // tambien estaba archivada).
+            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => onEdit(service)}
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition"
+                title="Editar (sin reactivar)"
+              >
+                <Pencil size={14} />
+              </button>
               <Button variant="success" size="sm" onClick={() => onReactivate(service)} className="gap-1.5">
                 <ArchiveRestore size={14} /> Restaurar
               </Button>
@@ -1204,9 +1215,14 @@ function ServiceDrawer({ service, taxes, isAdmin, archived, onClose, onEdit, onA
         {isAdmin && (
           <div className="px-6 py-4 border-t border-slate-100 flex gap-2">
             {archived ? (
-              <Button variant="success" onClick={onReactivate} className="flex-1 gap-2">
-                <ArchiveRestore size={15} /> Restaurar
-              </Button>
+              <>
+                <Button variant="outline" onClick={onEdit} className="flex-1 gap-2">
+                  <Pencil size={15} /> Editar
+                </Button>
+                <Button variant="success" onClick={onReactivate} className="flex-1 gap-2">
+                  <ArchiveRestore size={15} /> Restaurar
+                </Button>
+              </>
             ) : (
               <>
                 <Button variant="outline" onClick={onArchive} className="flex-1 gap-2">
