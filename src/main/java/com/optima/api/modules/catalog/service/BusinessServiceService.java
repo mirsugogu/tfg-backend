@@ -231,12 +231,32 @@ public class BusinessServiceService {
     /**
      * Reactiva un servicio archivado: pone isActive=true y deactivatedAt=null.
      * Filtra por negocio (cross-tenant safe). Lanza 400 si ya estaba activo.
+     *
+     * Coherencia con D1 (no archivar categoria con servicios activos): un
+     * servicio activo NO puede apuntar a una categoria o impuesto archivados.
+     * Si su categoria o tax estan inactivos, se rechaza con 409 y un mensaje
+     * accionable. El admin debe reactivar primero la categoria/tax o
+     * actualizar el servicio para apuntar a uno activo.
      */
     public BusinessServiceResponse reactivateService(Long businessId, Long id) {
         BusinessService service = findOrThrow(businessId, id);
         if (service.getIsActive()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "El servicio ya está activo");
+        }
+        if (!service.getCategory().getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "No se puede reactivar el servicio: su categoría \""
+                            + service.getCategory().getName()
+                            + "\" está archivada. Reactiva la categoría primero "
+                            + "o edita el servicio para asignarlo a otra activa.");
+        }
+        if (!service.getTax().getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "No se puede reactivar el servicio: su impuesto \""
+                            + service.getTax().getName()
+                            + "\" está archivado. Reactiva el impuesto primero "
+                            + "o edita el servicio para asignarle uno activo.");
         }
         service.setIsActive(true);
         service.setDeactivatedAt(null);
