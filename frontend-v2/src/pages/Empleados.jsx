@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Plus, Search, Pencil, Trash2, Phone, Mail, Shield, User,
   Calendar, Clock, UserMinus, Users, X, RefreshCw, ChevronRight, ArchiveRestore,
@@ -172,24 +172,48 @@ export default function Empleados() {
   // de desactivacion (E del audit). null mientras carga, numero cuando llega.
   // Si la consulta falla, se asume 0 para no bloquear la acción por un error
   // ortogonal (el backend tiene la red final si hay alguna inconsistencia).
+  //
+  // Cancelacion: si el admin cierra el modal antes de que llegue la respuesta,
+  // o abre el modal de otro empleado mientras la consulta esta en vuelo, se
+  // aborta para evitar (a) un warning de setState sobre estado huerfano,
+  // (b) que se vea brevemente el conteo del empleado anterior.
   const [upcomingInfo, setUpcomingInfo] = useState({ loading: false, count: null })
+  const upcomingAbortRef = useRef(null)
 
   const openDeactivate = async (e) => {
+    upcomingAbortRef.current?.abort()
+    const controller = new AbortController()
+    upcomingAbortRef.current = controller
+
     setSelected(e)
     setModal('deactivate')
     setUpcomingInfo({ loading: true, count: null })
+
     const t = new Date()
     const ymd = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
     try {
       const r = await api.get(`/api/businesses/${bId}/appointments`, {
         params: { membershipId: e.id, from: ymd, size: 1 },
+        signal: controller.signal,
       })
+      if (controller.signal.aborted) return
       setUpcomingInfo({ loading: false, count: r.data.totalElements ?? 0 })
-    } catch {
+    } catch (err) {
+      // axios marca las cancelaciones como CanceledError; las ignoramos
+      // porque significan "el admin cerro el modal antes que llegara".
+      if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return
       setUpcomingInfo({ loading: false, count: 0 })
     }
   }
-  const closeModal = () => { setModal(null); setSelected(null) }
+  const closeModal = () => {
+    // Cancela la consulta de citas proximas si quedaba alguna en vuelo y
+    // resetea upcomingInfo, asi al reabrir el modal con otro empleado no se
+    // ve por un instante el conteo del anterior.
+    upcomingAbortRef.current?.abort()
+    setUpcomingInfo({ loading: false, count: null })
+    setModal(null)
+    setSelected(null)
+  }
 
   const handleChange = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }))
 
