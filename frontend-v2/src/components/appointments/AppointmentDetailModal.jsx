@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MapPin, Pencil } from 'lucide-react'
+import { MapPin, Pencil, Ban } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { StatusBadge, Badge } from '@/components/ui/Badge'
@@ -40,16 +40,21 @@ const VALID_TRANSITIONS = {
  * por Citas y Calendario.
  *
  * Props:
- *   appointment  la cita a mostrar; null = modal cerrado.
- *   bId          businessId.
- *   onClose      cerrar el modal.
- *   onChanged    callback tras cambiar estado o pago (el padre refresca).
- *   onEdit       opcional; si viene, muestra el botón "Editar cita" para
- *                las citas no terminales. Recibe la cita actual y es el
- *                padre quien decide qué hacer (típicamente: cerrar este
- *                modal y abrir el AppointmentWizard en modo edición).
+ *   appointment   la cita a mostrar; null = modal cerrado.
+ *   bId           businessId.
+ *   onClose       cerrar el modal.
+ *   onChanged     callback tras cambiar estado o pago (el padre refresca).
+ *   onEdit        opcional; si viene, muestra el botón "Editar cita" para
+ *                 las citas no terminales. Recibe la cita actual y es el
+ *                 padre quien decide qué hacer (típicamente: cerrar este
+ *                 modal y abrir el AppointmentWizard en modo edición).
+ *   appliedBlock  opcional; schedule_block aplicable a esta cita (global,
+ *                 por empleado o por cabina) calculado por el padre con
+ *                 blockForAppointment(). Si viene, se muestra un aviso
+ *                 destacado y se sugiere reagendar. Citas.jsx no lo pasa
+ *                 (no carga bloqueos); Calendario.jsx sí.
  */
-export function AppointmentDetailModal({ appointment, bId, onClose, onChanged, onEdit }) {
+export function AppointmentDetailModal({ appointment, bId, onClose, onChanged, onEdit, appliedBlock }) {
   const toast = useToast()
   const { statusLabel } = useCatalog()
 
@@ -102,10 +107,39 @@ export function AppointmentDetailModal({ appointment, bId, onClose, onChanged, o
 
   const transitions = current ? (VALID_TRANSITIONS[current.statusName] ?? []) : []
 
+  // El motivo del bloqueo se calcula en el padre (Calendario): aquí solo se
+  // muestra. Si llega sin reason, se etiqueta segun el tipo del bloqueo.
+  const blockLabel = appliedBlock
+    ? (appliedBlock.reason && appliedBlock.reason.trim()
+        ? appliedBlock.reason
+        : appliedBlock.membershipId != null ? 'Empleado bloqueado'
+        : appliedBlock.boothId != null ? 'Cabina bloqueada'
+        : 'Día bloqueado')
+    : null
+
   return (
     <Modal open={Boolean(appointment)} onClose={onClose} title="Detalle de cita" size="lg">
       {current && (
         <div className="space-y-5">
+          {appliedBlock && (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 flex items-start gap-3">
+              <div className="shrink-0 w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600">
+                <Ban size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold text-rose-700 uppercase tracking-wider">
+                  Esta cita está en un día bloqueado
+                </p>
+                <p className="text-sm font-semibold text-rose-800 mt-0.5 truncate">
+                  Motivo: {blockLabel}
+                </p>
+                <p className="text-xs text-rose-700/80 mt-1">
+                  Edita la cita y cambia la fecha; el bloqueo impide mantenerla este día.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="grid sm:grid-cols-2 gap-4">
             {[
               { label: 'Cliente',  value: current.clientName },

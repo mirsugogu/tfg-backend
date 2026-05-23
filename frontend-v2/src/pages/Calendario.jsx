@@ -18,7 +18,7 @@ import {
   PALETTES, GRAY_PALETTE, STATUS_STYLES,
   pad2, keyOf, isSameDay, startOfWeek, buildMonthGrid, rangeFor,
   apptDate, minutesOf, apptDuration, layoutEvents, openRangesFor,
-  blocksForCell, labelForBlock,
+  blocksForCell, labelForBlock, blockForAppointment,
 } from '@/components/calendar/utils'
 import {
   HourColumn, HourSlots, NowLine, PositionedEvent, EventChip, BlockOverlay,
@@ -232,10 +232,30 @@ export default function Calendario() {
   const [detailAppt, setDetailAppt] = useState(null)
   const openWizard = useCallback((date = null, time = null) => setWizard({ open: true, date, time, appt: null }), [])
   const closeWizard = useCallback(() => setWizard({ open: false, date: null, time: null, appt: null }), [])
+
+  // Bloqueo aplicable a la cita abierta en el detail modal (null si la cita
+  // no esta en un dia bloqueado). Sirve para el aviso visual del modal y
+  // para que openEditWizard lance un toast guia antes de abrir el wizard.
+  const detailApptBlock = useMemo(
+    () => blockForAppointment(blocksInRange, detailAppt),
+    [blocksInRange, detailAppt],
+  )
+
   const openEditWizard = useCallback((appt) => {
+    const block = blockForAppointment(blocksInRange, appt)
+    if (block) {
+      const motivo = (block.reason && block.reason.trim())
+        || (block.membershipId != null ? 'empleado bloqueado'
+          : block.boothId != null ? 'cabina bloqueada'
+          : 'día bloqueado')
+      toast({
+        type: 'info',
+        message: `Esta cita cae en un bloqueo (${motivo}). Cambia la fecha al guardar.`,
+      })
+    }
     setDetailAppt(null)
     setWizard({ open: true, date: null, time: null, appt })
-  }, [])
+  }, [blocksInRange, toast])
 
   const onSlotClick = useCallback((dayKey, hour) => openWizard(dayKey, `${pad2(hour)}:00`), [openWizard])
   const onCellClick = useCallback((dayKey) => openWizard(dayKey, null), [openWizard])
@@ -473,6 +493,7 @@ export default function Calendario() {
         onClose={() => setDetailAppt(null)}
         onChanged={refetch}
         onEdit={openEditWizard}
+        appliedBlock={detailApptBlock}
       />
     </div>
   )

@@ -191,3 +191,22 @@ export const labelForBlock = (b) => {
   if (b.boothId != null) return 'Cabina bloqueada'
   return 'Día bloqueado'
 }
+
+/**
+ * Devuelve el primer schedule_block que aplica a una cita concreta, o null.
+ * Considera los 3 tipos (global, por empleado de la cita, por cabina de la
+ * cita). Lo usan los detalles del calendario para avisar al admin de que
+ * la cita ha quedado dentro de un bloqueo y debe reagendarse.
+ */
+export const blockForAppointment = (blocks, appt) => {
+  if (!appt || !blocks || blocks.length === 0) return null
+  const date = new Date(appt.startDateTime)
+  for (const b of blocks) {
+    if (!isDateInBlockRange(date, b)) continue
+    const isGlobal = b.membershipId == null && b.boothId == null
+    if (isGlobal) return b
+    if (b.membershipId != null && b.membershipId === appt.membershipId) return b
+    if (b.boothId != null && appt.boothId != null && b.boothId === appt.boothId) return b
+  }
+  return null
+}
