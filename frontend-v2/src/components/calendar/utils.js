@@ -141,14 +141,22 @@ export const layoutEvents = (events) => {
   return out
 }
 
-/* Devuelve los rangos abiertos del día desde la lista business_hours. */
+/*
+ * Devuelve los rangos abiertos del dia desde la lista business_hours.
+ * Soporta turno partido (split-shift): si business_hours tiene varias
+ * filas para el mismo dayOfWeek (p. ej. manana y tarde), las devuelve
+ * todas. La rejilla del calendario pinta como "fuera de horario" solo
+ * las horas que NO estan en ningun tramo abierto.
+ */
 export const openRangesFor = (businessHours, date) => {
   const dow = date.getDay() === 0 ? 7 : date.getDay()
-  const h = businessHours.find((x) => x.dayOfWeek === dow)
-  if (!h || h.isClosed || !h.startTime || !h.endTime) return []
-  const [sh, sm] = h.startTime.slice(0, 5).split(':').map(Number)
-  const [eh, em] = h.endTime.slice(0, 5).split(':').map(Number)
-  return [[sh + sm / 60, eh + em / 60]]
+  return businessHours
+    .filter((x) => x.dayOfWeek === dow && !x.isClosed && x.startTime && x.endTime)
+    .map((h) => {
+      const [sh, sm] = h.startTime.slice(0, 5).split(':').map(Number)
+      const [eh, em] = h.endTime.slice(0, 5).split(':').map(Number)
+      return [sh + sm / 60, eh + em / 60]
+    })
 }
 
 /* ----- bloqueos de agenda (schedule_blocks) ----- */

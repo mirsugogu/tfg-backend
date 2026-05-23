@@ -566,6 +566,51 @@
       ]
     },
     {
+      "name": "08b - business_absences (agregado por negocio)",
+      "item": [
+        {
+          "name": "GET happy (rango cubre la ausencia de 08)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('array',()=>pm.expect(pm.response.json()).to.be.an('array'));","pm.test('contiene la ausencia previa',()=>{const arr=pm.response.json();pm.expect(arr.length).to.be.at.least(1);pm.expect(arr[0].membershipId).to.exist;pm.expect(arr[0].userFullName).to.exist;});"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/absences?from=2026-12-01&to=2026-12-31","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","absences"],"query":[{"key":"from","value":"2026-12-01"},{"key":"to","value":"2026-12-31"}]}}
+        },
+        {
+          "name": "GET rango sin solapes -> 200 array vacio",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('array vacio',()=>{const arr=pm.response.json();pm.expect(arr).to.be.an('array');pm.expect(arr.length).to.equal(0);});"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/absences?from=2099-01-01&to=2099-01-31","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","absences"],"query":[{"key":"from","value":"2099-01-01"},{"key":"to","value":"2099-01-31"}]}}
+        },
+        {
+          "name": "GET un solo dia (from=to) -> 200",
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","pm.test('array',()=>pm.expect(pm.response.json()).to.be.an('array'));"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/absences?from=2026-12-10&to=2026-12-10","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","absences"],"query":[{"key":"from","value":"2026-12-10"},{"key":"to","value":"2026-12-10"}]}}
+        },
+        {
+          "name": "GET sin parametro from -> 400",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/absences?to=2026-12-31","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","absences"],"query":[{"key":"to","value":"2026-12-31"}]}}
+        },
+        {
+          "name": "GET sin parametro to -> 400",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/absences?from=2026-12-01","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","absences"],"query":[{"key":"from","value":"2026-12-01"}]}}
+        },
+        {
+          "name": "GET formato de fecha invalido -> 400",
+          "event": [{"listen":"test","script":{"exec":["pm.test('400',()=>pm.response.to.have.status(400));"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/absences?from=01-12-2026&to=2026-12-31","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","absences"],"query":[{"key":"from","value":"01-12-2026"},{"key":"to","value":"2026-12-31"}]}}
+        },
+        {
+          "name": "GET businessId distinto al del token -> 403 (TenantGuardFilter corta antes de @Positive)",
+          "event": [{"listen":"test","script":{"exec":["pm.test('403',()=>pm.response.to.have.status(403));","pm.test('mensaje de tenant guard',()=>pm.expect(pm.response.json().message).to.include('otro negocio'));"]}}],
+          "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/businesses/0/absences?from=2026-12-01&to=2026-12-31","host":["{{baseUrl}}"],"path":["api","businesses","0","absences"],"query":[{"key":"from","value":"2026-12-01"},{"key":"to","value":"2026-12-31"}]}}
+        },
+        {
+          "name": "GET sin token -> 401",
+          "event": [{"listen":"test","script":{"exec":["pm.test('401',()=>pm.response.to.have.status(401));"]}}],
+          "request": {"method":"GET","header":[{"key":"Authorization","value":"","disabled":false}],"auth":{"type":"noauth"},"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/absences?from=2026-12-01&to=2026-12-31","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","absences"],"query":[{"key":"from","value":"2026-12-01"},{"key":"to","value":"2026-12-31"}]}}
+        }
+      ]
+    },
+    {
       "name": "09 - clients",
       "item": [
         {

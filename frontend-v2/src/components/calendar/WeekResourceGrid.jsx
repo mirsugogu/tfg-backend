@@ -25,6 +25,8 @@ export function WeekResourceGrid({
   blocks = [],         // schedule_blocks aplicables al rango visible
   resourceType = null, // 'employee' | 'booth' | null
   absences = [],       // ausencias del rango; solo se pintan en columnas de empleado
+  onDropAppointment,   // drag-and-drop: callback al soltar una cita en otra sub-columna
+  appointmentInterval = 30, // snap del drag al intervalo del negocio
 }) {
   const ws = startOfWeek(cursor)
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(ws); d.setDate(ws.getDate() + i); return d })
@@ -142,7 +144,17 @@ export function WeekResourceGrid({
                       ? absences.filter((ab) => ab.membershipId === c.id)
                       : []
                     return (
-                      <div key={c.id} className="relative border-r border-slate-300 last:border-r-0">
+                      <div
+                        key={c.id}
+                        data-cal-cell
+                        data-day={dayKey}
+                        data-resource-type={resourceType || 'none'}
+                        data-resource-id={c.id}
+                        data-hour-px={hourPx}
+                        data-day-start={dayStart}
+                        data-interval={appointmentInterval}
+                        className="relative border-r border-slate-300 last:border-r-0"
+                      >
                         <HourSlots
                           dayKey={dayKey}
                           onSlotClick={onSlotClick}
@@ -165,6 +177,7 @@ export function WeekResourceGrid({
                             key={a.id}
                             appt={a}
                             onClick={onSelectEvent}
+                            onDrop={onDropAppointment}
                             col={col}
                             cols={c2}
                             colorBy={colorBy}

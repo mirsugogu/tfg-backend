@@ -21,6 +21,8 @@ export function ResourceDayGrid({
   blocks = [],         // schedule_blocks aplicables al rango visible
   resourceType = null, // 'employee' | 'booth' | null
   absences = [],       // ausencias del rango; solo se pintan en columnas de empleado
+  onDropAppointment,   // drag-and-drop: callback al soltar una cita en otra sub-columna
+  appointmentInterval = 30, // snap del drag al intervalo del negocio
 }) {
   const dayKey = keyOf(cursor)
   const dayEvents = eventsByDay.get(dayKey) || []
@@ -71,7 +73,16 @@ export function ResourceDayGrid({
                         {col.events.length}
                       </span>
                     </div>
-                    <div className="relative">
+                    <div
+                      data-cal-cell
+                      data-day={dayKey}
+                      data-resource-type={resourceType || 'none'}
+                      data-resource-id={col.id}
+                      data-hour-px={hourPx}
+                      data-day-start={dayStart}
+                      data-interval={appointmentInterval}
+                      className="relative"
+                    >
                       {(() => {
                         const cellBlocks = col.id === '__none__'
                           ? blocksForCell(blocks, cursor)
@@ -105,6 +116,7 @@ export function ResourceDayGrid({
                                 key={a.id}
                                 appt={a}
                                 onClick={onSelectEvent}
+                                onDrop={onDropAppointment}
                                 col={c}
                                 cols={cols}
                                 colorBy={colorBy}

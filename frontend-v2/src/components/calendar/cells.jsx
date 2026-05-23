@@ -10,6 +10,7 @@ import { Ban, Clock, User, MapPin, Scissors } from 'lucide-react'
 import { pad2, minutesOf, apptDuration, apptHHMM, styleFor, labelForBlock } from './utils'
 import { dotClassFromColorAndId } from '@/lib/employeeColor'
 import { totalBooked } from '@/lib/format'
+import { useDragAppointment } from './drag'
 
 /*
  * useApptHover — hook que gestiona el hover de un evento del calendario.
@@ -145,7 +146,12 @@ export function HourSlots({
 }) {
   const hours = []
   for (let h = dayStart; h < dayEnd; h++) hours.push(h)
-  const isClosed = (h) => closedRanges.some(([s, e]) => h < s || h >= e)
+  // Una hora se considera cerrada si NO cae dentro de ningun tramo
+  // abierto. La invariante funciona con 0, 1 o N tramos (turno partido):
+  // - 0 tramos -> some() false sobre array vacio -> todo cerrado.
+  // - 1 tramo  -> equivalente a la version anterior.
+  // - N tramos -> abierta si esta dentro de cualquiera de ellos.
+  const isClosed = (h) => !closedRanges.some(([s, e]) => h >= s && h < e)
   return (
     <>
       {hours.map((h, idx) => {
@@ -319,7 +325,7 @@ export function NowLine({ now, dayStart, dayEnd, hourPx }) {
 const POS_EVENT_TEXT_HEIGHT      = 28
 const POS_EVENT_TWO_LINES_HEIGHT = 44
 
-export function PositionedEvent({ appt, onClick, col, cols, colorBy, dayStart, hourPx }) {
+export function PositionedEvent({ appt, onClick, onDrop, col, cols, colorBy, dayStart, hourPx }) {
   const topPx = ((minutesOf(appt.startDateTime) - dayStart * 60) / 60) * hourPx
   // Sin "- 4": el bloque ocupa el alto completo de su franja horaria.
   const heightPx = Math.max(22, (apptDuration(appt) / 60) * hourPx)
@@ -337,10 +343,28 @@ export function PositionedEvent({ appt, onClick, col, cols, colorBy, dayStart, h
   // en `filtered`. El title nativo se mantiene como fallback de a11y.
   const hover = useApptHover(appt, appt.employeeColor)
 
+  // Drag-and-drop (Fase D): solo activo si el padre proporciona onDrop y la
+  // cita no esta en estado terminal. Las citas COMPLETED/CANCELLED/NO_SHOW
+  // no se arrastran porque el backend ya las rechazaria con 400 al editar.
+  const isDraggable = Boolean(onDrop) && !isTerminal
+  const drag = useDragAppointment({
+    appt,
+    isDraggable,
+    onClick: (a) => onClick?.(a),
+    onDrop,
+  })
+
   return (
     <>
       <button
-        onClick={(e) => { e.stopPropagation(); onClick(appt) }}
+        onPointerDown={(e) => {
+          // preventDefault evita el click sintetico posterior al pointerup;
+          // el hook re-emite el click manualmente si no hubo drag, asi se
+          // controla con precision si abrir el detalle o disparar el drop.
+          e.preventDefault()
+          e.stopPropagation()
+          drag.onPointerDown(e)
+        }}
         onMouseEnter={hover.onMouseEnter}
         onMouseLeave={hover.onMouseLeave}
         aria-label={label}
@@ -348,7 +372,7 @@ export function PositionedEvent({ appt, onClick, col, cols, colorBy, dayStart, h
           top: `${topPx}px`, height: `${heightPx}px`,
           left: `${col * widthPct}%`, width: `${widthPct}%`,
         }}
-        className={`absolute z-20 ${s.dot} ring-1 ring-black/10 overflow-hidden transition hover:brightness-110 text-left ${isInProgress ? 'animate-pulse' : ''} ${isTerminal ? 'opacity-60' : ''}`}
+        className={`absolute z-20 ${s.dot} ring-1 ring-black/10 overflow-hidden transition hover:brightness-110 text-left ${isInProgress ? 'animate-pulse' : ''} ${isTerminal ? 'opacity-60' : ''} ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
       >
         {showText && (
           <div className="flex flex-col h-full px-1.5 py-0.5 text-white leading-tight">
@@ -363,6 +387,7 @@ export function PositionedEvent({ appt, onClick, col, cols, colorBy, dayStart, h
           </div>
         )}
       </button>
+      {drag.ghostEl}
       {hover.tooltip}
     </>
   )

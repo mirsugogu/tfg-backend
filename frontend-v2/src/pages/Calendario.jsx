@@ -4,6 +4,7 @@ import {
   Palette, SlidersHorizontal, X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { Modal } from '@/components/ui/Modal'
 import { AppointmentWizard } from '@/components/appointments/AppointmentWizard'
 import { AppointmentDetailModal } from '@/components/appointments/AppointmentDetailModal'
 import { useAuth } from '@/context/AuthContext'
@@ -91,6 +92,9 @@ export default function Calendario() {
   // visible. Se piden filtradas por rango al endpoint dedicado para no
   // traer toda la historia del negocio.
   const [absences, setAbsences] = useState([])
+  // appointmentInterval del negocio (15/30/45/60). Lo usa el drag para
+  // snapear la hora de drop al multiplo correcto.
+  const [appointmentInterval, setAppointmentInterval] = useState(30)
 
   useEffect(() => {
     if (!bId) return
@@ -99,7 +103,8 @@ export default function Calendario() {
       api.get(`/api/businesses/${bId}/booths?size=100`),
       api.get(`/api/businesses/${bId}/hours`),
       api.get(`/api/businesses/${bId}/schedule-blocks?size=100`),
-    ]).then(([emp, bo, hrs, blks]) => {
+      api.get(`/api/businesses/${bId}`),
+    ]).then(([emp, bo, hrs, blks, biz]) => {
       if (emp.status === 'fulfilled') setEmployees(emp.value.data.content ?? [])
       if (bo.status  === 'fulfilled') setBooths(bo.value.data.content ?? [])
       if (hrs.status === 'fulfilled') {
@@ -107,6 +112,7 @@ export default function Calendario() {
         setBusinessHours(data)
       }
       if (blks.status === 'fulfilled') setScheduleBlocks(blks.value.data.content ?? [])
+      if (biz.status === 'fulfilled') setAppointmentInterval(biz.value.data?.appointmentInterval ?? 30)
     })
   }, [bId, reloadFlag])
 
@@ -259,6 +265,11 @@ export default function Calendario() {
      modal cede el flujo al wizard al pulsar "Editar cita". */
   const [wizard, setWizard] = useState({ open: false, date: null, time: null, appt: null })
   const [detailAppt, setDetailAppt] = useState(null)
+  // Drag-and-drop: cuando el usuario suelta una cita en otro slot/recurso,
+  // se guarda aqui la pre-vista del cambio y el modal pide confirmacion.
+  // Si confirma -> PUT al endpoint de edicion (P9). Si cancela -> nada.
+  const [pendingDrop, setPendingDrop] = useState(null)
+  const [droppingSaving, setDroppingSaving] = useState(false)
   const openWizard = useCallback((date = null, time = null) => setWizard({ open: true, date, time, appt: null }), [])
   const closeWizard = useCallback(() => setWizard({ open: false, date: null, time: null, appt: null }), [])
 
@@ -275,6 +286,50 @@ export default function Calendario() {
     () => absenceForAppointment(absences, detailAppt),
     [absences, detailAppt],
   )
+
+  // Drag-and-drop: arma el `pendingDrop` con la info que mostrará el modal
+  // de confirmacion. El handler decide si el drop cambio algo (mismo slot
+  // y mismo recurso = no hace nada).
+  const handleDropAppointment = useCallback(({ appt, newStartDateTime, newResourceType, newResourceId }) => {
+    if (!appt) return
+    // Calcular nuevos membershipId / boothId segun el tipo de la celda destino.
+    const newMembershipId = newResourceType === 'employee'
+      ? (newResourceId ?? appt.membershipId)
+      : appt.membershipId
+    const newBoothId = newResourceType === 'booth'
+      ? newResourceId
+      : appt.boothId
+    // Si nada cambio (drop en el mismo slot y mismo recurso), salir sin
+    // pedir confirmacion ni hacer PUT.
+    if (newStartDateTime === appt.startDateTime?.slice(0, 19)
+        && newMembershipId === appt.membershipId
+        && (newBoothId ?? null) === (appt.boothId ?? null)) {
+      return
+    }
+    setPendingDrop({ appt, newStartDateTime, newMembershipId, newBoothId })
+  }, [])
+
+  const confirmDrop = useCallback(async () => {
+    if (!pendingDrop) return
+    const { appt, newStartDateTime, newMembershipId, newBoothId } = pendingDrop
+    setDroppingSaving(true)
+    try {
+      await api.put(`/api/businesses/${bId}/appointments/${appt.id}`, {
+        membershipId: newMembershipId,
+        boothId: newBoothId ?? null,
+        startDateTime: newStartDateTime,
+        serviceIds: (appt.bookedServices ?? []).map((b) => b.serviceId),
+        notes: appt.notes ?? null,
+      })
+      toast({ type: 'success', message: 'Cita reagendada.' })
+      setPendingDrop(null)
+      refetch()
+    } catch (err) {
+      toast({ type: 'error', message: getErrorMessage(err, 'No se pudo reagendar la cita.') })
+    } finally {
+      setDroppingSaving(false)
+    }
+  }, [pendingDrop, bId, toast, refetch])
 
   const openEditWizard = useCallback((appt) => {
     const block = blockForAppointment(blocksInRange, appt)
@@ -499,6 +554,8 @@ export default function Calendario() {
             unassignedShort="S/C"
             blocks={blocksInRange}
             resourceType="booth"
+            onDropAppointment={handleDropAppointment}
+            appointmentInterval={appointmentInterval}
           />
         ) : view === 'Semana' && groupBy === 'employee' ? (
           <WeekResourceGrid
@@ -512,6 +569,8 @@ export default function Calendario() {
             blocks={blocksInRange}
             resourceType="employee"
             absences={absences}
+            onDropAppointment={handleDropAppointment}
+            appointmentInterval={appointmentInterval}
           />
         ) : view === 'Semana' ? (
           <WeekGrid
@@ -520,6 +579,8 @@ export default function Calendario() {
             dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
             businessHours={businessHours} now={now}
             blocks={blocksInRange}
+            onDropAppointment={handleDropAppointment}
+            appointmentInterval={appointmentInterval}
           />
         ) : groupBy === 'booth' ? (
           <ResourceDayGrid
@@ -532,6 +593,8 @@ export default function Calendario() {
             unassignedLabel="Sin cabina"
             blocks={blocksInRange}
             resourceType="booth"
+            onDropAppointment={handleDropAppointment}
+            appointmentInterval={appointmentInterval}
           />
         ) : groupBy === 'employee' ? (
           <ResourceDayGrid
@@ -545,6 +608,8 @@ export default function Calendario() {
             blocks={blocksInRange}
             resourceType="employee"
             absences={absences}
+            onDropAppointment={handleDropAppointment}
+            appointmentInterval={appointmentInterval}
           />
         ) : (
           <DayGrid
@@ -553,6 +618,8 @@ export default function Calendario() {
             statusLabel={statusLabel} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
             businessHours={businessHours} now={now}
             blocks={blocksInRange}
+            onDropAppointment={handleDropAppointment}
+            appointmentInterval={appointmentInterval}
           />
         )}
       </div>
@@ -576,7 +643,85 @@ export default function Calendario() {
         appliedAbsence={detailApptAbsence}
         employeeColor={detailAppt?.employeeColor}
       />
+
+      <ConfirmDropModal
+        pending={pendingDrop}
+        employeeResources={employeeResources}
+        boothResources={boothResources}
+        saving={droppingSaving}
+        onCancel={() => setPendingDrop(null)}
+        onConfirm={confirmDrop}
+      />
     </div>
+  )
+}
+
+/* ============================================================
+   MODAL DE CONFIRMACION DEL DRAG-AND-DROP
+   ============================================================
+   El usuario arrastra una cita y la suelta en otro slot/recurso. Antes
+   de hacer el PUT pedimos confirmacion porque mover una cita es una
+   accion destructiva (sobreescribe membershipId, boothId y la hora). El
+   componente formatea las diferencias en lenguaje natural ("X -> Y") y
+   solo muestra las filas que realmente cambian. */
+function ConfirmDropModal({ pending, employeeResources, boothResources, saving, onCancel, onConfirm }) {
+  if (!pending) return null
+  const { appt, newStartDateTime, newMembershipId, newBoothId } = pending
+
+  const oldDate = new Date(appt.startDateTime)
+  const newDate = new Date(newStartDateTime)
+  const fmtDate = (d) => d.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' })
+  const fmtTime = (d) => d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+
+  const findEmp = (id) => employeeResources.find((r) => r.id === id)?.name ?? 'Sin empleado'
+  const findBoo = (id) => id == null ? 'Sin cabina' : (boothResources.find((r) => r.id === id)?.name ?? 'Sin cabina')
+
+  const empChanged = newMembershipId !== appt.membershipId
+  const booChanged = (newBoothId ?? null) !== (appt.boothId ?? null)
+  const dateChanged = oldDate.toDateString() !== newDate.toDateString()
+  const timeChanged = oldDate.getTime() !== newDate.getTime()
+
+  return (
+    <Modal open onClose={saving ? () => {} : onCancel} title="Mover cita" size="sm">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600">
+          Vas a reagendar la cita de <strong>{appt.clientName ?? 'el cliente'}</strong>.
+          La cita conserva sus servicios y notas; solo cambia lo que se muestra abajo.
+        </p>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+          {(dateChanged || timeChanged) && (
+            <div className="flex items-baseline justify-between gap-3 py-1">
+              <span className="text-slate-500">Cuándo</span>
+              <span className="font-medium text-[#1e3a5f] tabular-nums">
+                {fmtDate(oldDate)} {fmtTime(oldDate)} <span className="text-slate-400">→</span> {fmtDate(newDate)} {fmtTime(newDate)}
+              </span>
+            </div>
+          )}
+          {empChanged && (
+            <div className="flex items-baseline justify-between gap-3 py-1">
+              <span className="text-slate-500">Empleado</span>
+              <span className="font-medium text-[#1e3a5f]">
+                {findEmp(appt.membershipId)} <span className="text-slate-400">→</span> {findEmp(newMembershipId)}
+              </span>
+            </div>
+          )}
+          {booChanged && (
+            <div className="flex items-baseline justify-between gap-3 py-1">
+              <span className="text-slate-500">Cabina</span>
+              <span className="font-medium text-[#1e3a5f]">
+                {findBoo(appt.boothId)} <span className="text-slate-400">→</span> {findBoo(newBoothId)}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button variant="ghost" onClick={onCancel} disabled={saving}>Cancelar</Button>
+          <Button onClick={onConfirm} disabled={saving}>
+            {saving ? 'Moviendo…' : 'Confirmar'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 
@@ -695,7 +840,7 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
   )
 }
 
-function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotClick, dayStart, dayEnd, hourPx, businessHours, now, blocks = [] }) {
+function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotClick, dayStart, dayEnd, hourPx, businessHours, now, blocks = [], onDropAppointment, appointmentInterval = 30 }) {
   const ws = startOfWeek(cursor)
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(ws); d.setDate(ws.getDate() + i); return d })
   return (
@@ -721,11 +866,20 @@ function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotCl
                   <span className={`text-[10px] uppercase tracking-wider font-semibold ${i >= 5 ? 'text-blue-600' : 'text-slate-500'}`}>{DAYS_ES_SHORT[i]}</span>
                   <span className={`inline-flex items-center justify-center min-w-[22px] h-6 px-1.5 rounded-full text-xs font-bold ${isToday ? 'bg-gradient-to-br from-cyan-500 to-blue-500 text-white' : 'text-[#1e3a5f]'}`}>{d.getDate()}</span>
                 </div>
-                <div className="relative">
+                <div
+                  data-cal-cell
+                  data-day={dayKey}
+                  data-resource-type="none"
+                  data-resource-id="__none__"
+                  data-hour-px={hourPx}
+                  data-day-start={dayStart}
+                  data-interval={appointmentInterval}
+                  className="relative"
+                >
                   <HourSlots dayKey={dayKey} onSlotClick={onSlotClick} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} closedRanges={openRanges}
                              isBlocked={dayIsBlocked} blockedReason={dayBlockLabel} />
                   {laidOut.map(({ a, col, cols }) => (
-                    <PositionedEvent key={a.id} appt={a} onClick={onSelectEvent} col={col} cols={cols} colorBy={colorBy} dayStart={dayStart} hourPx={hourPx} />
+                    <PositionedEvent key={a.id} appt={a} onClick={onSelectEvent} onDrop={onDropAppointment} col={col} cols={cols} colorBy={colorBy} dayStart={dayStart} hourPx={hourPx} />
                   ))}
                   {isToday && <NowLine now={now} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} />}
                   <BlockOverlay blocks={dayBlocks} />
@@ -739,7 +893,7 @@ function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotCl
   )
 }
 
-function DayGrid({ cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick, statusLabel, dayStart, dayEnd, hourPx, businessHours, now, blocks = [] }) {
+function DayGrid({ cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick, statusLabel, dayStart, dayEnd, hourPx, businessHours, now, blocks = [], onDropAppointment, appointmentInterval = 30 }) {
   const dayKey = keyOf(cursor)
   const dayEvents = eventsByDay.get(dayKey) || []
   const sorted = [...dayEvents].sort((a, b) => minutesOf(a.startDateTime) - minutesOf(b.startDateTime))
@@ -759,11 +913,20 @@ function DayGrid({ cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick, sta
         <div className="overflow-auto" style={{ maxHeight: '64vh' }}>
           <div className="flex">
             <HourColumn withHeader={false} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} />
-            <div className="flex-1 relative">
+            <div
+              data-cal-cell
+              data-day={dayKey}
+              data-resource-type="none"
+              data-resource-id="__none__"
+              data-hour-px={hourPx}
+              data-day-start={dayStart}
+              data-interval={appointmentInterval}
+              className="flex-1 relative"
+            >
               <HourSlots dayKey={dayKey} onSlotClick={onSlotClick} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} closedRanges={openRanges}
                          isBlocked={dayIsBlocked} blockedReason={dayBlockLabel} />
               {laidOut.map(({ a, col, cols }) => (
-                <PositionedEvent key={a.id} appt={a} onClick={onSelectEvent} col={col} cols={cols} colorBy={colorBy} dayStart={dayStart} hourPx={hourPx} />
+                <PositionedEvent key={a.id} appt={a} onClick={onSelectEvent} onDrop={onDropAppointment} col={col} cols={cols} colorBy={colorBy} dayStart={dayStart} hourPx={hourPx} />
               ))}
               {isToday && <NowLine now={now} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} />}
               <BlockOverlay blocks={dayBlocks} />
