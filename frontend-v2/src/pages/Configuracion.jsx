@@ -678,59 +678,71 @@ function HoursTab({ bId, isAdmin }) {
         <div className={`${CARD} p-5 space-y-2`}>{[...Array(7)].map((_, i) => <div key={i} className="h-8 bg-slate-100 rounded-md animate-pulse" />)}</div>
       ) : (
         <div className={`${CARD} p-5`}>
+          {/*
+              Aplanado del listado a un solo array. Mismo motivo que en
+              Empleados.ScheduleGrid: con un nested [1..7].map(d => rows.map(...))
+              React no encontraba key estable a nivel de dia y, al borrar
+              el primer tramo de un dia con turno partido, la etiqueta
+              DAYS[d] (que dependia del idx local del sub-map) se
+              desplazaba al tramo siguiente. flatMap + isFirstOfDay por
+              item arregla el reciclaje.
+          */}
           <div className="space-y-2">
-            {[1, 2, 3, 4, 5, 6, 7].map((d) => {
-              // Turno partido: un negocio puede tener varios tramos el mismo dia
-              // (p.ej. 10-14 + 16-20). Se renderiza una fila por tramo (no una
-              // por dia); los dias sin ningun tramo muestran una unica fila
-              // "Sin configurar". Mismo patron que Empleados.ScheduleGrid.
+            {[1, 2, 3, 4, 5, 6, 7].flatMap((d) => {
               const dayHours = (hours ?? [])
-                .filter((h) => h.dayOfWeek === d)
+                .filter((hh) => hh.dayOfWeek === d)
                 .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
-              const isToday = (new Date().getDay() === 0 ? 7 : new Date().getDay()) === d
-              const rows = dayHours.length ? dayHours : [null]
-              return rows.map((h, idx) => {
-                let bar
-                if (h && !h.isClosed && h.startTime && h.endTime) {
-                  const [sh, sm] = h.startTime.slice(0, 5).split(':').map(Number)
-                  const [eh, em] = h.endTime.slice(0, 5).split(':').map(Number)
-                  const startH = sh + sm / 60 - DAY_START
-                  const endH   = eh + em / 60 - DAY_START
-                  const left   = Math.max(0, (startH / total) * 100)
-                  const width  = Math.max(2, ((endH - startH) / total) * 100)
-                  bar = (
-                    <div
-                      className="absolute inset-y-1 rounded-md flex items-center px-2 text-[10px] font-semibold text-white"
-                      style={{ left: `${left}%`, width: `${width}%`, background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)' }}
-                    >
-                      {h.startTime.slice(0, 5)} – {h.endTime.slice(0, 5)}
-                    </div>
-                  )
-                } else if (h && h.isClosed) {
-                  bar = <div className="absolute inset-y-2 left-1 right-1 rounded-md bg-slate-50 text-[10px] font-medium text-slate-400 flex items-center justify-center">Cerrado</div>
-                } else {
-                  bar = <div className="absolute inset-y-2 left-1 right-1 rounded-md border border-dashed border-slate-200 text-[10px] font-medium text-slate-400 flex items-center justify-center">Sin configurar</div>
-                }
-                return (
-                  <div key={h ? `h-${h.id}` : `empty-${d}`} className="grid grid-cols-[80px_1fr_64px] items-center gap-2">
-                    <div className={`text-xs font-bold ${isToday ? 'text-blue-600' : 'text-[#1e3a5f]'}`}>
-                      {idx === 0 ? DAYS[d] : ''}
-                    </div>
-                    <div className="relative h-8 rounded-md bg-slate-50 border border-slate-100">{bar}</div>
-                    <div className="flex gap-0.5 justify-end">
-                      {h && isAdmin && (
-                        <>
-                          <button onClick={() => openEdit(h)} className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition" title="Editar"><Pencil size={12} /></button>
-                          <button onClick={() => openDelete(h)} className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 transition" title="Eliminar"><Trash2 size={12} /></button>
-                        </>
-                      )}
-                      {!h && isAdmin && (
-                        <button onClick={() => { setForm({ ...emptyHour, dayOfWeek: String(d) }); setModal('create') }} className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition" title="Añadir"><Plus size={12} /></button>
-                      )}
-                    </div>
+              if (dayHours.length === 0) {
+                return [{ key: `empty-${d}`, h: null, day: d, isFirstOfDay: true }]
+              }
+              return dayHours.map((hh, idx) => ({
+                key: `h-${hh.id}`,
+                h: hh,
+                day: d,
+                isFirstOfDay: idx === 0,
+              }))
+            }).map(({ key, h, day, isFirstOfDay }) => {
+              const isToday = (new Date().getDay() === 0 ? 7 : new Date().getDay()) === day
+              let bar
+              if (h && !h.isClosed && h.startTime && h.endTime) {
+                const [sh, sm] = h.startTime.slice(0, 5).split(':').map(Number)
+                const [eh, em] = h.endTime.slice(0, 5).split(':').map(Number)
+                const startH = sh + sm / 60 - DAY_START
+                const endH   = eh + em / 60 - DAY_START
+                const left   = Math.max(0, (startH / total) * 100)
+                const width  = Math.max(2, ((endH - startH) / total) * 100)
+                bar = (
+                  <div
+                    className="absolute inset-y-1 rounded-md flex items-center px-2 text-[10px] font-semibold text-white"
+                    style={{ left: `${left}%`, width: `${width}%`, background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)' }}
+                  >
+                    {h.startTime.slice(0, 5)} – {h.endTime.slice(0, 5)}
                   </div>
                 )
-              })
+              } else if (h && h.isClosed) {
+                bar = <div className="absolute inset-y-2 left-1 right-1 rounded-md bg-slate-50 text-[10px] font-medium text-slate-400 flex items-center justify-center">Cerrado</div>
+              } else {
+                bar = <div className="absolute inset-y-2 left-1 right-1 rounded-md border border-dashed border-slate-200 text-[10px] font-medium text-slate-400 flex items-center justify-center">Sin configurar</div>
+              }
+              return (
+                <div key={key} className="grid grid-cols-[80px_1fr_64px] items-center gap-2">
+                  <div className={`text-xs font-bold ${isToday ? 'text-blue-600' : 'text-[#1e3a5f]'}`}>
+                    {isFirstOfDay ? DAYS[day] : ''}
+                  </div>
+                  <div className="relative h-8 rounded-md bg-slate-50 border border-slate-100">{bar}</div>
+                  <div className="flex gap-0.5 justify-end">
+                    {h && isAdmin && (
+                      <>
+                        <button onClick={() => openEdit(h)} className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition" title="Editar"><Pencil size={12} /></button>
+                        <button onClick={() => openDelete(h)} className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 transition" title="Eliminar"><Trash2 size={12} /></button>
+                      </>
+                    )}
+                    {!h && isAdmin && (
+                      <button onClick={() => { setForm({ ...emptyHour, dayOfWeek: String(day) }); setModal('create') }} className="rounded p-1 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition" title="Añadir"><Plus size={12} /></button>
+                    )}
+                  </div>
+                </div>
+              )
             })}
           </div>
           <div className="grid grid-cols-[80px_1fr_64px] gap-2 mt-3">
