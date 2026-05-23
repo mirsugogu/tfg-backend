@@ -203,6 +203,19 @@ export default function Calendario() {
     return scheduleBlocks.filter((b) => b.endDate >= r.from && b.startDate <= r.to)
   }, [scheduleBlocks, view, cursor])
 
+  // Fetch de ausencias del negocio que solapan con el rango visible. El
+  // endpoint dedicado ya devuelve solo las que aplican, asi que no hace
+  // falta filtro extra en el cliente.
+  useEffect(() => {
+    if (!bId) return
+    let cancelled = false
+    const r = rangeFor(view, cursor)
+    api.get(`/api/businesses/${bId}/absences`, { params: { from: r.from, to: r.to } })
+      .then((res) => { if (!cancelled) setAbsences(res.data ?? []) })
+      .catch(() => { if (!cancelled) setAbsences([]) })
+    return () => { cancelled = true }
+  }, [bId, view, cursor, reloadFlag])
+
   // Stats del rango activo
   const rangeStats = useMemo(() => {
     const considered = filtered.filter((a) => a.statusName !== 'CANCELLED' && a.statusName !== 'NO_SHOW')
