@@ -8,7 +8,7 @@ import { useMemo } from 'react'
 import {
   PALETTES, GRAY_PALETTE, paletteByName,
   keyOf, isSameDay, layoutEvents, openRangesFor,
-  blocksForCell,
+  blocksForCell, labelForBlock,
 } from './utils'
 import { HourColumn, HourSlots, NowLine, PositionedEvent, EventChip, BlockOverlay } from './cells'
 
@@ -71,31 +71,40 @@ export function ResourceDayGrid({
                       </span>
                     </div>
                     <div className="relative">
-                      <HourSlots
-                        dayKey={dayKey}
-                        onSlotClick={onSlotClick}
-                        dayStart={dayStart}
-                        dayEnd={dayEnd}
-                        hourPx={hourPx}
-                        closedRanges={openRanges}
-                      />
-                      {laidOut.map(({ a, col: c, cols }) => (
-                        <PositionedEvent
-                          key={a.id}
-                          appt={a}
-                          onClick={onSelectEvent}
-                          col={c}
-                          cols={cols}
-                          colorBy={colorBy}
-                          dayStart={dayStart}
-                          hourPx={hourPx}
-                        />
-                      ))}
-                      <BlockOverlay
-                        blocks={col.id === '__none__'
+                      {(() => {
+                        const cellBlocks = col.id === '__none__'
                           ? blocksForCell(blocks, cursor)
-                          : blocksForCell(blocks, cursor, resourceType, col.id)}
-                      />
+                          : blocksForCell(blocks, cursor, resourceType, col.id)
+                        const cellIsBlocked = cellBlocks.length > 0
+                        const cellBlockLabel = cellIsBlocked ? labelForBlock(cellBlocks[0]) : null
+                        return (
+                          <>
+                            <HourSlots
+                              dayKey={dayKey}
+                              onSlotClick={onSlotClick}
+                              dayStart={dayStart}
+                              dayEnd={dayEnd}
+                              hourPx={hourPx}
+                              closedRanges={openRanges}
+                              isBlocked={cellIsBlocked}
+                              blockedReason={cellBlockLabel}
+                            />
+                            {laidOut.map(({ a, col: c, cols }) => (
+                              <PositionedEvent
+                                key={a.id}
+                                appt={a}
+                                onClick={onSelectEvent}
+                                col={c}
+                                cols={cols}
+                                colorBy={colorBy}
+                                dayStart={dayStart}
+                                hourPx={hourPx}
+                              />
+                            ))}
+                            <BlockOverlay blocks={cellBlocks} />
+                          </>
+                        )
+                      })()}
                     </div>
                   </div>
                 )

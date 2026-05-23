@@ -24,7 +24,10 @@ export function HourColumn({ withHeader = true, dayStart, dayEnd, hourPx }) {
   )
 }
 
-export function HourSlots({ dayKey, onSlotClick, dayStart, dayEnd, hourPx, closedRanges }) {
+export function HourSlots({
+  dayKey, onSlotClick, dayStart, dayEnd, hourPx, closedRanges,
+  isBlocked = false, blockedReason = null,
+}) {
   const hours = []
   for (let h = dayStart; h < dayEnd; h++) hours.push(h)
   const isClosed = (h) => closedRanges.some(([s, e]) => h < s || h >= e)
@@ -34,13 +37,27 @@ export function HourSlots({ dayKey, onSlotClick, dayStart, dayEnd, hourPx, close
         const closed = isClosed(h)
         // Zebra sutil para escanear filas; bordes Excel-style (slate-300).
         const zebra = idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white'
+        // Una franja "fuera de horario" sigue siendo no clickable. Una franja
+        // dentro de un bloqueo (festivo / vacaciones / mantenimiento) tampoco
+        // debe permitir crear cita: lo mismo que el backend devuelve con
+        // validateNoScheduleBlock (409), pero anticipado en la UI.
+        const inactive = closed || isBlocked
+        const title = closed ? 'Fuera de horario'
+                    : isBlocked ? (blockedReason || 'Tramo bloqueado: no se pueden crear citas')
+                    : 'Crear cita a esta hora'
         return (
           <div
             key={h}
-            onClick={() => !closed && onSlotClick(dayKey, h)}
+            onClick={() => !inactive && onSlotClick(dayKey, h)}
             style={{ height: hourPx }}
-            className={`border-b border-slate-300 relative ${closed ? 'bg-slate-200/60 cursor-not-allowed' : `${zebra} hover:bg-blue-50/60 cursor-pointer`}`}
-            title={closed ? 'Fuera de horario' : 'Crear cita a esta hora'}
+            className={`border-b border-slate-300 relative ${
+              closed
+                ? 'bg-slate-200/60 cursor-not-allowed'
+                : isBlocked
+                  ? 'cursor-not-allowed'
+                  : `${zebra} hover:bg-blue-50/60 cursor-pointer`
+            }`}
+            title={title}
           >
             <div className="absolute left-0 right-0 border-t border-dashed border-slate-300" style={{ top: hourPx / 2 }} />
           </div>
@@ -54,12 +71,13 @@ export function HourSlots({ dayKey, onSlotClick, dayStart, dayEnd, hourPx, close
  * BlockOverlay — capa visual que cubre la rejilla horaria de un día (o una
  * sub-columna en las vistas resource) cuando hay un schedule_block aplicable.
  *
- * Diseño: trama diagonal sutil + icono Ban + reason del bloqueo, sobre fondo
- * rose con baja opacidad para que el patrón de la rejilla siga visible.
- * pointer-events-none deja pasar los clicks a HourSlots: el filtro de
- * "fuera de horario" sigue funcionando, pero al renderizar antes del overlay
- * el toast del backend (validateNoScheduleBlock) sigue siendo la última red
- * de seguridad si alguien intenta crear cita en un slot bloqueado.
+ * Diseño: trama diagonal + icono Ban + reason del bloqueo, sobre fondo rose
+ * con baja opacidad para que el patrón de la rejilla siga visible.
+ *
+ * Comportamiento: captura los clicks (cursor not-allowed) y stopea su
+ * propagacion para que no abran el wizard ni naveguen al día. HourSlots
+ * tambien valida `isBlocked` internamente; el overlay es la red de defensa
+ * superior y el backend (validateNoScheduleBlock) sigue siendo la última.
  *
  * blocks: array de schedule_blocks aplicables a esta celda; si esta vacio,
  *         no se renderiza nada. El primero manda la etiqueta visible.
@@ -69,16 +87,17 @@ export function BlockOverlay({ blocks }) {
   const label = labelForBlock(blocks[0])
   return (
     <div
-      className="absolute inset-0 z-10 flex items-start justify-center pt-2 pointer-events-none"
+      onClick={(e) => e.stopPropagation()}
+      className="absolute inset-0 z-10 flex items-start justify-center pt-2 cursor-not-allowed"
       style={{
         backgroundColor: 'rgba(244, 63, 94, 0.10)',
         backgroundImage:
           'repeating-linear-gradient(45deg, rgba(244,63,94,0.18) 0 6px, transparent 6px 14px)',
       }}
+      title={label}
     >
       <span
         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-600/90 text-white text-[10px] font-bold uppercase tracking-wider shadow"
-        title={label}
       >
         <Ban size={10} />
         <span className="truncate max-w-[120px]">{label}</span>

@@ -11,7 +11,7 @@
 import {
   PALETTES, GRAY_PALETTE, DAYS_ES_SHORT, paletteByName,
   keyOf, isSameDay, layoutEvents, openRangesFor, startOfWeek,
-  blocksForCell,
+  blocksForCell, labelForBlock,
 } from './utils'
 import { HourColumn, HourSlots, NowLine, PositionedEvent, BlockOverlay } from './cells'
 
@@ -116,6 +116,8 @@ export function WeekResourceGrid({
                     const cellBlocks = c.id === '__none__'
                       ? blocksForCell(blocks, d)
                       : blocksForCell(blocks, d, resourceType, c.id)
+                    const cellIsBlocked = cellBlocks.length > 0
+                    const cellBlockLabel = cellIsBlocked ? labelForBlock(cellBlocks[0]) : null
                     return (
                       <div key={c.id} className="relative border-r border-slate-300 last:border-r-0">
                         <HourSlots
@@ -125,6 +127,8 @@ export function WeekResourceGrid({
                           dayEnd={dayEnd}
                           hourPx={hourPx}
                           closedRanges={openRanges}
+                          isBlocked={cellIsBlocked}
+                          blockedReason={cellBlockLabel}
                         />
                         {laidOut.map(({ a, col, cols: c2 }) => (
                           <PositionedEvent

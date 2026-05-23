@@ -530,7 +530,7 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
             <div
               key={idx}
               onClick={() => onOpenDay(date)}
-              className={`group relative min-h-[120px] p-2 cursor-pointer transition ${inMonth ? 'bg-white hover:bg-blue-50/40' : 'bg-slate-50/60 hover:bg-slate-50'} ${hasBlock ? 'ring-1 ring-inset ring-rose-200' : ''}`}
+              className={`group relative min-h-[120px] p-2 transition ${inMonth ? 'bg-white hover:bg-blue-50/40' : 'bg-slate-50/60 hover:bg-slate-50'} ${hasBlock ? 'ring-1 ring-inset ring-rose-200 cursor-not-allowed' : 'cursor-pointer'}`}
               title={hasBlock ? labelForBlock(uniqueDayBlocks[0]) : 'Ver el día'}
               style={hasBlock ? { backgroundImage: 'repeating-linear-gradient(45deg, rgba(244,63,94,0.08) 0 6px, transparent 6px 14px)' } : undefined}
             >
@@ -540,14 +540,19 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
                     ? 'bg-gradient-to-br from-cyan-500 to-blue-500 text-white shadow-[0_4px_10px_-2px_rgba(14,165,233,0.55)]'
                     : inMonth ? 'text-[#1e3a5f]' : 'text-slate-400'
                 }`}>{date.getDate()}</div>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onCellClick(keyOf(date)) }}
-                  title="Crear cita este día"
-                  className="opacity-0 group-hover:opacity-100 text-blue-500 hover:bg-blue-100 rounded p-0.5 transition"
-                >
-                  <Plus size={14} />
-                </button>
+                {/* El boton "+" desaparece si el dia tiene un bloqueo
+                    aplicable: no tiene sentido invitar a crear cita
+                    cuando el backend (y los overlays) lo rechazarian. */}
+                {!hasBlock && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onCellClick(keyOf(date)) }}
+                    title="Crear cita este día"
+                    className="opacity-0 group-hover:opacity-100 text-blue-500 hover:bg-blue-100 rounded p-0.5 transition"
+                  >
+                    <Plus size={14} />
+                  </button>
+                )}
               </div>
               <div className="mt-1.5 space-y-1">
                 {hasBlock && (
@@ -596,6 +601,8 @@ function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotCl
             // bloqueo por empleado o por cabina. Los parciales se ven en
             // la vista Semana agrupada por recurso.
             const dayBlocks = blocksForCell(blocks, d)
+            const dayIsBlocked = dayBlocks.length > 0
+            const dayBlockLabel = dayIsBlocked ? labelForBlock(dayBlocks[0]) : null
             return (
               <div key={i} className="relative border-r-2 border-slate-300 last:border-r-0">
                 <div className={`h-10 border-b-2 border-slate-300 flex items-center justify-center gap-2 sticky top-0 z-10 ${isToday ? 'bg-blue-100' : 'bg-white'}`}>
@@ -603,7 +610,8 @@ function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotCl
                   <span className={`inline-flex items-center justify-center min-w-[22px] h-6 px-1.5 rounded-full text-xs font-bold ${isToday ? 'bg-gradient-to-br from-cyan-500 to-blue-500 text-white' : 'text-[#1e3a5f]'}`}>{d.getDate()}</span>
                 </div>
                 <div className="relative">
-                  <HourSlots dayKey={dayKey} onSlotClick={onSlotClick} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} closedRanges={openRanges} />
+                  <HourSlots dayKey={dayKey} onSlotClick={onSlotClick} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} closedRanges={openRanges}
+                             isBlocked={dayIsBlocked} blockedReason={dayBlockLabel} />
                   {laidOut.map(({ a, col, cols }) => (
                     <PositionedEvent key={a.id} appt={a} onClick={onSelectEvent} col={col} cols={cols} colorBy={colorBy} dayStart={dayStart} hourPx={hourPx} />
                   ))}
@@ -630,6 +638,8 @@ function DayGrid({ cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick, sta
   // sub-columnas para los bloqueos por recurso, que se ven al pasar a
   // agrupacion por cabina/empleado).
   const dayBlocks = blocksForCell(blocks, cursor)
+  const dayIsBlocked = dayBlocks.length > 0
+  const dayBlockLabel = dayIsBlocked ? labelForBlock(dayBlocks[0]) : null
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 p-5">
@@ -638,7 +648,8 @@ function DayGrid({ cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick, sta
           <div className="flex">
             <HourColumn withHeader={false} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} />
             <div className="flex-1 relative">
-              <HourSlots dayKey={dayKey} onSlotClick={onSlotClick} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} closedRanges={openRanges} />
+              <HourSlots dayKey={dayKey} onSlotClick={onSlotClick} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} closedRanges={openRanges}
+                         isBlocked={dayIsBlocked} blockedReason={dayBlockLabel} />
               {laidOut.map(({ a, col, cols }) => (
                 <PositionedEvent key={a.id} appt={a} onClick={onSelectEvent} col={col} cols={cols} colorBy={colorBy} dayStart={dayStart} hourPx={hourPx} />
               ))}
