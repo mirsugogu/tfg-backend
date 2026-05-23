@@ -4,8 +4,123 @@
  * sidebar). Estilo tipo hoja de cálculo: bordes slate-300, zebra sutil
  * cada hora, slots cerrados con fondo gris pleno.
  */
-import { Ban } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { Ban, Clock, User, MapPin, Scissors } from 'lucide-react'
 import { pad2, minutesOf, apptDuration, apptHHMM, styleFor, labelForBlock } from './utils'
+import { dotClassFromColorAndId } from '@/lib/employeeColor'
+import { totalBooked } from '@/lib/format'
+
+/*
+ * useApptHover — hook que gestiona el hover de un evento del calendario.
+ *
+ * Devuelve los handlers para enganchar a un boton y un elemento JSX listo
+ * para inyectar (el portal del tooltip si esta visible, null si no).
+ *
+ * - delay de 250 ms al entrar: evita parpadeos cuando el cursor recorre
+ *   varias citas al scrollear.
+ * - inmediato al salir: no se queda colgado.
+ * - guarda el getBoundingClientRect del propio boton para anclar la
+ *   tarjeta sin necesidad de seguir el cursor.
+ */
+function useApptHover(appt, employeeColor) {
+  const [rect, setRect] = useState(null)
+  const timerRef = useRef(null)
+  useEffect(() => () => clearTimeout(timerRef.current), [])
+  const onMouseEnter = (e) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => setRect(r), 250)
+  }
+  const onMouseLeave = () => {
+    clearTimeout(timerRef.current)
+    setRect(null)
+  }
+  const tooltip = rect ? (
+    <ApptHoverCard appt={appt} anchorRect={rect} employeeColor={employeeColor} />
+  ) : null
+  return { onMouseEnter, onMouseLeave, tooltip }
+}
+
+/*
+ * ApptHoverCard — tarjeta flotante con el resumen de una cita.
+ *
+ * Se renderiza con createPortal sobre <body> para no quedar recortada por
+ * el overflow-auto del calendario. Se ancla a la derecha del boton si cabe
+ * en la viewport; si no, a la izquierda. Vertical: se intenta alinear al
+ * top del boton, sin pasarse de los limites de la ventana.
+ *
+ * Contenido: cliente, hora, empleado con su punto de color, cabina si
+ * aplica, lista de servicios, estado y total. pointer-events-none para no
+ * interferir con clicks fuera del propio tooltip.
+ */
+function ApptHoverCard({ appt, anchorRect, employeeColor }) {
+  const CARD_W = 280
+  const CARD_H_ESTIMATED = 220
+  const margin = 8
+  const showRight = anchorRect.right + CARD_W + margin <= window.innerWidth
+  const left = showRight
+    ? anchorRect.right + margin
+    : Math.max(margin, anchorRect.left - CARD_W - margin)
+  const top = Math.max(
+    margin,
+    Math.min(anchorRect.top, window.innerHeight - CARD_H_ESTIMATED - margin),
+  )
+  const empDot = dotClassFromColorAndId(employeeColor, appt.membershipId)
+  const services = appt.bookedServices ?? []
+  const total = services.length ? totalBooked(services) : null
+
+  return createPortal(
+    <div
+      style={{ position: 'fixed', top, left, width: CARD_W, zIndex: 60 }}
+      className="pointer-events-none rounded-2xl bg-white border border-slate-200 shadow-[0_12px_40px_-8px_rgba(15,23,42,0.25)] p-4 text-left"
+    >
+      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cliente</p>
+      <p className="text-sm font-bold text-[#1e3a5f] truncate">{appt.clientName}</p>
+
+      <div className="mt-3 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1.5 text-xs text-slate-600">
+        <Clock size={12} className="text-slate-400 mt-0.5" />
+        <span className="tabular-nums">
+          {apptHHMM(appt.startDateTime)} – {apptHHMM(appt.endDateTime)}
+        </span>
+
+        <span className="flex items-center justify-center w-3 mt-0.5">
+          <span className={`w-2 h-2 rounded-full ${empDot}`} aria-hidden />
+        </span>
+        <span className="truncate">
+          <User size={11} className="inline -mt-0.5 mr-1 text-slate-400" />
+          {appt.userFullName}
+        </span>
+
+        {appt.boothName && (
+          <>
+            <MapPin size={12} className="text-slate-400 mt-0.5" />
+            <span className="truncate">{appt.boothName}</span>
+          </>
+        )}
+
+        {services.length > 0 && (
+          <>
+            <Scissors size={12} className="text-slate-400 mt-0.5" />
+            <span className="truncate" title={services.map((s) => s.serviceName).join(', ')}>
+              {services.map((s) => s.serviceName).join(' + ')}
+            </span>
+          </>
+        )}
+      </div>
+
+      <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+        <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10px]">
+          {appt.statusName}
+        </span>
+        {total != null && (
+          <span className="font-bold text-[#1e3a5f] tabular-nums">{total} €</span>
+        )}
+      </div>
+    </div>,
+    document.body,
+  )
+}
 
 export function HourColumn({ withHeader = true, dayStart, dayEnd, hourPx }) {
   const hours = []
@@ -149,30 +264,39 @@ export function PositionedEvent({ appt, onClick, col, cols, colorBy, dayStart, h
   const showText     = heightPx >= POS_EVENT_TEXT_HEIGHT
   const showTwoLines = heightPx >= POS_EVENT_TWO_LINES_HEIGHT
 
+  // Tooltip rico (G): aprovecha el employeeColor que Calendario enriquece
+  // en `filtered`. El title nativo se mantiene como fallback de a11y.
+  const hover = useApptHover(appt, appt.employeeColor)
+
   return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onClick(appt) }}
-      title={label}
-      aria-label={label}
-      style={{
-        top: `${topPx}px`, height: `${heightPx}px`,
-        left: `${col * widthPct}%`, width: `${widthPct}%`,
-      }}
-      className={`absolute z-20 ${s.dot} ring-1 ring-black/10 overflow-hidden transition hover:brightness-110 text-left ${isInProgress ? 'animate-pulse' : ''} ${isTerminal ? 'opacity-60' : ''}`}
-    >
-      {showText && (
-        <div className="flex flex-col h-full px-1.5 py-0.5 text-white leading-tight">
-          {showTwoLines && (
-            <span className="text-[10px] font-bold tabular-nums opacity-90">
-              {startHHMM}
+    <>
+      <button
+        onClick={(e) => { e.stopPropagation(); onClick(appt) }}
+        onMouseEnter={hover.onMouseEnter}
+        onMouseLeave={hover.onMouseLeave}
+        title={label}
+        aria-label={label}
+        style={{
+          top: `${topPx}px`, height: `${heightPx}px`,
+          left: `${col * widthPct}%`, width: `${widthPct}%`,
+        }}
+        className={`absolute z-20 ${s.dot} ring-1 ring-black/10 overflow-hidden transition hover:brightness-110 text-left ${isInProgress ? 'animate-pulse' : ''} ${isTerminal ? 'opacity-60' : ''}`}
+      >
+        {showText && (
+          <div className="flex flex-col h-full px-1.5 py-0.5 text-white leading-tight">
+            {showTwoLines && (
+              <span className="text-[10px] font-bold tabular-nums opacity-90">
+                {startHHMM}
+              </span>
+            )}
+            <span className={`text-[11px] font-semibold truncate ${isTerminal ? 'line-through' : ''}`}>
+              {appt.clientName}
             </span>
-          )}
-          <span className={`text-[11px] font-semibold truncate ${isTerminal ? 'line-through' : ''}`}>
-            {appt.clientName}
-          </span>
-        </div>
-      )}
-    </button>
+          </div>
+        )}
+      </button>
+      {hover.tooltip}
+    </>
   )
 }
 
@@ -189,29 +313,42 @@ export function EventChip({ appt, onClick, colorBy, variant = 'list' }) {
   const isInProgress = appt.statusName === 'IN_PROGRESS'
   const isTerminal = appt.statusName === 'CANCELLED' || appt.statusName === 'NO_SHOW'
   const label = `${appt.clientName} · ${apptHHMM(appt.startDateTime)}–${apptHHMM(appt.endDateTime)} · ${appt.userFullName}${appt.boothName ? ' · ' + appt.boothName : ''}`
+  // Tooltip rico tambien en los chips (Mes y sidebar): la informacion del
+  // bloque pequeno es limitada, asi que el hover aporta especialmente.
+  const hover = useApptHover(appt, appt.employeeColor)
 
   if (variant === 'grid') {
     return (
-      <button
-        onClick={(e) => { e.stopPropagation(); onClick(appt) }}
-        title={label}
-        aria-label={label}
-        className={`w-full ${s.bg} ${s.hover} ${s.text} px-1.5 py-1 text-[10px] font-bold tabular-nums text-left leading-tight transition ${isInProgress ? 'ring-1 ring-cyan-400 animate-pulse' : ''} ${isTerminal ? 'line-through opacity-60' : ''}`}
-      >
-        {apptHHMM(appt.startDateTime)}
-      </button>
+      <>
+        <button
+          onClick={(e) => { e.stopPropagation(); onClick(appt) }}
+          onMouseEnter={hover.onMouseEnter}
+          onMouseLeave={hover.onMouseLeave}
+          title={label}
+          aria-label={label}
+          className={`w-full ${s.bg} ${s.hover} ${s.text} px-1.5 py-1 text-[10px] font-bold tabular-nums text-left leading-tight transition ${isInProgress ? 'ring-1 ring-cyan-400 animate-pulse' : ''} ${isTerminal ? 'line-through opacity-60' : ''}`}
+        >
+          {apptHHMM(appt.startDateTime)}
+        </button>
+        {hover.tooltip}
+      </>
     )
   }
 
   return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onClick(appt) }}
-      title={label}
-      className={`w-full flex items-center gap-1.5 ${s.bg} ${s.hover} ${s.text} text-[11px] font-medium rounded-md px-1.5 py-1 text-left transition ${isInProgress ? 'ring-1 ring-cyan-300 animate-pulse' : ''} ${isTerminal ? 'line-through opacity-60' : ''}`}
-    >
-      <span className={`w-0.5 self-stretch ${s.bar} rounded-full shrink-0`} />
-      <span className="truncate flex-1">{appt.clientName}</span>
-      <span className="text-[10px] opacity-70 hidden xl:inline">{apptHHMM(appt.startDateTime)}</span>
-    </button>
+    <>
+      <button
+        onClick={(e) => { e.stopPropagation(); onClick(appt) }}
+        onMouseEnter={hover.onMouseEnter}
+        onMouseLeave={hover.onMouseLeave}
+        title={label}
+        className={`w-full flex items-center gap-1.5 ${s.bg} ${s.hover} ${s.text} text-[11px] font-medium rounded-md px-1.5 py-1 text-left transition ${isInProgress ? 'ring-1 ring-cyan-300 animate-pulse' : ''} ${isTerminal ? 'line-through opacity-60' : ''}`}
+      >
+        <span className={`w-0.5 self-stretch ${s.bar} rounded-full shrink-0`} />
+        <span className="truncate flex-1">{appt.clientName}</span>
+        <span className="text-[10px] opacity-70 hidden xl:inline">{apptHHMM(appt.startDateTime)}</span>
+      </button>
+      {hover.tooltip}
+    </>
   )
 }
