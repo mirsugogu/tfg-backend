@@ -6,6 +6,7 @@ import com.optima.api.common.security.JwtAuthenticationFilter;
 import com.optima.api.common.security.RateLimitFilter;
 import com.optima.api.common.security.TenantGuardFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -165,26 +166,32 @@ public class SecurityConfig {
      * bean, los defaults de Spring Security son "no allowedOrigins", asi que
      * los preflight OPTIONS de browsers se bloquearian antes de llegar a MVC.
      *
-     * Antes (commit 6afcb91 "cablear CORS al SecurityFilterChain") las reglas
-     * vivian en WebConfig.addCorsMappings, pero esa via solo aplica al
-     * dispatcher MVC, no a la cadena de Security. Ahora SecurityConfig es la
-     * unica fuente de verdad y WebConfig deja de existir.
-     *
      * Decisiones:
-     *   allowedOrigins("*")       acceso desde cualquier origen; aceptable
-     *                             porque allowCredentials=false (no se envia
-     *                             el JWT ni cookies cross-origin de forma
-     *                             implicita). Si el frontend necesitara
-     *                             cookies, habria que enumerar origenes
-     *                             concretos.
-     *   allowedMethods            verbos REST que el API expone.
-     *   allowedHeaders("*")       el cliente puede mandar cualquier header
-     *                             (Content-Type, Authorization).
+     *   allowedOrigins           lista enumerada (sin comodin) tomada de
+     *                            app.cors.allowed-origins en application.properties
+     *                            (sobreescribible con la env var
+     *                            CORS_ALLOWED_ORIGINS). El fallback de dev
+     *                            cubre tanto el frontend web (Vite) como la
+     *                            WebView de la app movil empaquetada con
+     *                            Capacitor. En produccion AWS la env var
+     *                            apunta al dominio publico real.
+     *                            Externalizar el dominio del frontend evita
+     *                            acoplarlo al binario (patron 12-factor).
+     *   allowedMethods           verbos REST que el API expone.
+     *   allowedHeaders("*")      el cliente puede mandar cualquier header
+     *                            (Content-Type, Authorization).
+     *   allowCredentials(false)  el JWT viaja en el header Authorization,
+     *                            no como cookie; no hacen falta credenciales
+     *                            implicitas cross-origin.
+     *
+     * El @Value en el parametro lo resuelve Spring al instanciar el bean:
+     * la cadena separada por comas se convierte automaticamente en List<String>.
      */
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource corsConfigurationSource(
+            @Value("${app.cors.allowed-origins}") List<String> allowedOrigins) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("*"));
+        config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(false);

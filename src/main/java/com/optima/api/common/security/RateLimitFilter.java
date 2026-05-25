@@ -38,8 +38,10 @@ import java.util.function.Supplier;
  * pueda ejecutarse entera sin choque artificial, manteniendo defensa
  * contra abuso):
  * 
- *   - POST /api/auth/token: 20 intentos / minuto / IP.
- *       Mitiga brute-force de credenciales.
+ *   - POST /api/auth/token: 10 intentos / minuto / IP.
+ *       Mitiga brute-force de credenciales. Limite agresivo: con 10/min
+ *       un atacante consigue ~600 intentos/h por IP, muy por debajo del
+ *       espacio de password tipico.
  *   - POST /api/auth/register: 20 intentos / hora / IP.
  *       Frena registro masivo de negocios fake.
  *   - POST /api/auth/forgot-password: 10 / hora / IP.
@@ -71,9 +73,9 @@ import java.util.function.Supplier;
 @RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    /** 20 intentos por minuto contra /api/auth/token. */
+    /** 10 intentos por minuto contra /api/auth/token. */
     private static final Supplier<Bucket> LOGIN_BUCKET = () -> Bucket.builder()
-            .addLimit(Bandwidth.classic(20, Refill.intervally(20, Duration.ofMinutes(1))))
+            .addLimit(Bandwidth.classic(10, Refill.intervally(10, Duration.ofMinutes(1))))
             .build();
 
     /** 20 intentos por hora contra /api/auth/register. */
