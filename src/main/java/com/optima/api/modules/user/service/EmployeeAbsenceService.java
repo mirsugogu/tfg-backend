@@ -38,8 +38,8 @@ import java.util.List;
  * compatibilidad con los paths existentes; internamente es el id de la
  * membership.
  *
- * Validacion de overlap: al crear, comprueba que el rango no se solapa
- * con otra ausencia ya registrada de la misma membership
+ * Validacion de overlap: al crear y actualizar, comprueba que el rango no
+ * se solapa con otra ausencia ya registrada de la misma membership
  * (regla A < D AND C < B).
  */
 @Service
@@ -129,15 +129,16 @@ public class EmployeeAbsenceService {
      * 404 si la ausencia no pertenece al empleado/negocio; 400 si
      * startDateTime >= endDateTime.
      *
-     * Nota: NO revalida overlap con otras ausencias (decision: el
-     * overlap se chequea solo al crear; un update puede ampliar/reducir
-     * un rango ya conocido sin friccion).
+     * Tambien valida que el nuevo rango no se solape con otra ausencia de
+     * la misma membership, excluyendo la propia ausencia que se edita.
      */
     public EmployeeAbsenceResponse update(Long businessId, Long userId, Long id, UpdateEmployeeAbsenceRequest request) {
         ensureMembershipOfBusiness(businessId, userId);
         validateRange(request.startDateTime(), request.endDateTime());
 
         EmployeeAbsence a = findOrThrow(userId, id);
+        validateNoOverlap(userId, request.startDateTime(), request.endDateTime(), id);
+
         a.setStartDateTime(request.startDateTime());
         a.setEndDateTime(request.endDateTime());
         a.setReason(normalize(request.reason()));
@@ -183,7 +184,25 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Normaliza un motivo opcional: si llega vacío o solo espacios, lo
+     * Valida que el rango no solape con otras ausencias de la membership.
+     */
+    private void validateNoOverlap(Long membershipId,
+                                   LocalDateTime startDateTime,
+                                   LocalDateTime endDateTime,
+                                   Long excludeId) {
+        List<EmployeeAbsence> existingAbsences = absenceRepository.findAllByMembershipId(membershipId);
+        for (EmployeeAbsence existing : existingAbsences) {
+            if (excludeId != null && excludeId.equals(existing.getId())) continue;
+            if (startDateTime.isBefore(existing.getEndDateTime())
+                    && endDateTime.isAfter(existing.getStartDateTime())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "El empleado ya tiene una ausencia en ese rango de fechas");
+            }
+        }
+    }
+
+    /**
+     * Normaliza un motivo opcional: si llega vacio o solo espacios, lo
      * almacena como null.
      */
     private String normalize(String value) {

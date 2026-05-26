@@ -40,8 +40,9 @@ import java.util.List;
  * romper los paths ya estables (/api/businesses/{id}/users/{userId}/schedules),
  * pero internamente es el id de la membership.
  *
- * Validacion de overlap dentro del mismo dia: al crear, comprueba que el
- * nuevo tramo no se solapa con otros de la misma (membership, dayOfWeek).
+ * Validacion de overlap dentro del mismo dia: al crear y actualizar,
+ * comprueba que el nuevo tramo no se solapa con otros de la misma
+ * (membership, dayOfWeek).
  */
 @Service
 @Transactional
@@ -121,15 +122,16 @@ public class EmployeeScheduleService {
      * 404 si el tramo no pertenece al empleado/negocio; 400 si
      * startTime >= endTime.
      *
-     * Nota: NO revalida overlap con otros tramos (decision: el overlap
-     * se chequea solo al crear; el ADMIN modifica con intencion y puede
-     * borrar + crear si necesita rearmar el cuadro).
+     * Tambien valida que el nuevo rango no se solape con otro tramo del
+     * mismo dia, excluyendo el propio tramo que se esta editando.
      */
     public EmployeeScheduleResponse update(Long businessId, Long userId, Long id, UpdateEmployeeScheduleRequest request) {
         ensureMembershipOfBusiness(businessId, userId);
         validateHours(request.startTime(), request.endTime());
 
         EmployeeSchedule s = findOrThrow(userId, id);
+        validateNoOverlap(userId, request.dayOfWeek(), request.startTime(), request.endTime(), id);
+
         s.setDayOfWeek(request.dayOfWeek());
         s.setStartTime(request.startTime());
         s.setEndTime(request.endTime());
@@ -171,6 +173,21 @@ public class EmployeeScheduleService {
         if (!startTime.isBefore(endTime)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "La hora de inicio debe ser anterior a la hora de fin");
+        }
+    }
+
+    private void validateNoOverlap(Long membershipId, Integer dayOfWeek,
+                                   LocalTime startTime, LocalTime endTime,
+                                   Long excludeId) {
+        List<EmployeeSchedule> existingSchedules = scheduleRepository
+                .findAllByMembershipIdAndDayOfWeek(membershipId, dayOfWeek);
+        for (EmployeeSchedule existing : existingSchedules) {
+            if (excludeId != null && excludeId.equals(existing.getId())) continue;
+            if (startTime.isBefore(existing.getEndTime())
+                    && endTime.isAfter(existing.getStartTime())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "El empleado ya tiene un tramo en ese horario para ese día");
+            }
         }
     }
 }

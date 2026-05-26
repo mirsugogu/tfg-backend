@@ -28,8 +28,8 @@ import java.util.List;
  * - Devuelve: BusinessHourResponse.
  *
  * Turno partido (P1-negocio): un mismo dia puede tener varios tramos
- * (10-14 + 16-20). La no-superposicion se valida en create con el mismo
- * patron A<D AND C<B que EmployeeScheduleService.
+ * (10-14 + 16-20). La no-superposicion se valida en create/update con el
+ * mismo patron A<D AND C<B que EmployeeScheduleService.
  *
  * Helper applyHours(): centraliza la coherencia entre isClosed y las
  * horas (si cerrado -> horas null; si abierto -> ambas obligatorias y
@@ -88,13 +88,15 @@ public class BusinessHourService {
      * Sustituye dia, hora de inicio y hora de fin de un tramo existente.
      * 404 si el tramo no pertenece al negocio.
      *
-     * Nota: simetria con EmployeeScheduleService.update — NO revalida overlap
-     * con otros tramos (decision: el overlap se chequea solo al crear; el
-     * ADMIN modifica con intencion y puede borrar + crear si necesita rearmar
-     * el cuadro).
+     * Tambien valida que el nuevo rango no se solape
+     * con otros tramos abiertos del mismo dia, excluyendo el propio tramo.
      */
     public BusinessHourResponse update(Long businessId, Long id, UpdateBusinessHourRequest request) {
         BusinessHour bh = findOrThrow(businessId, id);
+
+        validateNoOverlap(businessId, request.dayOfWeek(),
+                request.isClosed(), request.startTime(), request.endTime(),
+                id);
 
         bh.setDayOfWeek(request.dayOfWeek());
         applyHours(bh, request.isClosed(), request.startTime(), request.endTime());
@@ -118,10 +120,8 @@ public class BusinessHourService {
      * Regla de solape (mismas semanticas que EmployeeScheduleService):
      *   nuevo.start < existente.end AND nuevo.end > existente.start
      *
-     * @param excludeId  id a excluir del check (util al actualizar, aunque
-     *                   por simetria con EmployeeScheduleService el update
-     *                   actual no usa este metodo; queda preparado por si
-     *                   en el futuro se quiere revalidar).
+     * @param excludeId  id a excluir del check (util al actualizar para no
+     *                   detectar el propio tramo como solape).
      */
     private void validateNoOverlap(Long businessId, Integer dayOfWeek,
                                    Boolean isClosed, LocalTime startTime, LocalTime endTime,
