@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Optima</string>
+    <string name="title_activity_main">Optima</string>
+    <string name="package_name">com.optima.app</string>
+    <string name="custom_url_scheme">com.optima.app</string>
+</resources>
