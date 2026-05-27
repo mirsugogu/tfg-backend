@@ -53,10 +53,11 @@ export function Modal({ open, onClose, title, children, size = 'md' }) {
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cn(
-          // max-h + flex-col: el panel nunca supera el 90% del alto de la
-          // ventana; si el contenido es más alto, el cuerpo hace scroll en
-          // lugar de salirse de la pantalla (crítico en móvil y pantallas bajas).
-          'relative flex max-h-[90vh] w-full flex-col rounded-2xl bg-white shadow-[0_20px_60px_-10px_rgba(15,23,42,0.25)] animate-in fade-in zoom-in-95 duration-200 focus:outline-none',
+          // max-h + flex-col: el panel nunca supera el 90% del alto VISIBLE de
+          // la ventana (dvh, no vh — descuenta la barra del navegador móvil);
+          // si el contenido es más alto, el cuerpo hace scroll en lugar de
+          // salirse de la pantalla (crítico en móvil y pantallas bajas).
+          'relative flex max-h-[90dvh] w-full flex-col rounded-2xl bg-white shadow-[0_20px_60px_-10px_rgba(15,23,42,0.25)] animate-in fade-in zoom-in-95 duration-200 focus:outline-none',
           sizes[size]
         )}
       >

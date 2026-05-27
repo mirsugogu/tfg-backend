@@ -48,7 +48,7 @@ export function WeekResourceGrid({
   const minTotalWidth = 56 /* hour col */ + 7 * nCols * SUB_COL_MIN
 
   return (
-    <div className="overflow-auto" style={{ maxHeight: '72vh' }}>
+    <div className="overflow-auto" style={{ maxHeight: '72dvh' }}>
       <div className="flex" style={{ minWidth: minTotalWidth }}>
         {/* HourColumn con cabecera doble (40 + 28) para alinear con cuerpo */}
         <div className="w-14 shrink-0">

@@ -70,7 +70,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
         className={cn(
           // La clase `sidebar` la usa el @media print del Calendario para
           // ocultar la barra lateral al imprimir la agenda.
-          'sidebar flex h-screen flex-col bg-[#1e3a5f] transition-all duration-200',
+          'sidebar flex h-[100dvh] flex-col bg-[#1e3a5f] transition-all duration-200',
           // Movil: drawer fijo, fuera de pantalla; entra deslizando
           'fixed inset-y-0 left-0 z-40 w-64',
           mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full',

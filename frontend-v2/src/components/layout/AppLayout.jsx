@@ -13,7 +13,7 @@ export function AppLayout() {
   if (!user) return <Navigate to="/login" replace />
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f4f7fe]">
+    <div className="flex h-[100dvh] overflow-hidden bg-[#f4f7fe]">
       <Sidebar mobileOpen={mobileOpen} onMobileClose={closeMobile} />
 
       <div className="flex flex-1 flex-col overflow-hidden">

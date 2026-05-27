@@ -823,7 +823,7 @@ function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotCl
   const ws = startOfWeek(cursor)
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(ws); d.setDate(ws.getDate() + i); return d })
   return (
-    <div className="overflow-auto" style={{ maxHeight: '68vh' }}>
+    <div className="overflow-auto" style={{ maxHeight: '68dvh' }}>
       <div className="flex min-w-[720px]">
         <HourColumn dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} />
         <div className="flex-1 grid grid-cols-7">
@@ -890,7 +890,7 @@ function DayGrid({ cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick, sta
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 p-5">
       <div className="border border-slate-100 rounded-2xl overflow-hidden">
-        <div className="overflow-auto" style={{ maxHeight: '64vh' }}>
+        <div className="overflow-auto" style={{ maxHeight: '64dvh' }}>
           <div className="flex">
             <HourColumn withHeader={false} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} />
             <div
@@ -1040,7 +1040,7 @@ function FiltersBar({
         {open && (
           <div
             ref={popRef}
-            className="absolute left-0 top-[calc(100%+8px)] z-30 w-[320px] bg-white rounded-2xl border border-slate-200 shadow-[0_20px_50px_-10px_rgba(15,23,42,0.18)] p-4"
+            className="absolute left-0 top-[calc(100%+8px)] z-30 w-[320px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl border border-slate-200 shadow-[0_20px_50px_-10px_rgba(15,23,42,0.18)] p-4"
           >
             <div className="space-y-4">
               <FilterRow label="Empleado">

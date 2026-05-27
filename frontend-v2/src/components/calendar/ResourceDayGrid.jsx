@@ -47,7 +47,7 @@ export function ResourceDayGrid({
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-5 p-5">
       <div className="border border-slate-100 rounded-2xl overflow-hidden">
-        <div className="overflow-auto" style={{ maxHeight: '68vh' }}>
+        <div className="overflow-auto" style={{ maxHeight: '68dvh' }}>
           <div className="flex" style={{ minWidth: 56 + columns.length * 160 }}>
             <HourColumn dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} />
             <div className="relative flex-1 grid" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(140px, 1fr))` }}>
