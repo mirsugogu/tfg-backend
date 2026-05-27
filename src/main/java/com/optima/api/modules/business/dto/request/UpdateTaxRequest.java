@@ -12,10 +12,6 @@ import java.math.BigDecimal;
  * UpdateTaxRequest - DTO para PUT /api/businesses/{id}/taxes/{id}.
  *
  * Mismo contrato que CreateTaxRequest.
- *
- * COMUNICACION:
- * - Lo deserializa Jackson, lo valida @Valid en TaxController.update.
- * - Lo consume TaxService.update.
  */
 public record UpdateTaxRequest(
 

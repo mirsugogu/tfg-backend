@@ -11,11 +11,6 @@ import java.util.Optional;
 /**
  * TaxRepository - Acceso a la tabla `taxes`.
  *
- * COMUNICACION:
- * - Lo inyectan: TaxService, BusinessServiceService (cross-tenant del
- *   impuesto al crear/editar un servicio del catalogo).
- * - Habla con: MySQL via Hibernate.
- *
  * Multi-tenant via findByIdAndBusinessId, igual que el resto.
  */
 @Repository

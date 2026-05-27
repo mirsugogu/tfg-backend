@@ -151,6 +151,7 @@ export function HourColumn({ withHeader = true, dayStart, dayEnd, hourPx }) {
 
 export function HourSlots({
   dayKey, onSlotClick, dayStart, dayEnd, hourPx, closedRanges,
+  workingRanges = null,
   isBlocked = false, blockedReason = null,
 }) {
   const hours = []
@@ -160,11 +161,20 @@ export function HourSlots({
   // - 0 tramos -> some() false sobre array vacio -> todo cerrado.
   // - 1 tramo  -> equivalente a la version anterior.
   // - N tramos -> abierta si esta dentro de cualquiera de ellos.
-  const isClosed = (h) => !closedRanges.some(([s, e]) => h >= s && h < e)
+  const inRange = (h, ranges) => ranges.some(([s, e]) => h >= s && h < e)
+  const closedByBusiness  = (h) => !inRange(h, closedRanges)
+  // Si la celda pertenece a una columna de empleado y se ha proporcionado
+  // su horario semanal, una hora dentro del horario del negocio pero
+  // fuera del tramo del empleado (descanso para comer, turno partido) se
+  // considera tambien cerrada. Sin workingRanges, esta condicion no
+  // aplica y la rejilla se comporta como antes.
+  const closedByEmployee  = (h) => workingRanges != null && !inRange(h, workingRanges)
   return (
     <>
       {hours.map((h, idx) => {
-        const closed = isClosed(h)
+        const byBusiness = closedByBusiness(h)
+        const byEmployee = !byBusiness && closedByEmployee(h)
+        const closed = byBusiness || byEmployee
         // Zebra sutil para escanear filas; bordes Excel-style (slate-300).
         const zebra = idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white'
         // Una franja "fuera de horario" sigue siendo no clickable. Una franja
@@ -172,7 +182,8 @@ export function HourSlots({
         // debe permitir crear cita: lo mismo que el backend devuelve con
         // validateNoScheduleBlock (409), pero anticipado en la UI.
         const inactive = closed || isBlocked
-        const title = closed ? 'Fuera de horario'
+        const title = byBusiness ? 'Fuera de horario'
+                    : byEmployee ? 'Fuera del horario del empleado'
                     : isBlocked ? (blockedReason || 'Tramo bloqueado: no se pueden crear citas')
                     : 'Crear cita a esta hora'
         return (

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Plus, Search, Pencil, Trash2, Phone, Mail, Shield, User,
   Calendar, Clock, UserMinus, Users, X, RefreshCw, ChevronRight, ArchiveRestore,
+  ArrowRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input, INPUT_SANITIZE } from '@/components/ui/Input'
@@ -76,14 +78,16 @@ const todayDow = () => {
 
 const telHref = (phone) => 'tel:' + String(phone || '').replace(/\s/g, '')
 
-/* ============================================================
-   EMPLEADOS — Lista
-   ============================================================ */
-
+/**
+ * Listado de empleados del negocio activo (memberships con rol
+ * EMPLOYEE), con atajos al detalle del empleado, su horario semanal y
+ * sus ausencias.
+ */
 export default function Empleados() {
   const { user } = useAuth()
   const { roles, roleLabel } = useCatalog()
   const toast = useToast()
+  const navigate = useNavigate()
   const bId = user?.businessId
   const isAdmin = user?.role === 'ADMIN'
 
@@ -567,12 +571,11 @@ export default function Empleados() {
               <UserMinus size={20} className="text-rose-600 shrink-0 mt-0.5" />
               <div className="text-sm text-rose-800 leading-snug space-y-1.5">
                 <p>
-                  <strong>{selected?.fullName}</strong> tiene <strong>{upcomingInfo.count} cita{upcomingInfo.count === 1 ? '' : 's'}</strong> de hoy en adelante.
+                  <strong>{selected?.fullName}</strong> tiene <strong>{upcomingInfo.count} cita{upcomingInfo.count === 1 ? '' : 's'}</strong> pendiente{upcomingInfo.count === 1 ? '' : 's'}.
                 </p>
                 <p className="text-rose-700">
-                  Al desactivarlo no podrá iniciar sesión ni asignarse a nuevas citas. Las existentes
-                  <strong> no se cancelan automáticamente</strong>: revísalas en <em>Citas</em>
-                  (filtra por este empleado) y decide si reasignarlas o cancelarlas.
+                  No se puede archivar a un empleado con citas activas: <strong>cancélalas o reasígnalas</strong> antes
+                  de archivarlo. Pulsa <em>Ver citas</em> para revisarlas con el filtro ya aplicado.
                 </p>
               </div>
             </div>
@@ -591,15 +594,31 @@ export default function Empleados() {
           )}
           <div className="flex gap-3">
             <Button variant="outline" onClick={closeModal} className="flex-1">Cancelar</Button>
-            <Button
-              variant="danger"
-              onClick={handleDeactivate}
-              loading={saving}
-              disabled={upcomingInfo.loading}
-              className="flex-1"
-            >
-              {upcomingInfo.count > 0 ? 'Desactivar de todos modos' : 'Desactivar'}
-            </Button>
+            {upcomingInfo.count > 0 ? (
+              <Button
+                variant="primary"
+                onClick={() => {
+                  // Pre-seleccionamos el filtro de empleado en Citas via
+                  // localStorage (la pagina lo lee al montarse) y navegamos.
+                  if (selected?.id) localStorage.setItem('optima_citas_emp', String(selected.id))
+                  closeModal()
+                  navigate('/citas')
+                }}
+                className="flex-1 gap-2"
+              >
+                Ver citas <ArrowRight size={16} />
+              </Button>
+            ) : (
+              <Button
+                variant="danger"
+                onClick={handleDeactivate}
+                loading={saving}
+                disabled={upcomingInfo.loading}
+                className="flex-1"
+              >
+                Desactivar
+              </Button>
+            )}
           </div>
         </div>
       </Modal>

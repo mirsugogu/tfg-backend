@@ -40,6 +40,10 @@ const boothShort = (name) => {
   return m ? `C${m[1]}` : (name || '').slice(0, 3).toUpperCase()
 }
 
+/**
+ * Calendario semanal, mensual y diario del negocio activo: pinta citas,
+ * ausencias y bloqueos, y permite reagendar citas con drag-and-drop.
+ */
 export default function Calendario() {
   const { user } = useAuth()
   const { statusLabel } = useCatalog()
@@ -100,6 +104,13 @@ export default function Calendario() {
   // appointmentInterval del negocio (15/30/45/60). Lo usa el drag para
   // snapear la hora de drop al multiplo correcto.
   const [appointmentInterval, setAppointmentInterval] = useState(30)
+  // Horarios semanales por empleado (employee_schedules), indexados por
+  // membershipId. Se usan para pintar como gris las horas en las que el
+  // empleado no trabaja (descansos, turno partido) dentro del horario de
+  // apertura del negocio. Si un empleado no esta en el Map (porque su
+  // carga fallo), se hace fallback transparente al comportamiento previo
+  // (solo se considera el horario del negocio).
+  const [schedulesByMembership, setSchedulesByMembership] = useState(() => new Map())
 
   useEffect(() => {
     if (!bId) return
@@ -120,6 +131,34 @@ export default function Calendario() {
       if (biz.status === 'fulfilled') setAppointmentInterval(biz.value.data?.appointmentInterval ?? 30)
     })
   }, [bId, reloadFlag])
+
+  // Carga los horarios semanales de cada empleado en paralelo. Si un
+  // GET falla, ese empleado no aparece en el Map y la rejilla se
+  // comporta como antes (solo respeta el horario del negocio). Asi el
+  // calendario nunca se rompe por un fallo de este endpoint.
+  useEffect(() => {
+    if (!bId || employees.length === 0) {
+      setSchedulesByMembership(new Map())
+      return
+    }
+    let cancelled = false
+    const ids = employees.map((e) => e.id)
+    Promise.all(
+      ids.map((id) =>
+        api.get(`/api/businesses/${bId}/users/${id}/schedules`)
+          .then((r) => [id, Array.isArray(r.data) ? r.data : (r.data?.content ?? [])])
+          .catch(() => [id, null])
+      )
+    ).then((entries) => {
+      if (cancelled) return
+      const map = new Map()
+      entries.forEach(([id, schedules]) => {
+        if (schedules !== null) map.set(id, schedules)
+      })
+      setSchedulesByMembership(map)
+    })
+    return () => { cancelled = true }
+  }, [bId, employees])
 
   // Rango horario dinámico de la rejilla. Cubre el horario del negocio Y
   // todas las citas cargadas: así ninguna cita queda fuera de la rejilla
@@ -586,6 +625,7 @@ export default function Calendario() {
             blocks={blocksInRange}
             resourceType="employee"
             absences={absences}
+            schedulesByMembership={schedulesByMembership}
             onDropAppointment={handleDropAppointment}
             appointmentInterval={appointmentInterval}
           />
@@ -625,6 +665,7 @@ export default function Calendario() {
             blocks={blocksInRange}
             resourceType="employee"
             absences={absences}
+            schedulesByMembership={schedulesByMembership}
             onDropAppointment={handleDropAppointment}
             appointmentInterval={appointmentInterval}
           />

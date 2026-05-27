@@ -20,28 +20,10 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Filtro que se ejecuta una vez por request y, si trae un header
- * Authorization: Bearer <token>, valida el JWT con JwtUtil
- * y autentica al usuario en el SecurityContextHolder.
+ * Valida el JWT recibido en el header Authorization.
  *
- * El principal que se mete en el contexto es un AuthPrincipal
- * con todos los datos del JWT (userId, businessId, email, role) — asi
- * el TenantGuardFilter y los controladores pueden leerlos sin
- * volver a parsear el token. Tambien se anade ROLE_<role> como
- * authority para forward-compat con @PreAuthorize.
- *
- * Si el header no existe, no es Bearer, o el token es invalido,
- * el filtro NO emite 401 ni rompe la cadena: simplemente no autentica.
- * Quien decide si la ruta requiere autenticacion es SecurityConfig.
- *
- * COMUNICACION:
- * - Lo registra: SecurityConfig.filterChain con addFilterBefore(...,
- *   UsernamePasswordAuthenticationFilter.class) - asi corre antes que
- *   el filter por defecto de Spring Security.
- * - Llama a: JwtUtil.parseAndValidate() para verificar firma y expiracion.
- * - Escribe en: SecurityContextHolder (autentica al usuario en el
- *   contexto del thread actual, con AuthPrincipal como principal).
- * - Le sigue: TenantGuardFilter, que lee AuthPrincipal del contexto.
+ * Si el token es correcto, guarda los datos del usuario en el contexto de
+ * seguridad para que el resto de filtros y controladores puedan usarlos.
  */
 @Component
 @Slf4j
@@ -69,11 +51,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             Claims claims = jwtUtil.parseAndValidate(token);
 
-            // Defensa-en-profundidad: aunque la firma del JWT sea valida,
-            // un token sin sub o sin userId no identifica a nadie y por
-            // contrato lo emite siempre JwtUtil con ambos claims presentes.
-            // Si llega sin ellos rechazamos para no construir un
-            // AuthPrincipal medio vacio que el resto del codigo asume completo.
+            // Un token valido debe identificar siempre a un usuario.
             String email = claims.getSubject();
             Object userIdRaw = claims.get("userId");
             Long userId = userIdRaw instanceof Number n ? n.longValue() : null;
@@ -84,19 +62,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 throw new JwtException("Claims requeridos ausentes en el JWT");
             }
 
-            // [v16 membership] El token puede ser:
-            //   - tenant: businessId + role presentes en los claims.
-            //   - identity: ambos ausentes; el cliente aun no ha elegido negocio.
+            // El token puede ser de identidad o de negocio seleccionado.
             Number bidClaim = (Number) claims.get("businessId");
             Long businessId = bidClaim != null ? bidClaim.longValue() : null;
             String role = (String) claims.get("role");
 
             AuthPrincipal principal = new AuthPrincipal(userId, businessId, email, role);
 
-            // Las authorities solo se anaden cuando hay role: un identity
-            // token no puede pasar @PreAuthorize("hasRole(...)"), lo cual
-            // es lo correcto (solo /select-business y /me/businesses deben
-            // ser accesibles con identity).
+            // Solo los tokens con rol pueden pasar validaciones por rol.
             List<SimpleGrantedAuthority> authorities = role != null
                     ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
                     : List.of();
@@ -105,8 +78,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     new UsernamePasswordAuthenticationToken(principal, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(auth);
         } catch (JwtException | ClassCastException | NullPointerException ex) {
-            // Token invalido (firma mal, expirado, malformado, claims ausentes):
-            // no autenticamos. SecurityConfig devolvera 401 si la ruta lo requiere.
+            // Si el token no es valido, la request queda sin autenticar.
             SecurityContextHolder.clearContext();
         }
 

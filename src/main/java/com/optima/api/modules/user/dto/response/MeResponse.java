@@ -5,17 +5,7 @@ import com.optima.api.modules.user.model.User;
 import java.time.LocalDateTime;
 
 /**
- * MeResponse - DTO de salida del endpoint GET /api/me.
- *
- * [v16 membership] Antes el /me reusaba UserResponse, que mezclaba la
- * identidad (fullName/email) con la membership (businessId/roleId). Ahora
- * que la identidad puede tener N memberships, /me devuelve SOLO la
- * identidad. Para conocer las memberships activas existe el endpoint
- * GET /api/me/businesses (paso 18).
- *
- * COMUNICACION:
- * - Lo construye: UserService.getMyProfile(Long userId).
- * - Lo serializa Jackson a JSON en MeController.getMe.
+ * Respuesta con los datos de la identidad autenticada.
  */
 public record MeResponse(
         Long id,

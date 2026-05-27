@@ -15,22 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * BusinessService - Logica de negocio del modulo business (los tenants).
- * Convive con la entidad com.optima.api.modules.catalog.model.BusinessService
- * (el servicio comercial del catalogo) sin conflicto: estan en paquetes distintos.
- *
- * COMUNICACION:
- * - Lo invoca: BusinessController y AuthService.register (via createEntity).
- * - Llama a:
- *     BusinessRepository           CRUD basico + existsBySlug/Email.
- *     GeocodingService.geocode     Nominatim (best-effort, devuelve Optional).
- * - Devuelve: BusinessResponse (con latitude/longitude si Nominatim respondio).
- *
- * @Transactional a nivel de clase: cada metodo publico abre una transaccion
- * (escritura por defecto). Los metodos de solo lectura sobre-escriben con
- * @Transactional(readOnly = true) en su firma.
- */
+/** Logica de negocio del modulo business (los tenants). */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -39,18 +24,7 @@ public class BusinessService {
     private final BusinessRepository businessRepository;
     private final GeocodingService geocodingService;
 
-    /**
-     * Crea un negocio nuevo (tenant). Valida y luego geocodifica.
-     *
-     * Validaciones (todas lanzan 400 o 409):
-     *   - slug: solo [a-z0-9-], unico globalmente.
-     *   - email: unico globalmente.
-     *   - appointmentInterval: debe ser 15/30/45/60.
-     *
-     * Side-effect: llama a Nominatim (red externa, timeout 5s).
-     * Si Nominatim falla, GeocodingService devuelve Optional.empty()
-     * y lat/lng quedan null - la creacion sigue adelante.
-     */
+    /** Crea un negocio nuevo (tenant). Valida y luego geocodifica. */
     public BusinessResponse create(CreateBusinessRequest request) {
         return BusinessResponse.from(createEntity(request));
     }

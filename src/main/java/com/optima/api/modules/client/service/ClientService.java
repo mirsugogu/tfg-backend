@@ -1,5 +1,6 @@
 package com.optima.api.modules.client.service;
 
+import com.optima.api.modules.appointment.repository.AppointmentRepository;
 import com.optima.api.modules.business.model.Business;
 import com.optima.api.modules.business.repository.BusinessRepository;
 import com.optima.api.modules.client.dto.request.CreateClientRequest;
@@ -18,23 +19,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 
 /**
- * ClientService - Logica de negocio del modulo client.
- * Sigue el patron canonico del proyecto: validacion cross-tenant explicita
- * en todos los metodos, devolucion de DTOs y nunca de la entidad cruda.
+ * Servicio de negocio para clientes.
  *
- * COMUNICACION:
- * - Lo invoca: ClientController.
- * - Llama a:
- *     ClientRepository                CRUD + busquedas tenant-safe.
- *     BusinessRepository.findById     verifica que el negocio existe.
- * - Devuelve: ClientResponse (entity -> DTO via ClientResponse.from()).
- *
- * Cross-tenant: TODOS los lookups por id usan findByIdAndBusinessId
- * (helper findOrThrow). Soft delete: clientes nunca se borran fisicamente
- * (preservan integridad referencial con citas pasadas).
- *
- * normalize(): helper privado que convierte cadenas vacias o solo espacios
- * en null. Asi la BD no se ensucia con strings vacios.
+ * Todas las busquedas por id validan el negocio para evitar accesos entre
+ * tenants. Los clientes se desactivan en vez de borrarse.
  */
 @Service
 @Transactional
@@ -43,11 +31,10 @@ public class ClientService {
 
     private final ClientRepository clientRepository;
     private final BusinessRepository businessRepository;
+    private final AppointmentRepository appointmentRepository;
 
     /**
-     * Crea un cliente dentro del negocio dado.
-     * Email y teléfono son opcionales: la BD los admite NULL y dos clientes
-     * del mismo negocio pueden tener el mismo email (familias, etc.).
+     * Crea un cliente dentro del negocio indicado.
      */
     public ClientResponse create(Long businessId, CreateClientRequest request) {
         Business business = businessRepository.findById(businessId)
@@ -67,12 +54,7 @@ public class ClientService {
     }
 
     /**
-     * Lista paginada de clientes del negocio. Con active=true (por defecto)
-     * devuelve los activos; con active=false los archivados (soft-deleted),
-     * la vista desde la que se reactivan.
-     * Si search no viene vacío (solo con active=true), filtra por nombre,
-     * email o teléfono — alimenta el autocompletado del selector de cliente.
-     * Pageable parsea page, size y sort del query string.
+     * Lista clientes paginados, activos o archivados, con busqueda opcional.
      */
     @Transactional(readOnly = true)
     public Page<ClientResponse> listByBusiness(Long businessId, boolean active, String search, Pageable pageable) {
@@ -89,7 +71,7 @@ public class ClientService {
     }
 
     /**
-     * Obtiene un cliente por ID dentro del negocio (cross-tenant safe).
+     * Obtiene un cliente del negocio por su id.
      */
     @Transactional(readOnly = true)
     public ClientResponse getById(Long businessId, Long id) {
@@ -97,8 +79,7 @@ public class ClientService {
     }
 
     /**
-     * Actualiza los campos editables de un cliente: nombre, email, teléfono,
-     * notas. No permite operar sobre un cliente desactivado.
+     * Actualiza los datos editables de un cliente activo.
      */
     public ClientResponse update(Long businessId, Long id, UpdateClientRequest request) {
         Client c = findOrThrow(businessId, id);
@@ -117,8 +98,10 @@ public class ClientService {
     }
 
     /**
-     * Soft delete: marca el cliente como inactivo y registra el momento.
-     * Filtra por negocio (cross-tenant safe). No se puede desactivar dos veces.
+     * Desactiva un cliente sin borrarlo de la base de datos. Falla con
+     * 409 si el cliente todavía tiene citas activas (PENDING, CONFIRMED
+     * o IN_PROGRESS) cuya hora de fin aún no ha pasado, para no dejar
+     * citas vivas apuntando a un cliente archivado.
      */
     public void deactivate(Long businessId, Long id) {
         Client c = findOrThrow(businessId, id);
@@ -126,14 +109,20 @@ public class ClientService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "El cliente ya está desactivado");
         }
+        long pendientes = appointmentRepository.countActiveByClientAndBusiness(
+                id, businessId, LocalDateTime.now());
+        if (pendientes > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "El cliente tiene " + pendientes + " cita(s) pendiente(s); "
+                            + "cancélalas o reasígnalas antes de archivar");
+        }
         c.setIsActive(false);
         c.setDeactivatedAt(LocalDateTime.now());
         clientRepository.save(c);
     }
 
     /**
-     * Reactiva un cliente archivado: pone isActive=true y deactivatedAt=null.
-     * Filtra por negocio (cross-tenant safe). Lanza 400 si ya estaba activo.
+     * Reactiva un cliente archivado.
      */
     public ClientResponse reactivate(Long businessId, Long id) {
         Client c = findOrThrow(businessId, id);
@@ -147,8 +136,7 @@ public class ClientService {
     }
 
     /**
-     * Helper privado: busca el cliente asegurando que pertenece al negocio.
-     * Si no existe (o pertenece a otro tenant), lanza 404.
+     * Busca un cliente asegurando que pertenece al negocio indicado.
      */
     private Client findOrThrow(Long businessId, Long id) {
         return clientRepository.findByIdAndBusinessId(id, businessId)
@@ -159,8 +147,7 @@ public class ClientService {
     }
 
     /**
-     * Normaliza un campo opcional: si llega vacío o solo espacios, lo
-     * almacena como null para no ensuciar la BD con cadenas vacías.
+     * Convierte textos vacios en null para campos opcionales.
      */
     private String normalize(String value) {
         if (value == null) return null;

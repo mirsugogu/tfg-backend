@@ -8,6 +8,7 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/Toast'
 import { AppointmentDetailModal } from '@/components/appointments/AppointmentDetailModal'
+import { OnboardingChecklist } from '@/components/dashboard/OnboardingChecklist'
 import api, { getErrorMessage } from '@/lib/api'
 import { totalBooked } from '@/lib/format'
 
@@ -295,10 +296,11 @@ function TopList({ title, sub, items, renderMeta }) {
   )
 }
 
-/* ============================================================
-   DASHBOARD
-   ============================================================ */
-
+/**
+ * Página principal tras iniciar sesión: indicadores del día, lista de
+ * las próximas citas y atajos visuales al resto de módulos (clientes,
+ * empleados, catálogo, calendario).
+ */
 export default function Dashboard() {
   const { user } = useAuth()
   const toast = useToast()
@@ -472,6 +474,9 @@ export default function Dashboard() {
           </Link>
         </div>
       </div>
+
+      {/* Onboarding: solo se muestra mientras falten pasos por configurar. */}
+      <OnboardingChecklist businessId={bId} />
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

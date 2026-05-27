@@ -26,46 +26,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * AuthService - Capa de logica del modulo auth.
+ * Servicio principal de autenticacion.
  *
- * Cubre 3 de los 5 endpoints de AuthController; los otros 2
- * (forgot-password y reset-password) los sirve PasswordResetService:
- *   [v16 membership] Login en 2 pasos:
- *     1) POST /api/auth/token (email + password). Caminos posibles:
- *        - 0 memberships activas       -> 401 (sin acceso a ningun negocio).
- *        - 1 membership activa         -> tenant token directamente.
- *        - >1 memberships activas      -> identity token + lista de
- *                                         memberships para que el cliente
- *                                         elija negocio.
- *     2) POST /api/auth/select-business/{businessId} (con identity token).
- *        Verifica que la identidad tiene una membership activa en ese
- *        negocio y devuelve un tenant token con (businessId, role).
- *   Auto-registro publico:
- *     3) POST /api/auth/register. Crea en una sola transaccion identidad +
- *        negocio + primera membership ADMIN, emite tenant token y manda
- *        email de bienvenida (best-effort).
- *
- * COMUNICACION:
- * - Lo invoca: AuthController.token(), AuthController.selectBusiness(),
- *   AuthController.register().
- * - Llama a:
- *     UserRepository.findByEmailIgnoreCase   busqueda global por email (login).
- *     UserRepository.existsByEmailIgnoreCase precheck unicidad (register).
- *     UserRepository.save                    persiste la identidad (register).
- *     MembershipRepository.findAllByUserId   memberships del usuario (login).
- *     MembershipRepository.findByUserIdAndBusinessId  para select-business.
- *     MembershipRepository.save              persiste la membership ADMIN (register).
- *     RoleRepository.findByName              resuelve el rol ADMIN (register).
- *     BusinessService.createEntity           crea el negocio (register).
- *     PasswordEncoder.matches / encode       BCrypt en login y register.
- *     JwtUtil.generateTenantToken / generateIdentityToken.
- *     MailService.sendSimpleEmail            bienvenida best-effort (register).
- * - Devuelve: TokenResponse (tenant o identity).
- *
- * Politica de mensajes: cualquier fallo del paso 1 devuelve un mismo
- * "Credenciales incorrectas" para no filtrar que emails existen. En
- * register se usan 409 ("Ya existe un usuario con ese email") y 500
- * (rol ADMIN no seedeado) — al ser publico no aplica anti-enumeration.
+ * Gestiona el login, la seleccion de negocio y el auto-registro inicial
+ * de un negocio con su usuario administrador.
  */
 @Service
 @Slf4j
@@ -74,14 +38,7 @@ import java.util.Optional;
 public class AuthService {
 
     /**
-     * Hash BCrypt dummy precalculado (cost=10) usado solo para igualar
-     * tiempos de respuesta cuando el email no existe o el usuario esta
-     * inactivo. Sin esto, un atacante puede medir la latencia para
-     * enumerar emails: "no existe" tarda ~10 ms (sin BCrypt) frente a
-     * "password incorrecto" que tarda ~85 ms (con BCrypt). Verificar
-     * contra este hash iguala ambos caminos a la latencia BCrypt y
-     * cierra el timing oracle. El plaintext que lo origina es
-     * irrelevante; nunca se usa para autenticar a nadie.
+     * Hash falso usado para igualar tiempos cuando el email no existe.
      */
     private static final String DUMMY_BCRYPT_HASH =
             "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
@@ -103,9 +60,7 @@ public class AuthService {
 
         Optional<User> userOpt = userRepository.findByEmailIgnoreCase(email);
         if (userOpt.isEmpty()) {
-            // Ejecutar BCrypt contra un hash dummy aunque el usuario no
-            // exista para igualar tiempos con la rama de password incorrecto
-            // y bloquear la enumeracion de cuentas por timing.
+            // Se ejecuta BCrypt aunque no exista el usuario para no filtrar emails por tiempo.
             passwordEncoder.matches(request.password(), DUMMY_BCRYPT_HASH);
             log.warn("Login fallido: usuario inexistente (email='{}')", email);
             throw new ResponseStatusException(
@@ -114,9 +69,7 @@ public class AuthService {
         User user = userOpt.get();
 
         if (!user.getIsActive()) {
-            // Mismo motivo: si el atacante puede diferenciar "usuario
-            // inactivo" (sin BCrypt) de "password incorrecto" (con BCrypt)
-            // tambien enumera, porque solo se llega aqui si el email existe.
+            // Se mantiene el mismo comportamiento que en una contrasena incorrecta.
             passwordEncoder.matches(request.password(), DUMMY_BCRYPT_HASH);
             log.warn("Login fallido: usuario inactivo (userId={}, email='{}')",
                     user.getId(), user.getEmail());
@@ -131,9 +84,7 @@ public class AuthService {
                     HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
         }
 
-        // Filtrar memberships activas Y cuyo negocio sigue activo: un
-        // negocio desactivado (is_active=false) no debe aceptar logins;
-        // ver Business.java (documentacion del campo isActive).
+        // Solo se permite entrar en negocios y memberships activas.
         List<Membership> activeMemberships = membershipRepository.findAllByUserId(user.getId())
                 .stream()
                 .filter(Membership::getIsActive)
@@ -171,9 +122,7 @@ public class AuthService {
     }
 
     /**
-     * Intercambia un identity token por un tenant token tras elegir negocio.
-     * El userId se toma del JWT (identity), no del body, para que el cliente
-     * no pueda suplantar identidades.
+     * Cambia un token de identidad por un token de negocio.
      */
     public TokenResponse selectBusiness(Long userId, Long businessId) {
         User user = userRepository.findById(userId)
@@ -201,9 +150,7 @@ public class AuthService {
                     HttpStatus.FORBIDDEN, "No tienes acceso a ese negocio");
         }
 
-        // El negocio puede estar desactivado aunque la membership siga activa.
-        // Mismo mensaje 403 que la rama anterior (anti-enumeration: no revelar
-        // que el negocio existe pero esta desactivado).
+        // Un negocio desactivado no debe permitir el acceso aunque la membership exista.
         if (!Boolean.TRUE.equals(membership.getBusiness().getIsActive())) {
             log.warn("Select-business denegado: negocio desactivado (userId={}, businessId={})",
                     userId, businessId);
@@ -223,25 +170,7 @@ public class AuthService {
     }
 
     /**
-     * Auto-registro publico: crea identidad + negocio + primera membership
-     * ADMIN en una sola transaccion y devuelve un tenant token listo para
-     * usar. Tambien envia un email de bienvenida (best-effort).
-     *
-     * Pasos:
-     *   1. Validar que el email del admin no existe globalmente (409).
-     *   2. Resolver el rol ADMIN del catalogo (500 si falta seed).
-     *   3. Crear el Business via BusinessService.createEntity
-     *      (valida slug, email del negocio y appointmentInterval; geocoding
-     *      best-effort).
-     *   4. Crear el User con password BCrypt.
-     *   5. Crear la Membership con role=ADMIN.
-     *   6. Emitir tenant token y notificar por email.
-     *
-     * Cualquier fallo durante los pasos 3-5 hace rollback de toda la
-     * transaccion (no quedaria un negocio "huerfano" sin admin).
-     *
-     * @param request payload validado: business + admin.
-     * @return TokenResponse tenant directo (la persona ya tiene 1 membership).
+     * Crea un negocio nuevo junto con su primer usuario administrador.
      */
     @Transactional
     public TokenResponse register(RegisterRequest request) {

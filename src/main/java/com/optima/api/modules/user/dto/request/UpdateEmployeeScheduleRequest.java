@@ -7,14 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalTime;
 
 /**
- * UpdateEmployeeScheduleRequest - DTO de entrada para actualizar un tramo
- * del horario de un empleado.
- *
- * Mismo contrato que CreateEmployeeScheduleRequest.
- *
- * COMUNICACION:
- * - Lo deserializa Jackson, lo valida @Valid en EmployeeScheduleController.
- * - Lo consume EmployeeScheduleService.update.
+ * Datos para actualizar un tramo del horario de un empleado.
  */
 public record UpdateEmployeeScheduleRequest(
 

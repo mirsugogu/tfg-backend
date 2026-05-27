@@ -19,28 +19,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * EmployeeAbsenceService - Capa de lógica de negocio para las ausencias
- * puntuales de empleados.
- * No usa soft delete: una ausencia se cancela borrándola.
+ * Servicio de negocio para ausencias puntuales de empleados.
  *
- * Doble comprobación cross-tenant: cada operación valida que la membership
- * pertenece al negocio antes de tocar la ausencia.
- *
- * COMUNICACION:
- * - Lo invoca: EmployeeAbsenceController.
- * - Llama a:
- *     EmployeeAbsenceRepository     CRUD + findByIdAndMembershipId,
- *                                   findAllByMembershipId (overlap check).
- *     MembershipRepository.findByIdAndBusinessId  cross-tenant del empleado.
- * - Devuelve: EmployeeAbsenceResponse.
- *
- * [v16 membership] El parametro externo se sigue llamando `userId` por
- * compatibilidad con los paths existentes; internamente es el id de la
- * membership.
- *
- * Validacion de overlap: al crear y actualizar, comprueba que el rango no
- * se solapa con otra ausencia ya registrada de la misma membership
- * (regla A < D AND C < B).
+ * Cada operacion valida que la membership pertenece al negocio antes de
+ * tocar una ausencia.
  */
 @Service
 @Transactional
@@ -51,11 +33,7 @@ public class EmployeeAbsenceService {
     private final MembershipRepository membershipRepository;
 
     /**
-     * Lista todas las ausencias del negocio que solapan con el rango
-     * [from, to). Se usa desde el calendario para pintar la franja roja
-     * sobre la sub-columna del empleado en las vistas resource agrupadas
-     * por empleado. Devuelve List (no Page): cardinalidad acotada por
-     * diseno (decenas de ausencias por mes como mucho).
+     * Lista ausencias del negocio que solapan con un rango.
      */
     @Transactional(readOnly = true)
     public List<EmployeeAbsenceResponse> listByBusinessAndRange(Long businessId,
@@ -67,16 +45,6 @@ public class EmployeeAbsenceService {
 
     /**
      * Crea una ausencia para un empleado del negocio.
-     *
-     * Pasos:
-     *   1. Verifica que la membership existe y pertenece al negocio
-     *      (404 si no).
-     *   2. Valida que startDateTime < endDateTime (400 si no).
-     *   3. Comprueba que el rango no se solapa con otra ausencia ya
-     *      registrada de la misma membership, regla A < D AND C < B
-     *      (409 si choca).
-     *   4. Crea la entidad, normaliza el motivo (trim + null si vacio)
-     *      y persiste.
      */
     public EmployeeAbsenceResponse create(Long businessId, Long userId, CreateEmployeeAbsenceRequest request) {
         Membership membership = ensureMembershipOfBusiness(businessId, userId);
@@ -101,10 +69,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Lista paginada de ausencias del empleado, ordenadas por fecha de
-     * inicio ascendente por defecto (el Sort del Pageable prevalece si
-     * el cliente envia ?sort=...). 404 si la membership no pertenece al
-     * negocio.
+     * Lista paginada de ausencias del empleado.
      */
     @Transactional(readOnly = true)
     public Page<EmployeeAbsenceResponse> listByEmployee(Long businessId, Long userId, Pageable pageable) {
@@ -114,9 +79,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Detalle de una ausencia. Doble proteccion tenant: 404 si la
-     * membership no pertenece al negocio o si la ausencia no pertenece a
-     * esa membership.
+     * Obtiene una ausencia concreta del empleado.
      */
     @Transactional(readOnly = true)
     public EmployeeAbsenceResponse getById(Long businessId, Long userId, Long id) {
@@ -125,12 +88,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Actualiza el rango y el motivo de una ausencia existente.
-     * 404 si la ausencia no pertenece al empleado/negocio; 400 si
-     * startDateTime >= endDateTime.
-     *
-     * Tambien valida que el nuevo rango no se solape con otra ausencia de
-     * la misma membership, excluyendo la propia ausencia que se edita.
+     * Actualiza el rango y motivo de una ausencia existente.
      */
     public EmployeeAbsenceResponse update(Long businessId, Long userId, Long id, UpdateEmployeeAbsenceRequest request) {
         ensureMembershipOfBusiness(businessId, userId);
@@ -147,7 +105,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Hard delete (la ausencia se cancela borrándola).
+     * Elimina una ausencia.
      */
     public void delete(Long businessId, Long userId, Long id) {
         ensureMembershipOfBusiness(businessId, userId);
@@ -156,9 +114,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Verifica que la membership existe y pertenece al negocio. Si no
-     * existe o pertenece a otro tenant, devuelve 404. Devuelve la entidad
-     * para poder reutilizarla en create.
+     * Verifica que la membership existe y pertenece al negocio.
      */
     private Membership ensureMembershipOfBusiness(Long businessId, Long membershipId) {
         return membershipRepository.findByIdAndBusinessId(membershipId, businessId)
@@ -184,7 +140,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Valida que el rango no solape con otras ausencias de la membership.
+     * Valida que el rango no solape con otras ausencias.
      */
     private void validateNoOverlap(Long membershipId,
                                    LocalDateTime startDateTime,
@@ -202,8 +158,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Normaliza un motivo opcional: si llega vacio o solo espacios, lo
-     * almacena como null.
+     * Convierte motivos vacios en null.
      */
     private String normalize(String value) {
         if (value == null) return null;

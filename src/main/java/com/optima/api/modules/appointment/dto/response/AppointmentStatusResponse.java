@@ -2,13 +2,7 @@ package com.optima.api.modules.appointment.dto.response;
 
 import com.optima.api.modules.appointment.model.AppointmentStatus;
 
-/**
- * AppointmentStatusResponse - DTO del catalogo de estados.
- *
- * Forma muy simple: id y name. Lo consume AppointmentStatusController
- * (catalogo publico) y AppointmentResponse (para mostrar el estado
- * actual de una cita sin exponer la entidad).
- */
+/** DTO de salida para un estado de cita. */
 public record AppointmentStatusResponse(
         Long id,
         String name

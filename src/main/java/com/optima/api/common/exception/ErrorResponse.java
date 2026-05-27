@@ -1,30 +1,10 @@
 package com.optima.api.common.exception;
 
 /**
- * ErrorResponse - Cuerpo JSON estandar de cualquier respuesta de error.
+ * Formato comun para las respuestas de error.
  *
- * Estructura uniforme: el cliente puede parsear errores siempre con la
- * misma forma sin importar de donde venga (validacion, autenticacion,
- * autorizacion, NotFound, error interno...).
- *
- * Campos:
- *   status     codigo HTTP (400, 401, 403, 404, 409, 500...).
- *   error      reason phrase RFC del status ("Bad Request", "Not Found",
- *              "Unauthorized"...) via HttpStatus.getReasonPhrase().
- *   message    descripcion legible del problema.
- *   timestamp  momento del error en formato ISO-8601 (Instant.now()).
- *
- * COMUNICACION:
- * - Lo construyen: GlobalExceptionHandler (todos los @ExceptionHandler),
- *   SecurityConfig (entryPoint 401 y accessDeniedHandler 403),
- *   TenantGuardFilter (cuando rechaza cross-tenant con 403),
- *   RateLimitFilter (429 cuando el cubo de tokens se vacia).
- * - Lo serializa Jackson a JSON.
- *
- * Ejemplo:
- *   {"status":401,"error":"Unauthorized",
- *    "message":"Credenciales incorrectas",
- *    "timestamp":"2026-05-10T16:30:00.123Z"}
+ * Mantiene una estructura sencilla para que el cliente reciba siempre
+ * codigo HTTP, tipo de error, mensaje y fecha.
  */
 public record ErrorResponse(
     int status,

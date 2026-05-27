@@ -4,18 +4,7 @@ import com.optima.api.modules.business.model.Booth;
 
 import java.time.LocalDateTime;
 
-/**
- * BoothResponse - DTO de salida de una cabina.
- *
- * COMUNICACION:
- * - Lo construye BoothResponse.from(Booth) en BoothService.
- * - Lo serializa Jackson a JSON en las respuestas de BoothController.
- *
- * Incluye businessId porque la cabina es un recurso tenant-scoped (el
- * frontend lo necesita para validar contexto). deactivatedAt expuesto
- * para auditoria; el frontend puede decidir mostrarlo en una vista de
- * "cabinas archivadas".
- */
+/** DTO de salida con los datos de una cabina. */
 public record BoothResponse(
         Long id,
         Long businessId,

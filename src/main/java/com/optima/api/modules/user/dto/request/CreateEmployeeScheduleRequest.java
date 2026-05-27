@@ -7,22 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalTime;
 
 /**
- * CreateEmployeeScheduleRequest - DTO de entrada para crear un tramo del
- * horario semanal de un empleado.
- * El businessId y el userId vienen del path, no del body.
- * Un empleado puede tener varios tramos en un mismo día (turnos partidos),
- * por eso no validamos unicidad por (userId, dayOfWeek).
- *
- * COMUNICACION:
- * - Lo deserializa Jackson, lo valida @Valid en EmployeeScheduleController.
- * - Lo consume EmployeeScheduleService.create.
- *
- * Validaciones declarativas:
- *   dayOfWeek    @NotNull, 1..7.
- *   startTime    @NotNull.
- *   endTime      @NotNull.
- * El service valida tambien startTime < endTime y no-overlap con tramos
- * existentes del mismo (userId, dayOfWeek).
+ * Datos para crear un tramo del horario semanal de un empleado.
  */
 public record CreateEmployeeScheduleRequest(
 

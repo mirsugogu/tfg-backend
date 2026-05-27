@@ -7,12 +7,6 @@ import java.time.LocalDateTime;
 /**
  * ServiceCategoryResponse - DTO de salida de una categoria de servicios.
  *
- * COMUNICACION:
- * - Lo construye ServiceCategoryResponse.from(ServiceCategory) en
- *   ServiceCategoryService.
- * - Lo serializa Jackson a JSON en las respuestas de
- *   ServiceCategoryController.
- *
  * Expone businessId para que el frontend pueda confirmar el tenant.
  */
 public record ServiceCategoryResponse(

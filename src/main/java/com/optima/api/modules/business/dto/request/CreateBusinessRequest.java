@@ -6,35 +6,8 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * CreateBusinessRequest - DTO de entrada para crear un negocio.
- *
- * COMUNICACION:
- * - Lo deserializa Jackson desde el body JSON de POST /api/businesses
- *   y, anidado en RegisterRequest, de POST /api/auth/register.
- * - Lo valida @Valid en BusinessController.create.
- * - Lo consume BusinessService.create (y BusinessService.createEntity
- *   desde AuthService.register en el auto-registro).
- *
- * Validaciones:
- *   name                @NotBlank, max 150 chars.
- *   slug                @NotBlank, max 150 chars.
- *   email               @NotBlank, @Email (formato), max 150 chars.
- *   phone               opcional, max 20 chars.
- *   address             opcional, max 255 chars.
- *   city                opcional, max 100 chars.
- *   state               opcional, max 100 chars.
- *   country             opcional, max 100 chars.
- *   postalCode          opcional, max 20 chars.
- *   appointmentInterval opcional (default 30 en el service).
- *
- * Notas semanticas (validadas en el service, no aqui):
- *   - El slug se valida en formato (lowercase, sin espacios) y unicidad
- *     global por BusinessService.
- *   - El email es el de contacto del negocio: UNIQUE en la tabla
- *     businesses, columna independiente de users.email.
- *   - city + postalCode (si vienen) se usan para resolver lat/lng via
- *     Nominatim (best-effort).
- *   - appointmentInterval solo admite 15, 30, 45 o 60.
+ * DTO de entrada para crear un negocio.
+ * Las reglas de negocio se completan en el servicio.
  */
 public record CreateBusinessRequest(
 

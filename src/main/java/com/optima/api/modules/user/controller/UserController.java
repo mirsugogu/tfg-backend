@@ -15,23 +15,10 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * UserController - Gestion de usuarios (empleados) de un negocio.
- * Recurso anidado bajo /api/businesses/{businessId}/users:
- * todos los endpoints requieren JWT y validan cross-tenant.
+ * Controlador para gestionar los empleados de un negocio.
  *
- * COMUNICACION:
- * - Recibe: CRUD HTTP bajo /api/businesses/{businessId}/users.
- * - Le precede: JwtAuthenticationFilter (autentica) + TenantGuardFilter
- *   (verifica que businessId del path coincide con businessId del JWT;
- *   si no -> 403).
- * - Llama a: UserService (delega toda la logica).
- * - Devuelve: UserResponse o Page<UserResponse> serializado a JSON.
- *
- * Permisos:
- *   POST/PUT/DELETE -> @PreAuthorize("hasRole('ADMIN')") - solo el admin
- *                      puede contratar/editar/despedir empleados.
- *   GET (list, byId) -> sin @PreAuthorize - cualquier autenticado del
- *                       negocio puede consultar la plantilla.
+ * Las mutaciones requieren rol ADMIN. Las consultas pueden hacerlas los
+ * usuarios autenticados del negocio.
  */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/users")
@@ -42,15 +29,7 @@ public class UserController {
     private final UserService userService;
 
     /**
-     * POST /api/businesses/{businessId}/users - Crea un empleado nuevo.
-     *
-     * UserService aplica el patron find-or-create por email: si el email
-     * ya existe (la persona trabaja en otro negocio) reusa la identidad
-     * y solo crea la membership; si no existe, crea identidad + membership
-     * en una sola transaccion. Posibles errores: 404 si el negocio o el
-     * rol no existen, 409 si esa persona ya es empleada del negocio.
-     *
-     * Permiso: solo ADMIN.
+     * Crea un empleado dentro del negocio.
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -61,13 +40,7 @@ public class UserController {
     }
 
     /**
-     * GET /api/businesses/{businessId}/users - Lista paginada de empleados.
-     * Sin @PreAuthorize: cualquier autenticado del negocio puede consultarlo.
-     * Pageable se rellena con los query params ?page=&size=&sort=field,asc.
-     *
-     * ?active=true (por defecto) devuelve los empleados activos;
-     * ?active=false devuelve los archivados (la vista desde la que se
-     * reactivan).
+     * Lista empleados activos o archivados del negocio.
      */
     @GetMapping
     public Page<UserResponse> listByBusiness(@PathVariable @Positive Long businessId,
@@ -77,8 +50,7 @@ public class UserController {
     }
 
     /**
-     * GET /api/businesses/{businessId}/users/{id} - Detalle de un usuario.
-     * Si el id no existe en este businessId -> 404 (cross-tenant safe).
+     * Obtiene un empleado del negocio por su id.
      */
     @GetMapping("/{id}")
     public UserResponse getById(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
@@ -86,9 +58,7 @@ public class UserController {
     }
 
     /**
-     * PUT /api/businesses/{businessId}/users/{id} - Actualiza usuario (ADMIN).
-     * No incluye password (eso ira en otro endpoint dedicado). No permite
-     * mover usuarios entre negocios.
+     * Actualiza los datos propios de la membership del empleado.
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -99,10 +69,7 @@ public class UserController {
     }
 
     /**
-     * DELETE /api/businesses/{businessId}/users/{id} - Soft delete (ADMIN).
-     * Marca la membership como inactiva (isActive=false). NO borra
-     * fisicamente la fila (preserva integridad referencial con las citas
-     * pasadas). Devuelve 204 No Content.
+     * Desactiva la membership del empleado en este negocio.
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -112,9 +79,7 @@ public class UserController {
     }
 
     /**
-     * PATCH /api/businesses/{businessId}/users/{id}/reactivate - Revierte
-     * el soft delete de un empleado archivado (ADMIN). Pone isActive=true.
-     * Devuelve el UserResponse actualizado. 400 si ya estaba activo.
+     * Reactiva la membership de un empleado archivado.
      */
     @PatchMapping("/{id}/reactivate")
     @PreAuthorize("hasRole('ADMIN')")

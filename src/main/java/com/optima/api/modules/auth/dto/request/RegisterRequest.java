@@ -9,23 +9,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * RegisterRequest - DTO de entrada para POST /api/auth/register.
- *
- * Auto-registro publico de un negocio: en un solo POST se crea
- *   1. la identidad de la persona (User),
- *   2. el negocio (Business) + geocoding (best-effort),
- *   3. la primera membership con rol ADMIN.
- *
- * Estructura anidada:
- *   - business: reusa CreateBusinessRequest (mismo
- *     contrato que POST /api/businesses).
- *   - admin: campos del usuario que sera ADMIN del negocio.
- *
- * COMUNICACION:
- * - Lo deserializa Jackson desde el body JSON.
- * - Lo valida @Valid en AuthController.register (incluyendo el
- *   anidado @Valid del business).
- * - Lo consume AuthService.register.
+ * Datos para registrar un negocio y su primer administrador.
  */
 public record RegisterRequest(
 
@@ -39,14 +23,7 @@ public record RegisterRequest(
 ) {
 
     /**
-     * Sub-record con los datos de la persona ADMIN: el primer (y unico
-     * de momento) miembro del negocio recien creado.
-     *
-     * Validaciones:
-     *   fullName  @NotBlank, max 150.
-     *   email     @NotBlank, @Email, max 150 (UNIQUE global desde v16).
-     *   password  @NotBlank, longitud 8-100.
-     *   phone     opcional, max 20.
+     * Datos personales del usuario administrador inicial.
      */
     public record AdminAccount(
 

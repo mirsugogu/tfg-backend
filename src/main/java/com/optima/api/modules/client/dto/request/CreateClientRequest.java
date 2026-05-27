@@ -6,21 +6,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * CreateClientRequest - DTO de entrada para crear un cliente.
- * El businessId viene del path, no del body.
- *
- * COMUNICACION:
- * - Lo deserializa Jackson, lo valida @Valid en ClientController.
- * - Lo consume ClientService.create.
- *
- * Validaciones:
- *   fullName  @NotBlank, max 150.
- *   email     opcional; @Email + max 150 si viene.
- *   phone     opcional; max 20 si viene.
- *   notes     opcional; sin limite (TEXT en BD).
- *
- * El service llama a normalize() para guardar null (no "") cuando los
- * campos opcionales llegan vacios.
+ * Datos para crear un cliente dentro de un negocio.
  */
 public record CreateClientRequest(
 

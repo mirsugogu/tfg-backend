@@ -10,27 +10,7 @@ import java.util.List;
 
 /**
  * DTO de entrada para crear una cita.
- * El businessId viene del path, no del body.
- * El cliente, empleado y servicios se validan cross-tenant en el servicio.
- *
- * COMUNICACION:
- * - Lo deserializa Jackson desde el body JSON.
- * - Lo valida @Valid en AppointmentController.createAppointment.
- * - Lo consume AppointmentService.createAppointment.
- *
- * Validaciones:
- *   clientId         @NotNull, @Positive.
- *   membershipId     @NotNull, @Positive.
- *   boothId          opcional; @Positive si viene (sin cabina si null).
- *   startDateTime    @NotNull, @FutureOrPresent (no puede ser pasado).
- *   serviceIds       @NotEmpty (al menos un servicio); cada elemento
- *                    @NotNull y @Positive (rechaza listas tipo [null]
- *                    o [-1] antes de llegar al service).
- *   notes            opcional, sin validacion.
- *
- * NO incluye endDateTime: lo calcula AppointmentService sumando las
- * duraciones de los servicios. Asi el frontend no puede manipular la
- * duracion total.
+ * La hora final se calcula en el servicio.
  */
 public record CreateAppointmentRequest(
 

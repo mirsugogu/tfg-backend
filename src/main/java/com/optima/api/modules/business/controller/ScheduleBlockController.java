@@ -13,25 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * ScheduleBlockController - Gestion de bloqueos de agenda (dias completos
- * en los que no se permite crear citas).
- * Recurso anidado bajo /api/businesses/{businessId}/schedule-blocks.
- *
- * COMUNICACION:
- * - Recibe: GET/POST/DELETE HTTP. Requiere JWT (todos los endpoints).
- * - Le precede: JwtAuthFilter + TenantGuardFilter.
- * - Llama a: ScheduleBlockService.
- * - Devuelve: ScheduleBlockResponse(s) en JSON.
- *
- * Permisos:
- *   POST/DELETE -> @PreAuthorize("hasRole('ADMIN')") - decision operativa
- *                  del negocio (festivos, vacaciones, mantenimiento).
- *   GET         -> sin @PreAuthorize - empleados ven los bloqueos.
- *
- * Sin PUT: si el ADMIN se equivoca, borra y vuelve a crear (los bloqueos
- * son objetos pequenos, no necesitan edicion).
- */
+/** Gestion de bloqueos de agenda (dias completos. */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/schedule-blocks")
 @RequiredArgsConstructor
@@ -40,20 +22,7 @@ public class ScheduleBlockController {
 
     private final ScheduleBlockService blockService;
 
-    /**
-     * POST /api/businesses/{businessId}/schedule-blocks - Crea un bloqueo
-     * de agenda.
-     *
-     * El tipo de bloqueo se infiere de los FKs opcionales del request:
-     *   - global (festivo): membershipId=null, boothId=null.
-     *   - por empleado (vacaciones): membershipId=X.
-     *   - por cabina (mantenimiento): boothId=Y.
-     *
-     * ScheduleBlockService valida que startDate <= endDate (400 si no),
-     * que el negocio existe (404) y, si vienen, que membership/booth
-     * existen Y pertenecen al negocio (404 cross-tenant). Permiso: solo
-     * ADMIN.
-     */
+    /** Crea un bloqueo. */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")

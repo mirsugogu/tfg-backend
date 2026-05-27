@@ -4,22 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/**
- * UpdateBoothRequest - DTO de entrada para actualizar una cabina existente.
- * Se permite editar el nombre y el color.
- *
- * Mismo contrato que CreateBoothRequest.
- *
- * COMUNICACION:
- * - Lo deserializa Jackson desde el body JSON.
- * - Lo valida @Valid en BoothController.update.
- * - Lo consume BoothService.update.
- *
- * Validaciones:
- *   name   @NotBlank, max 80 chars.
- *   color  opcional; null deja la cabina sin color asignado (el frontend
- *          usara entonces uno automatico).
- */
+/** DTO de entrada para actualizar una cabina. */
 public record UpdateBoothRequest(
 
         @NotBlank(message = "El nombre de la cabina es obligatorio")

@@ -8,10 +8,6 @@ import java.time.LocalDateTime;
 /**
  * TaxResponse - DTO de salida de un impuesto.
  *
- * COMUNICACION:
- * - Lo construye TaxResponse.from(Tax) en TaxService.
- * - Lo serializa Jackson a JSON en las respuestas de TaxController.
- *
  * percentage es BigDecimal para no perder precision (importante en
  * calculos monetarios).
  */

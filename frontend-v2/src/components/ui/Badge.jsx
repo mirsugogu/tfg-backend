@@ -12,6 +12,11 @@ const variants = {
   purple:   'bg-purple-50 text-purple-700 ring-1 ring-purple-200',
 }
 
+/**
+ * Etiqueta pequeña de color para destacar un dato discreto (estado, rol,
+ * categoría…). Centraliza las variantes de color para que se usen los
+ * mismos tonos en toda la aplicación.
+ */
 export function Badge({ children, variant = 'default', className }) {
   return (
     <span
@@ -35,6 +40,11 @@ const STATUS_MAP = {
   NO_SHOW:     { label: 'No presentado', variant: 'default',  dot: 'bg-slate-400' },
 }
 
+/**
+ * Variante de `Badge` específica para el estado de una cita: mapea el
+ * nombre técnico recibido del backend (PENDING, CONFIRMED…) a su
+ * etiqueta en castellano, su color y un punto indicador.
+ */
 export function StatusBadge({ status }) {
   const config = STATUS_MAP[status] ?? { label: status, variant: 'default', dot: 'bg-slate-400' }
   return (

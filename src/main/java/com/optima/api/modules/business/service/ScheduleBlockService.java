@@ -21,15 +21,6 @@ import org.springframework.web.server.ResponseStatusException;
 /**
  * ScheduleBlockService - Logica de bloqueos de agenda.
  *
- * COMUNICACION:
- * - Lo invoca: ScheduleBlockController.
- * - Llama a:
- *     ScheduleBlockRepository  CRUD + findApplicableBlocks.
- *     BusinessRepository       verifica que el negocio existe.
- *     MembershipRepository     cross-tenant del empleado si viene.
- *     BoothRepository          cross-tenant de la cabina si viene.
- * - Devuelve: ScheduleBlockResponse.
- *
  * Sin soft delete: los bloqueos son eventos puntuales. Si el ADMIN se
  * equivoca, hard-delete y vuelve a crear.
  */

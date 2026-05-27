@@ -5,22 +5,7 @@ import com.optima.api.modules.business.model.Business;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * BusinessResponse - DTO de salida del negocio (tenant).
- *
- * COMUNICACION:
- * - Lo construye BusinessResponse.from(Business) en BusinessService.
- * - Lo serializa Jackson a JSON en las respuestas de BusinessController.
- *
- * Campos relevantes:
- *   latitude, longitude  resueltas por GeocodingService (best-effort:
- *                        pueden ser null si Nominatim fallo).
- *   appointmentInterval  intervalo en minutos para slots de citas.
- *   isActive             false significa soft-deleted.
- *   createdAt, deactivatedAt  trazabilidad del soft delete.
- *
- * NO incluye: usuarios, citas, etc. (son recursos anidados aparte).
- */
+/** DTO de salida con los datos de un negocio. */
 public record BusinessResponse(
     Long id,
     String name,

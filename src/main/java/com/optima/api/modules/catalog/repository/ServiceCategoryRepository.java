@@ -11,11 +11,6 @@ import java.util.Optional;
 /**
  * ServiceCategoryRepository - Acceso a la tabla `service_categories`.
  *
- * COMUNICACION:
- * - Lo inyectan: ServiceCategoryService, BusinessServiceService
- *   (cross-tenant de la categoria al crear/editar servicio).
- * - Habla con: MySQL via Hibernate.
- *
  * Multi-tenant via findByIdAndBusinessId, igual que el resto.
  */
 @Repository

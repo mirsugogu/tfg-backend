@@ -115,10 +115,10 @@ const fmtMinsLeft = (m) => {
   return r ? `${h} h ${r} min` : `${h} h`
 }
 
-/* ============================================================
-   CITAS
-   ============================================================ */
-
+/**
+ * Listado de citas del negocio activo, con filtros (fecha, empleado,
+ * estado) y CRUD desde un modal en dos pasos (cliente → detalles).
+ */
 export default function Citas() {
   const { user } = useAuth()
   const { statuses, statusLabel } = useCatalog()

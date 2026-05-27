@@ -13,33 +13,10 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * GeocodingService - Servicio que llama a la API de geocoding de
- * Nominatim (OpenStreetMap) para convertir una direccion postal en
- * coordenadas (lat, lng).
+ * Servicio que convierte una direccion en coordenadas usando Nominatim.
  *
- * Es best-effort: si la API falla, no devuelve resultados o
- * la respuesta no se puede parsear, devuelve Optional#empty()
- * y loguea un warning. Nunca lanza excepcion al llamador, asi que la
- * creacion del negocio nunca queda bloqueada por un fallo de geocoding.
- *
- * Nominatim exige un User-Agent identificable con contacto. Se lee
- * de app.geocoding.user-agent. El timeout HTTP (connect+read)
- * es app.geocoding.timeout-ms (default 5 s).
- *
- * COMUNICACION:
- * - Lo inyecta: BusinessService (en create() y update()).
- * - Llama a (red externa): https://nominatim.openstreetmap.org/search
- *   via RestClient (cliente HTTP de Spring 6, sucesor de RestTemplate).
- * - Devuelve: Optional<Coordinates>.
- *
- * Lectura de configuracion (application.properties):
- *   app.geocoding.user-agent       identificador requerido por Nominatim
- *                                  (incluye email de contacto).
- *   app.geocoding.timeout-ms       timeout connect+read, default 5000.
- *
- * Por que es best-effort: Nominatim es un servicio publico gratuito sin
- * SLA. No es aceptable que un fallo en el (caida, rate limit) bloquee
- * el alta de un negocio. Si falla, lat/lng quedan null y el flujo sigue.
+ * Funciona como apoyo: si la API externa falla, devuelve Optional.empty()
+ * y el alta o edicion del negocio puede continuar.
  */
 @Slf4j
 @Service
@@ -66,9 +43,7 @@ public class GeocodingService {
     }
 
     /**
-     * Resuelve la direccion via Nominatim. Necesita al menos
-     * pais + (ciudad o codigo postal); si no hay datos suficientes
-     * devuelve Optional#empty() sin llamar a la API.
+     * Intenta resolver una direccion si hay datos minimos suficientes.
      */
     public Optional<Coordinates> geocode(String addressLine, String city,
                                           String postalCode, String country) {

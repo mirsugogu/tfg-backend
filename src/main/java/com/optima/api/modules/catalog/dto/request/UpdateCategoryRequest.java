@@ -8,10 +8,6 @@ import jakarta.validation.constraints.Size;
  *
  * Mismo perfil que CreateCategoryRequest (solo nombre). Categorias y
  * negocio no se mueven entre tenants.
- *
- * COMUNICACION:
- * - Lo deserializa Jackson, lo valida @Valid en ServiceCategoryController.
- * - Lo consume ServiceCategoryService.updateCategory.
  */
 public record UpdateCategoryRequest(
         @NotBlank(message = "El nombre es obligatorio")

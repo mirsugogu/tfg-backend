@@ -35,5 +35,9 @@ build/
 # Configuración local de Claude Code (personal, no compartir)
 .claude/
 CLAUDE.md
+AGENTS.md
 
 .env
+
+# Archivos descartados durante la limpieza pre-entrega (no se suben al repo)
+innecesario/

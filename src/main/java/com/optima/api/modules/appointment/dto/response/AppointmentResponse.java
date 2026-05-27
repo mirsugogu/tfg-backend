@@ -7,25 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * AppointmentResponse - DTO de salida de una cita.
- *
- * Aplana la entidad Appointment + recibe la lista de BookedService ya
- * cargada por el service. Para las relaciones @ManyToOne expone:
- *   - business: solo businessId (el negocio ya esta en el path).
- *   - client, membership (empleado), booth (opcional), status:
- *     <rel>Id + <rel>Name.
- * Asi el frontend no tiene que ir a otros endpoints adicionales.
- *
- * COMUNICACION:
- * - Lo construye AppointmentResponse.from(Appointment, List<BookedService>)
- *   en AppointmentService. El service es quien decide como cargar los
- *   BookedService (por id puntual o en batch para listados).
- * - Lo serializa Jackson a JSON en las respuestas de AppointmentController.
- *
- * Diseno: el DTO no conoce repositorios. Convertir entidad -> record es una
- * transformacion pura; la carga de los BookedService asociados es
- * responsabilidad del service, que ademas puede agruparlos en una sola
- * query cuando se listan varias citas (evita el N+1).
+ * DTO de salida con los datos principales de una cita.
  */
 public record AppointmentResponse(
         Long id,
@@ -60,10 +42,7 @@ public record AppointmentResponse(
         List<BookedServiceResponse> mapped = bookedServices.stream()
                 .map(BookedServiceResponse::from)
                 .toList();
-        // [v16 membership] el "empleado" de la cita es ahora una Membership.
-        // membershipId expuesto = id de la membership; userFullName = fullName
-        // del User al que esa membership apunta. Mantenemos los nombres
-        // externos para no romper el contrato del API.
+        // Se devuelve la membership del empleado y su nombre visible.
         return new AppointmentResponse(
                 a.getId(),
                 a.getBusiness().getId(),

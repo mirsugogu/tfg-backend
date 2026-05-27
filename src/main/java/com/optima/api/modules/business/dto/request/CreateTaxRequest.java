@@ -8,18 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-/**
- * CreateTaxRequest - DTO de entrada para crear un impuesto.
- * El businessId viene del path, no del body.
- *
- * COMUNICACION:
- * - Lo deserializa Jackson, lo valida @Valid en TaxController.create.
- * - Lo consume TaxService.create.
- *
- * Validaciones:
- *   name        @NotBlank, max 50 chars.
- *   percentage  @NotNull, rango 0.00..100.00 (BigDecimal para precision).
- */
+/** DTO de entrada para crear un impuesto. */
 public record CreateTaxRequest(
 
         @NotBlank(message = "El nombre del impuesto es obligatorio")

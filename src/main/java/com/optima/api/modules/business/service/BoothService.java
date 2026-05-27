@@ -1,5 +1,6 @@
 package com.optima.api.modules.business.service;
 
+import com.optima.api.modules.appointment.repository.AppointmentRepository;
 import com.optima.api.modules.business.dto.response.BoothResponse;
 import com.optima.api.modules.business.dto.request.CreateBoothRequest;
 import com.optima.api.modules.business.dto.request.UpdateBoothRequest;
@@ -17,24 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
-/**
- * BoothService - Logica de cabinas del negocio.
- *
- * Patron estandar tenant-scoped: cross-tenant en todos los metodos via
- * findByIdAndBusinessId, soft delete con isActive + deactivatedAt, helper
- * findOrThrow centralizando el 404.
- *
- * COMUNICACION:
- * - Lo invoca: BoothController.
- * - Llama a:
- *     BoothRepository              CRUD + existsByName tenant-safe.
- *     BusinessRepository.findById  verifica que el negocio existe.
- * - Devuelve: BoothResponse.
- *
- * Cross-tenant: TODOS los lookups por id usan findByIdAndBusinessId.
- * Soft delete: las cabinas se desactivan, no se borran (preserva
- * referencias desde citas historicas que las tuvieran asignadas).
- */
+/** Logica de cabinas del negocio. */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -42,6 +26,7 @@ public class BoothService {
 
     private final BoothRepository boothRepository;
     private final BusinessRepository businessRepository;
+    private final AppointmentRepository appointmentRepository;
 
     /**
      * Crea una cabina para el negocio. Falla si ya existe otra cabina
@@ -115,13 +100,23 @@ public class BoothService {
 
     /**
      * Soft delete: marca la cabina como inactiva y rellena deactivatedAt.
-     * Lanza 400 si ya estaba desactivada.
+     * Lanza 400 si ya estaba desactivada y 409 si todavía tiene citas
+     * activas (PENDING, CONFIRMED o IN_PROGRESS) cuya hora de fin aún
+     * no ha pasado, para no dejar citas vivas apuntando a una cabina
+     * archivada.
      */
     public void deactivate(Long businessId, Long id) {
         Booth b = findOrThrow(businessId, id);
         if (!b.getIsActive()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "La cabina ya está desactivada");
+        }
+        long pendientes = appointmentRepository.countActiveByBoothAndBusiness(
+                id, businessId, LocalDateTime.now());
+        if (pendientes > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "La cabina tiene " + pendientes + " cita(s) pendiente(s); "
+                            + "cancélalas o reasígnalas antes de archivar");
         }
         b.setIsActive(false);
         b.setDeactivatedAt(LocalDateTime.now());

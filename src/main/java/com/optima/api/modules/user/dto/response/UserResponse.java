@@ -6,24 +6,9 @@ import com.optima.api.modules.user.model.User;
 import java.time.LocalDateTime;
 
 /**
- * UserResponse - DTO de salida para representar un "empleado de un negocio".
- * IMPORTANTE: nunca incluye passwordHash; el hash de la contraseña
- * jamás debe salir hacia el cliente.
+ * Respuesta que representa a un empleado dentro de un negocio.
  *
- * COMUNICACION:
- * - Lo construye: UserResponse.from(Membership) en UserService.
- * - Lo serializa Jackson a JSON en las respuestas de UserController.
- *
- * [v16 membership] Tras el refactor, "usuario del negocio" es la membership
- * (relacion user-business-role). El DTO expone:
- *   - `id` (PK externa) = id de la membership; los paths
- *     /api/businesses/{businessId}/users/{id} usan este valor.
- *   - `userId` = id de la identidad subyacente (User), util para enlazar
- *     varias memberships del mismo email.
- *   - `businessId`, `roleId`, `roleName`, `color` = atributos de la membership.
- *   - `fullName`, `email`, `phone` = atributos de la identidad.
- *   - `isActive`, `createdAt` = de la membership (cuando el empleado entro
- *     en este negocio).
+ * No incluye passwordHash. El id principal corresponde a la membership.
  */
 public record UserResponse(
         Long id,

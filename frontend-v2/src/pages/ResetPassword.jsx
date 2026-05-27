@@ -34,6 +34,10 @@ const tokenInputCls =
   'h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-12 text-sm text-[#1f2c4a] placeholder:text-slate-400 ' +
   'font-mono transition-all focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-100'
 
+/**
+ * Restablece la contraseña a partir del token efímero recibido por
+ * email. El token caduca a la hora y queda invalidado al primer uso.
+ */
 export default function ResetPassword() {
   const { user } = useAuth()
   const [params] = useSearchParams()

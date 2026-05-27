@@ -26,69 +26,31 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
- * Rate limiter por IP para los endpoints publicos de autenticacion.
+ * Limita por IP los intentos en endpoints publicos de autenticacion.
  *
- * Implementa token bucket (RFC informal, popularizado por
- * routers Cisco): cada IP tiene un cubo con N tokens; cada request
- * consume 1; el cubo se rellena a M/intervalo. Si el cubo esta vacio
- * la request se rechaza con 429 Too Many Requests y un header
- * Retry-After con los segundos restantes.
- *
- * Politica actual (valores calibrados para que la collection Postman
- * pueda ejecutarse entera sin choque artificial, manteniendo defensa
- * contra abuso):
- * 
- *   - POST /api/auth/token: 10 intentos / minuto / IP.
- *       Mitiga brute-force de credenciales. Limite agresivo: con 10/min
- *       un atacante consigue ~600 intentos/h por IP, muy por debajo del
- *       espacio de password tipico.
- *   - POST /api/auth/register: 20 intentos / hora / IP.
- *       Frena registro masivo de negocios fake.
- *   - POST /api/auth/forgot-password: 10 / hora / IP.
- *       Frena spam de correos automaticos (cada solicitud manda email).
- *   - POST /api/auth/reset-password: 20 / hora / IP.
- *       Frena fuerza bruta sobre el token (256 bits, imposible en 1h,
- *       pero limitar reduce ruido en logs).
- * 
- *
- * Bucket por IP guardado en memoria (ConcurrentHashMap).
- * Para un TFG sin replicacion horizontal es suficiente. En produccion
- * con varias replicas se sustituiria por bucket4j-redis para compartir
- * estado.
- *
- * Orden en la cadena: este filtro corre antes de
- * JwtAuthenticationFilter para que un atacante no pueda gastar
- * tokens validos del rate limit al ser rechazado por el siguiente
- * filtro. El rate limit es la primera barrera.
- *
- * COMUNICACION:
- * - Lo registra: SecurityConfig.filterChain con
- *   addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class).
- * - Lee: HttpServletRequest.getRemoteAddr() (X-Forwarded-For si hubiera
- *   un proxy delante; aqui no asumimos proxy para mantener simplicidad).
- * - Escribe: si supera el limite, escribe directamente un ErrorResponse
- *   JSON con status 429 y NO llama a chain.doFilter.
+ * Usa cubos de tokens en memoria para reducir abusos como muchos intentos
+ * de login o solicitudes repetidas de recuperacion de contrasena.
  */
 @Component
 @RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    /** 10 intentos por minuto contra /api/auth/token. */
+    /** Limite de intentos de login por IP. */
     private static final Supplier<Bucket> LOGIN_BUCKET = () -> Bucket.builder()
             .addLimit(Bandwidth.classic(10, Refill.intervally(10, Duration.ofMinutes(1))))
             .build();
 
-    /** 20 intentos por hora contra /api/auth/register. */
+    /** Limite de registros de negocio por IP. */
     private static final Supplier<Bucket> REGISTER_BUCKET = () -> Bucket.builder()
             .addLimit(Bandwidth.classic(20, Refill.intervally(20, Duration.ofHours(1))))
             .build();
 
-    /** 10 intentos por hora contra /api/auth/forgot-password (anti-spam de emails). */
+    /** Limite de solicitudes de recuperacion de contrasena por IP. */
     private static final Supplier<Bucket> FORGOT_BUCKET = () -> Bucket.builder()
             .addLimit(Bandwidth.classic(10, Refill.intervally(10, Duration.ofHours(1))))
             .build();
 
-    /** 20 intentos por hora contra /api/auth/reset-password. */
+    /** Limite de intentos de cambio de contrasena con token por IP. */
     private static final Supplier<Bucket> RESET_BUCKET = () -> Bucket.builder()
             .addLimit(Bandwidth.classic(20, Refill.intervally(20, Duration.ofHours(1))))
             .build();
@@ -121,11 +83,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         writeTooManyRequests(response, waitSeconds);
     }
 
-    /**
-     * Decide que bucket aplica al request. Devuelve null si el endpoint
-     * no esta limitado (la mayoria de rutas: el rate limit solo aplica
-     * a los endpoints publicos de auth).
-     */
+    /** Devuelve el cubo que corresponde al endpoint, o null si no se limita. */
     private Bucket pickBucket(HttpServletRequest request) {
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
             return null;

@@ -13,16 +13,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * BoothRepository - Acceso a la tabla `booths`.
- *
- * COMUNICACION:
- * - Lo inyectan: BoothService, AppointmentService (cross-tenant de la
- *   cabina al crear/editar una cita).
- * - Habla con: MySQL via Hibernate.
- *
- * Multi-tenant via findByIdAndBusinessId, igual que el resto del proyecto.
- */
+/** Repositorio de cabinas del negocio. */
 @Repository
 public interface BoothRepository extends JpaRepository<Booth, Long> {
 
@@ -46,20 +37,7 @@ public interface BoothRepository extends JpaRepository<Booth, Long> {
     /** Lookup tenant-safe por id+businessId. */
     Optional<Booth> findByIdAndBusinessId(Long id, Long businessId);
 
-    /**
-     * Variante de findByIdAndBusinessId con lock pesimista de escritura
-     * (SELECT ... FOR UPDATE). La usa AppointmentService.createAppointment
-     * cuando la cita lleva cabina: serializa la creacion concurrente sobre
-     * la misma cabina aunque vengan de empleados distintos, garantizando la
-     * regla "1 empleado por cabina y slot" bajo concurrencia.
-     *
-     * Sin este lock, dos POST con empleados A y B distintos compartiendo
-     * cabina pueden pasar a la vez validateNoBoothOverlap (TOCTOU) y crear
-     * dos citas en la misma cabina al mismo tiempo, violando la regla.
-     *
-     * El lock se libera al cerrar la transaccion del service. Para lectura
-     * usar findByIdAndBusinessId.
-     */
+    /** Busca una cabina aplicando bloqueo pesimista. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT b FROM Booth b WHERE b.id = :id AND b.business.id = :businessId")
     Optional<Booth> findByIdAndBusinessIdForUpdate(@Param("id") Long id,

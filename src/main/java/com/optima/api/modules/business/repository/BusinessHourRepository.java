@@ -7,18 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * BusinessHourRepository - Acceso a la tabla `business_hours`.
- *
- * COMUNICACION:
- * - Lo inyectan: BusinessHourService, AppointmentValidator, AvailabilityService.
- * - Habla con: MySQL via Hibernate.
- *
- * Multi-tenant via findByIdAndBusinessId. Un negocio puede tener varios tramos
- * el mismo dia (turno partido: 10-14 + 16-20); la no-superposicion se valida
- * en BusinessHourService con el patron A<D AND C<B, igual que
- * EmployeeScheduleService.
- */
+/** Acceso a la tabla `business_hours`. */
 @Repository
 public interface BusinessHourRepository extends JpaRepository<BusinessHour, Long> {
 

@@ -6,13 +6,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * JacksonConfig - Ajustes globales del ObjectMapper de Spring Boot.
+ * Configura la lectura de fechas en los JSON de entrada.
  *
- * Registra {@link StrictLocalDateTimeDeserializer} para que cualquier
- * campo {@code LocalDateTime} de los DTOs request rechace cadenas con
- * sufijo "Z" o offset explicito. Sin esto, Jackson acepta silenciosamente
- * la zona horaria y la descarta — provocando que el frontend crea que
- * envia UTC mientras el backend guarda hora local.
+ * Las fechas con hora se tratan como hora local, por eso no se aceptan
+ * valores con zona horaria.
  */
 @Configuration
 public class JacksonConfig {

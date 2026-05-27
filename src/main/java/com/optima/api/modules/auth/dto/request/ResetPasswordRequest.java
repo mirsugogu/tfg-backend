@@ -4,16 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * ResetPasswordRequest - DTO de entrada para fijar una nueva password con un token de reset.
- *
- * El usuario llega aqui tras clicar el link del email. El token va
- * en el body (no en query string) para que no quede en logs de proxy.
- * La newPassword tiene el mismo perfil de validacion que las demas
- * passwords del sistema (min 8 chars).
- *
- * COMUNICACION:
- * - Lo deserializa Jackson en POST /api/auth/reset-password.
- * - Lo consume PasswordResetService.consumeReset.
+ * Datos para guardar una nueva contrasena usando un token de reset.
  */
 public record ResetPasswordRequest(
 

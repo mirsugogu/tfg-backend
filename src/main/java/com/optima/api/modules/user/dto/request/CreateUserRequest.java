@@ -8,22 +8,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 /**
- * CreateUserRequest - DTO de entrada para crear un usuario.
- * El businessId viene del path, no del body.
- * El password llega en texto plano y el servicio lo hashea con BCrypt
- * antes de guardarlo en la BD.
- *
- * COMUNICACION:
- * - Lo deserializa Jackson desde el body JSON de POST .../users.
- * - Lo valida @Valid en UserController.create (Spring lanza 400 si falla).
- * - Lo consume UserService.create.
- *
- * Validaciones:
- *   roleId    @NotNull, @Positive
- *   fullName  @NotBlank, max 150 chars.
- *   email     @NotBlank, @Email (formato), max 150 chars.
- *   password  @NotBlank, longitud 8-100 (forzamos minimo de seguridad).
- *   phone     opcional, max 20 chars.
+ * Datos para crear un empleado dentro de un negocio.
  */
 public record CreateUserRequest(
 

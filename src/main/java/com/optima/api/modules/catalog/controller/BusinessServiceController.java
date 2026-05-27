@@ -14,25 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * BusinessServiceController - CRUD de servicios comerciales del catalogo.
- * Recurso anidado bajo /api/businesses/{businessId}/services.
- *
- * "BusinessService" es el SERVICIO COMERCIAL (corte de pelo, manicura...),
- * NO confundir con la capa @Service de Spring. Vive en el paquete
- * `catalog` para subrayar la diferencia.
- *
- * COMUNICACION:
- * - Recibe: CRUD HTTP bajo /api/businesses/{businessId}/services.
- * - Le precede: JwtAuthFilter + TenantGuardFilter (cross-tenant via path).
- * - Llama a: BusinessServiceService.
- * - Devuelve: BusinessServiceResponse(s) en JSON.
- *
- * Permisos:
- *   POST/PUT/DELETE -> @PreAuthorize("hasRole('ADMIN')") - solo el admin
- *                      configura el catalogo de servicios.
- *   GET (list, byId) -> sin @PreAuthorize - cualquier autenticado lee.
- */
+/** CRUD de servicios comerciales del catalogo. */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/services")
 @RequiredArgsConstructor
@@ -41,10 +23,7 @@ public class BusinessServiceController {
 
     private final BusinessServiceService businessServiceService;
 
-    /**
-     * Crea un nuevo servicio en el negocio. Categoría e impuesto se validan
-     * cross-tenant en el servicio.
-     */
+    /** Crea un servicio del catalogo. */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
@@ -53,14 +32,7 @@ public class BusinessServiceController {
         return businessServiceService.createService(businessId, request);
     }
 
-    /**
-     * Lista paginada de servicios del negocio.
-     * Pageable se rellena con ?page=&size=&sort=field,asc.
-     *
-     * ?active=true (por defecto) devuelve los servicios activos;
-     * ?active=false devuelve los archivados (la vista desde la que se
-     * reactivan).
-     */
+    /** Lista paginada de servicios del negocio. */
     @GetMapping
     public Page<BusinessServiceResponse> getServicesByBusiness(@PathVariable @Positive Long businessId,
                                                        @RequestParam(defaultValue = "true") boolean active,
@@ -68,18 +40,14 @@ public class BusinessServiceController {
         return businessServiceService.getActiveServicesByBusiness(businessId, active, pageable);
     }
 
-    /**
-     * Obtiene un servicio por ID dentro del negocio (cross-tenant safe).
-     */
+    /** Obtiene un servicio del negocio. */
     @GetMapping("/{id}")
     public BusinessServiceResponse getServiceById(@PathVariable @Positive Long businessId,
                                           @PathVariable @Positive Long id) {
         return businessServiceService.getServiceById(businessId, id);
     }
 
-    /**
-     * Actualiza los campos editables de un servicio dentro del negocio.
-     */
+    /** Actualiza un servicio del catalogo. */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public BusinessServiceResponse updateService(@PathVariable @Positive Long businessId,
@@ -88,9 +56,7 @@ public class BusinessServiceController {
         return businessServiceService.updateService(businessId, id, request);
     }
 
-    /**
-     * Soft delete del servicio dentro del negocio.
-     */
+    /** Desactiva un servicio del catalogo. */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
@@ -98,11 +64,7 @@ public class BusinessServiceController {
         businessServiceService.deactivateService(businessId, id);
     }
 
-    /**
-     * PATCH /api/businesses/{businessId}/services/{id}/reactivate - Revierte
-     * el soft delete de un servicio archivado (ADMIN). Pone isActive=true.
-     * Devuelve el BusinessServiceResponse actualizado. 400 si ya estaba activo.
-     */
+    /** Reactiva un servicio desactivado. */
     @PatchMapping("/{id}/reactivate")
     @PreAuthorize("hasRole('ADMIN')")
     public BusinessServiceResponse reactivateService(@PathVariable @Positive Long businessId,

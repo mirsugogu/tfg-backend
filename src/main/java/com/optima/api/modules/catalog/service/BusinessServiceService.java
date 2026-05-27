@@ -21,28 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
-/**
- * BusinessServiceService - Logica de servicios comerciales.
- *
- * Naming: el modulo se llama "catalog", la entidad "BusinessService", el
- * service "BusinessServiceService" (el doble service es por convencion:
- * primer Service = entidad, segundo Service = capa). En produccion lo
- * renombrariamos a "ServiceCatalogService", pero para TFG se mantiene
- * por consistencia con la entidad.
- *
- * COMUNICACION:
- * - Lo invoca: BusinessServiceController.
- * - Llama a:
- *     BusinessServiceRepository    CRUD + existsByName tenant-safe.
- *     BusinessRepository           verifica negocio.
- *     ServiceCategoryRepository    cross-tenant de la categoria.
- *     TaxRepository                cross-tenant del impuesto.
- * - Devuelve: BusinessServiceResponse.
- *
- * Cross-tenant: usa findByIdAndBusinessId en TODAS las relaciones
- * (categoria, impuesto, propio servicio) para evitar mezclas entre
- * tenants.
- */
+/** Logica de servicios comerciales. */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -53,23 +32,7 @@ public class BusinessServiceService {
     private final ServiceCategoryRepository categoryRepository;
     private final TaxRepository taxRepository;
 
-    /**
-     * Crea un nuevo servicio en el catalogo del negocio.
-     *
-     * Pasos:
-     *   1. Valida que no exista otro servicio con ese nombre en el negocio (409).
-     *   2. Verifica que el negocio existe (404).
-     *   3. Cross-tenant: la categoria pertenece a este negocio y esta activa (404/400).
-     *   4. Cross-tenant: el impuesto pertenece a este negocio y esta activo (404/400).
-     *   5. Persiste la entidad con isActive=true por defecto.
-     *
-     * @param businessId barrera multi-tenant: categoria, impuesto y unicidad
-     *                   del nombre se validan contra este id.
-     * @param request payload validado: name, description, price, durationMinutes,
-     *                categoryId, taxId.
-     * @return BusinessServiceResponse con la entidad creada (incluye
-     *         categoryName y taxName aplanados).
-     */
+    /** Crea un nuevo servicio en el catalogo del negocio. */
     public BusinessServiceResponse createService(Long businessId, CreateServiceRequest request) {
 
         String name = request.name().trim();
@@ -152,20 +115,7 @@ public class BusinessServiceService {
         return BusinessServiceResponse.from(findOrThrow(businessId, id));
     }
 
-    /**
-     * Actualiza los campos editables de un servicio: name, description,
-     * price, durationMinutes, categoryId, taxId. La nueva categoría y el
-     * nuevo impuesto deben pertenecer al mismo negocio; si se cambian,
-     * además deben estar activos.
-     *
-     * Editable aunque el servicio este archivado: tipico caso de "rescatar"
-     * un servicio cuya categoria fue archivada. Si el admin lo edita para
-     * apuntarlo a otra categoria activa, despues puede reactivarlo. El
-     * servicio se mantiene en su estado actual (isActive no se toca aqui);
-     * la reactivacion sigue siendo un endpoint aparte. Los precios de las
-     * citas historicas no se ven afectados porque BookedService guarda
-     * precio e IVA congelados.
-     */
+    /** Actualiza los campos editables de un servicio. */
     public BusinessServiceResponse updateService(Long businessId, Long id, UpdateServiceRequest request) {
         BusinessService service = findOrThrow(businessId, id);
 
@@ -215,10 +165,7 @@ public class BusinessServiceService {
         return BusinessServiceResponse.from(serviceRepository.save(service));
     }
 
-    /**
-     * Soft delete: marca el servicio como inactivo y registra el momento.
-     * Filtra por negocio (cross-tenant safe). No se puede desactivar dos veces.
-     */
+    /** Desactiva un servicio sin borrar su historico. */
     public void deactivateService(Long businessId, Long id) {
         BusinessService service = findOrThrow(businessId, id);
         if (!service.getIsActive()) {
@@ -230,16 +177,7 @@ public class BusinessServiceService {
         serviceRepository.save(service);
     }
 
-    /**
-     * Reactiva un servicio archivado: pone isActive=true y deactivatedAt=null.
-     * Filtra por negocio (cross-tenant safe). Lanza 400 si ya estaba activo.
-     *
-     * Coherencia con D1 (no archivar categoria con servicios activos): un
-     * servicio activo NO puede apuntar a una categoria o impuesto archivados.
-     * Si su categoria o tax estan inactivos, se rechaza con 409 y un mensaje
-     * accionable. El admin debe reactivar primero la categoria/tax o
-     * actualizar el servicio para apuntar a uno activo.
-     */
+    /** Reactiva un servicio archivado: pone isActive=true y deactivatedAt=null. */
     public BusinessServiceResponse reactivateService(Long businessId, Long id) {
         BusinessService service = findOrThrow(businessId, id);
         if (service.getIsActive()) {
@@ -265,10 +203,7 @@ public class BusinessServiceService {
         return BusinessServiceResponse.from(serviceRepository.save(service));
     }
 
-    /**
-     * Helper privado: busca el servicio asegurando que pertenece al negocio.
-     * Si no existe (o pertenece a otro tenant), lanza 404.
-     */
+    /** Busca un servicio dentro de un negocio. */
     private BusinessService findOrThrow(Long businessId, Long id) {
         return serviceRepository.findByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new ResponseStatusException(

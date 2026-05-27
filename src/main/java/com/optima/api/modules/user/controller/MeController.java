@@ -21,29 +21,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * MeController - Endpoints del propio usuario autenticado.
+ * Controlador del usuario autenticado.
  *
- * A diferencia de UserController (que opera sobre /api/businesses/{id}/users
- * y exige rol ADMIN para mutaciones), aqui el ID del usuario se toma del JWT,
- * no del path. Cualquier usuario autenticado puede consultar su perfil y
- * cambiar su propia contrasena, pero nunca la de otro.
- *
- * El recurso no esta anidado bajo /api/businesses/{businessId}/... porque
- * el JWT puede ser identity-only (sin businessId) o tenant. Asi tampoco
- * aplica el TenantGuardFilter (su regex solo matchea /api/businesses/...).
- *
- * COMUNICACION:
- * - Recibe: GET/PUT bajo /api/me. Requiere JWT (anyRequest().authenticated()).
- * - Le precede: JwtAuthenticationFilter (autentica, pone AuthPrincipal en
- *   SecurityContext).
- * - Llama a: UserService (getMyProfile, changePassword, listMyBusinesses).
- * - Devuelve: MeResponse / List<MembershipSummaryResponse> / 204 No Content.
- *
- * Endpoints:
- *   GET  /api/me            perfil de la identidad autenticada.
- *   PUT  /api/me            actualiza fullName, email y phone de la propia identidad.
- *   PUT  /api/me/password   cambia la propia contrasena.
- *   GET  /api/me/businesses lista las memberships activas (selector post-login).
+ * Permite consultar y actualizar los datos propios de la identidad, sin
+ * depender de un negocio concreto.
  */
 @RestController
 @RequestMapping("/api/me")
@@ -54,11 +35,7 @@ public class MeController {
     private final UserService userService;
 
     /**
-     * GET /api/me - Devuelve el perfil de la identidad autenticada.
-     *
-     * [v16 membership] El userId se lee del AuthPrincipal. La respuesta
-     * (MeResponse) cubre solo los datos de la identidad; las memberships
-     * activas se listan en listMyBusinesses.
+     * Devuelve el perfil de la identidad autenticada.
      */
     @GetMapping
     public MeResponse getMe(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -66,12 +43,7 @@ public class MeController {
     }
 
     /**
-     * PUT /api/me - Actualiza los datos globales de la identidad autenticada.
-     *
-     * [v16 membership] Punto unico de mutacion para fullName, email y phone.
-     * El admin del negocio ya no puede tocarlos via /api/businesses/{}/users/{}
-     * (eso solo gestiona el rol de la membership) — la identidad es propiedad
-     * de la propia persona, que se identifica con su JWT.
+     * Actualiza los datos personales de la identidad autenticada.
      */
     @PutMapping
     public MeResponse updateMe(@AuthenticationPrincipal AuthPrincipal principal,
@@ -80,14 +52,7 @@ public class MeController {
     }
 
     /**
-     * PUT /api/me/password - Cambia la contrasena de la identidad autenticada.
-     *
-     * Requiere demostrar conocimiento de la contrasena actual (mitiga
-     * secuestro de cuenta si un JWT se filtra). Devuelve 204 No Content
-     * porque no hay payload de respuesta.
-     *
-     * [v16 membership] Sin businessId: la password es de la identidad,
-     * no de la membership; cambia para todas las memberships del usuario.
+     * Cambia la contrasena de la identidad autenticada.
      */
     @PutMapping("/password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -101,13 +66,7 @@ public class MeController {
     }
 
     /**
-     * GET /api/me/businesses - Memberships activas del usuario autenticado.
-     *
-     * Pensado para el flujo de login en 2 pasos: cuando el usuario tiene
-     * mas de 1 memberships y el login devuelve identity token, el frontend
-     * usa este endpoint (o el campo `businesses` del propio TokenResponse)
-     * para mostrar el selector "elige negocio". Igualmente util tras un
-     * select-business si se quiere cambiar de negocio sin re-login.
+     * Lista los negocios activos a los que pertenece el usuario.
      */
     @GetMapping("/businesses")
     public List<MembershipSummaryResponse> listMyBusinesses(@AuthenticationPrincipal AuthPrincipal principal) {

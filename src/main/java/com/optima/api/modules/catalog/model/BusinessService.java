@@ -12,27 +12,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Entidad que representa un servicio ofertado por un negocio
- * (ej: "Corte de pelo", "Tinte", "Manicura").
- * Cada servicio pertenece a un negocio, está asignado a una categoría
- * y lleva un impuesto aplicado. El precio se guarda como BigDecimal
- * para garantizar precisión exacta en cálculos monetarios.
- * Si se deja de ofrecer un servicio, se marca como inactivo en lugar
- * de borrarlo, para no romper las citas históricas que ya lo referencian.
- * Se nombra BusinessService (no Service) para evitar confusión con la
- * anotación @Service de Spring, que se usa en la capa de lógica de negocio.
- *
- * COMUNICACION:
- * - La instancia: Hibernate al hidratar, BusinessServiceService.create
- *   manualmente.
- * - La consume: BusinessServiceResponse.from(), AppointmentService (verifica
- *   activo antes de crear cita), BookedService (la referencia via FK).
- * - Tiene relaciones @ManyToOne con: Business, ServiceCategory, Tax.
- *
- * Mapea a la tabla `services` (docs/schema_v20.sql). El campo createdAt
- * se anadio en v20 para alinear con la regla 7 del patron canonico de
- * entidad (@PrePersist para createdAt); paralelo a la migracion v18
- * que lo introdujo en taxes.
+ * Entidad que representa un servicio ofrecido por un negocio.
+ * Se llama BusinessService para no confundirse con @Service de Spring.
  */
 @Entity
 @Table(name = "services")
@@ -47,76 +28,50 @@ public class BusinessService {
     @Column(name = "id_service")
     private Long id;
 
-    /**
-     * Negocio al que pertenece este servicio.
-     */
+    /** Negocio al que pertenece este servicio. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_business", nullable = false)
     private Business business;
 
-    /**
-     * Categoría a la que pertenece este servicio.
-     */
+    /** Categoría a la que pertenece este servicio. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_category", nullable = false)
     private ServiceCategory category;
 
-    /**
-     * Impuesto aplicado al precio de este servicio.
-     */
+    /** Impuesto aplicado al precio de este servicio. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_tax", nullable = false)
     private Tax tax;
 
-    /**
-     * Nombre visible del servicio (ej. "Corte de pelo", "Tinte completo").
-     */
+    /** Nombre visible del servicio (ej. "Corte de pelo", "Tinte completo"). */
     @Column(name = "name", nullable = false, length = 150)
     private String name;
 
-    /**
-     * Descripción opcional del servicio (TEXT: admite texto largo).
-     */
+    /** Descripción opcional del servicio (TEXT: admite texto largo). */
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    /**
-     * Precio del servicio (sin impuesto aplicado).
-     * DECIMAL(10, 2): hasta 99.999.999,99 €.
-     */
+    /** Precio base del servicio, sin impuesto aplicado. */
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
-    /**
-     * Duración del servicio en minutos. Debe ser mayor que 0.
-     */
+    /** Duración del servicio en minutos. Debe ser mayor que 0. */
     @Column(name = "duration_minutes", nullable = false)
     private Integer durationMinutes;
 
-    /**
-     * Flag de soft delete: false oculta el servicio del catalogo activo
-     * y lo excluye de poder reservarse en citas nuevas, pero conserva las
-     * citas historicas (BookedService) que lo referencian.
-     */
+    /** Indica si el servicio sigue disponible en el catalogo. */
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    /**
-     * Fecha y hora en que se creo el servicio (rellenado por @PrePersist).
-     */
+    /** Fecha y hora en que se creo el servicio (rellenado por @PrePersist). */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /**
-     * Momento de la desactivacion (null mientras el servicio este activo).
-     */
+    /** Momento de la desactivacion (null mientras el servicio este activo). */
     @Column(name = "deactivated_at")
     private LocalDateTime deactivatedAt;
 
-    /**
-     * Se ejecuta automaticamente antes de hacer INSERT en la BD.
-     * Rellena la fecha de creacion con el momento actual.
-     */
+    /** Asigna la fecha de creacion antes de guardar. */
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

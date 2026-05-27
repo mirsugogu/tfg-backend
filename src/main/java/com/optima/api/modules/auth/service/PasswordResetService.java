@@ -26,52 +26,10 @@ import java.util.Base64;
 import java.util.Optional;
 
 /**
- * PasswordResetService - Logica de reset de password por email.
+ * Servicio para restablecer contrasenas por correo.
  *
- * Flujo:
- *   1. Usuario llama a POST /api/auth/forgot-password con su email.
- *   2. Si el email existe:
- *      - Generamos un token plano de 32 bytes aleatorios (256 bits
- *        de entropia) en base64 url-safe.
- *      - Guardamos en BD SOLO el hash SHA-256 del token, con
- *        expires_at = now()+1h.
- *      - Mandamos el token plano por email al usuario, con un link
- *        a la pagina de reset del frontend.
- *   3. Respondemos SIEMPRE 204 No Content, exista o no el email
- *      (anti-enumeration: un atacante no puede descubrir que emails
- *      hay registrados probando direcciones).
- *   4. Usuario clica el link. Frontend muestra formulario con new
- *      password y manda POST /api/auth/reset-password con el token.
- *   5. Hashamos el token recibido y buscamos en BD. Si:
- *      - Existe;
- *      - used_at == null;
- *      - expires_at > now();
- *      entonces:
- *      - Cambiamos el password (BCrypt) en users.password_hash;
- *      - Marcamos el token como used_at = now() (anti-replay).
- *
- * Por que SHA-256 y no BCrypt para el token: el token tiene 256 bits
- * de entropia (no es un password debil), expira en 1h y se usa solo
- * una vez. Un atacante con la BD no puede forzarlo en menos tiempo
- * que su validez. SHA-256 es 100x mas rapido que BCrypt en
- * verificacion, importante porque el token se valida en cada click
- * del usuario.
- *
- * COMUNICACION:
- * - Lo invoca: AuthController (endpoints publicos).
- * - Llama a:
- *     UserRepository.findByEmailIgnoreCase   localizar identidad por email.
- *     UserRepository.save                    persistir el nuevo passwordHash (consumeReset).
- *     PasswordResetRepository.save           persistir el hash + expires (requestReset)
- *                                            y marcar used_at (consumeReset).
- *     PasswordResetRepository.findByTokenHash buscar el reset al consumir.
- *     PasswordEncoder.encode                 hashear el nuevo password.
- *     MailService.sendSimpleEmail            best-effort, no bloquea.
- * - Devuelve: void (los endpoints son fire-and-forget).
- *
- * @Transactional a nivel de clase porque ambos metodos
- * escriben. Excepciones controladas se traducen a
- * ResponseStatusException.
+ * Guarda solo el hash del token, marca los tokens usados y responde de
+ * forma neutra cuando se solicita un reset para evitar revelar emails.
  */
 @Service
 @Transactional
@@ -79,10 +37,10 @@ import java.util.Optional;
 @Slf4j
 public class PasswordResetService {
 
-    /** Tiempo de vida del token. Suficiente para que el usuario lea el email. */
+    /** Tiempo maximo de validez del token de reset. */
     private static final Duration TOKEN_TTL = Duration.ofHours(1);
 
-    /** 32 bytes = 256 bits de entropia. Resistente a fuerza bruta. */
+    /** Longitud del token aleatorio antes de codificarlo. */
     private static final int TOKEN_LENGTH_BYTES = 32;
 
     private final UserRepository userRepository;
@@ -92,25 +50,20 @@ public class PasswordResetService {
     private final SecureRandom secureRandom = new SecureRandom();
 
     /**
-     * URL base del frontend, para construir el enlace de la pantalla de
-     * restablecimiento que viaja en el email. Inyectada con @Value (campo
-     * no-final, mismo patron que app.mail.from en MailService) y con valor
-     * por defecto, para que el arranque no dependa de la propiedad.
+     * URL base usada para construir el enlace enviado por correo.
      */
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
 
     /**
-     * Inicia el flujo de reset. Siempre devuelve 200 al caller, hayamos
-     * encontrado el email o no (anti-enumeration).
+     * Inicia el reset sin indicar si el email existe o no.
      */
     public void requestReset(ForgotPasswordRequest request) {
         String email = request.email().trim().toLowerCase();
         Optional<User> userOpt = userRepository.findByEmailIgnoreCase(email);
 
         if (userOpt.isEmpty()) {
-            // Anti-enumeration: el endpoint responde igual que si existiera.
-            // Logueamos en INFO para observabilidad pero no se filtra al cliente.
+            // La respuesta externa es igual que si el email existiera.
             log.info("forgot-password: email '{}' no registrado; respuesta neutra", email);
             return;
         }
@@ -125,10 +78,7 @@ public class PasswordResetService {
         reset.setExpiresAt(LocalDateTime.now().plus(TOKEN_TTL));
         resetRepository.save(reset);
 
-        // Enlace directo a la pantalla de reset del frontend. El token es
-        // base64 url-safe sin padding (ver generateRawToken), asi que viaja
-        // en la query string sin necesidad de codificarlo. replaceAll quita
-        // una posible barra final de frontendUrl para no generar "//reset".
+        // Se evita una doble barra si la URL configurada termina en "/".
         String resetLink = frontendUrl.replaceAll("/+$", "")
                 + "/reset-password?token=" + rawToken;
 
@@ -158,9 +108,7 @@ public class PasswordResetService {
     }
 
     /**
-     * Consume el token y aplica la nueva password. Lanza 400 si el
-     * token es invalido / caducado / ya usado (mismo mensaje en todos
-     * los caminos para no filtrar info).
+     * Valida el token y guarda la nueva contrasena.
      */
     public void consumeReset(ResetPasswordRequest request) {
         String tokenHash = sha256Hex(request.token());
@@ -186,23 +134,21 @@ public class PasswordResetService {
     }
 
     /**
-     * Mismo mensaje para los tres caminos de fallo (no existe / usado /
-     * caducado): no queremos que un atacante distinga si el token
-     * tiene formato correcto pero esta caducado vs no existe.
+     * Devuelve siempre el mismo mensaje para tokens invalidos.
      */
     private ResponseStatusException badToken() {
         return new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "El token de reset no es valido o ha caducado");
     }
 
-    /** 32 bytes aleatorios en base64 url-safe sin padding. */
+    /** Genera un token aleatorio para enviar por correo. */
     private String generateRawToken() {
         byte[] bytes = new byte[TOKEN_LENGTH_BYTES];
         secureRandom.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    /** Hash hex SHA-256. Determinista, rapido, suficiente para tokens efimeros. */
+    /** Calcula el hash SHA-256 del token recibido. */
     private String sha256Hex(String input) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
@@ -213,7 +159,7 @@ public class PasswordResetService {
             }
             return hex.toString();
         } catch (NoSuchAlgorithmException e) {
-            // Imposible en JVM moderna; si pasa es bug de instalacion.
+            // SHA-256 debe existir en una JVM moderna.
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Error de configuración: SHA-256 no disponible en la JVM", e);
         }

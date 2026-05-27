@@ -89,9 +89,11 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
         {/* Logo + toggle */}
         <div className={cn('flex items-center pt-6 pb-5', collapsed ? 'px-3 justify-center' : 'px-5 justify-between')}>
           <NavLink to="/dashboard" className="flex items-center gap-3" title="Ir al dashboard">
-            <div className="rounded-xl bg-white p-1.5 shadow-[0_4px_14px_rgba(0,0,0,0.18)]">
-              <img src="/logo.svg" alt="OPTIMA" className="h-7 w-auto" />
-            </div>
+            <img
+              src="/logo.svg"
+              alt="OPTIMA"
+              className="h-10 w-10 rounded-xl shadow-[0_4px_14px_rgba(0,0,0,0.25)]"
+            />
             {!collapsed && (
               <div>
                 <div className="text-lg font-bold text-white tracking-tight leading-none">OPTIMA</div>

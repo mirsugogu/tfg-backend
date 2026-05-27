@@ -9,12 +9,6 @@ import java.util.Optional;
 /**
  * AppointmentStatusRepository - Acceso al catalogo `appointment_statuses`.
  *
- * COMUNICACION:
- * - Lo inyectan: AppointmentService (busca el estado PENDING al crear,
- *   busca por nombre al transicionar) y AppointmentStatusService
- *   (catalogo publico).
- * - Habla con: MySQL via Hibernate.
- *
  * Catalogo global (sin id_business): los mismos estados aplican a
  * todos los negocios.
  */

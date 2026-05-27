@@ -9,23 +9,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-/**
- * CreateServiceRequest - DTO de entrada para crear un servicio.
- * El businessId viene del path, no del body.
- * La categoría y el impuesto se validan cross-tenant en el servicio.
- *
- * COMUNICACION:
- * - Lo deserializa Jackson, lo valida @Valid en BusinessServiceController.
- * - Lo consume BusinessServiceService.createService.
- *
- * Validaciones:
- *   categoryId        @NotNull, @Positive (cross-tenant validado en el service).
- *   taxId             @NotNull, @Positive (cross-tenant validado en el service).
- *   name              @NotBlank, max 150.
- *   description       opcional, sin validación.
- *   price             @NotNull, >= 0 (BigDecimal para precision monetaria).
- *   durationMinutes   @NotNull, >= 1 minuto.
- */
+/** DTO de entrada para crear un servicio del catalogo. */
 public record CreateServiceRequest(
 
         @NotNull(message = "El ID de la categoría es obligatorio")

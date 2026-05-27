@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Plus, Pencil, Trash2, Archive, ArchiveRestore, Percent, Clock, Save, Building2, Store,
   CalendarX2, User, MapPin, Globe, Mail, Phone, RefreshCw, Search,
-  ExternalLink, AlertCircle,
+  ExternalLink, AlertCircle, Info,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input, INPUT_SANITIZE } from '@/components/ui/Input'
@@ -23,6 +23,24 @@ const TH   = 'px-6 py-3.5 text-left text-[11px] font-semibold text-slate-400 upp
 
 const emptyTax   = { name: '', percentage: '' }
 const emptyHour  = { dayOfWeek: '1', startTime: '09:00', endTime: '18:00', isClosed: false }
+
+/**
+ * Tarjeta de ayuda contextual que cabecera cada pestaña de
+ * Configuración. Explica en una frase qué es la sección y para qué
+ * sirve, pensada para usuarios nuevos. Visualmente discreta (azul
+ * suave) para no competir con el contenido principal.
+ */
+function SectionHint({ title, children }) {
+  return (
+    <div className="mb-5 flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+      <Info size={18} className="mt-0.5 shrink-0 text-blue-600" />
+      <div className="text-sm text-slate-600">
+        <p className="font-semibold text-[#1e3a5f]">{title}</p>
+        <p className="mt-1 leading-relaxed">{children}</p>
+      </div>
+    </div>
+  )
+}
 const emptyBooth = { name: '', color: '' }
 
 // [L] Paleta de la cabina en el calendario. Mismos nombres que en
@@ -53,10 +71,11 @@ const BOOTH_PALETTE = [
 ]
 const boothColor = (id) => BOOTH_PALETTE[(id ?? 0) % BOOTH_PALETTE.length]
 
-/* ============================================================
-   CONFIGURACIÓN — entry point
-   ============================================================ */
-
+/**
+ * Configuración del negocio activo: datos generales, horario de
+ * apertura, impuestos, cabinas y bloqueos de agenda. Estructurada en
+ * pestañas para no saturar la pantalla.
+ */
 export default function Configuracion() {
   const { user } = useAuth()
   const bId = user?.businessId
@@ -387,6 +406,13 @@ function TaxesTab({ bId, isAdmin }) {
 
   return (
     <div>
+      <SectionHint title="¿Qué son los impuestos?">
+        Cada servicio del catálogo puede llevar asociado un impuesto
+        (IVA, IGIC…). El total de cada cita se calcula con el porcentaje
+        vigente en el momento de la reserva. Los impuestos archivados ya
+        no se pueden asignar a servicios nuevos, pero las citas que los
+        usaron conservan el valor original.
+      </SectionHint>
       <Toolbar
         rightCount={totalElements}
         rightLabel={isArchived
@@ -661,6 +687,12 @@ function HoursTab({ bId, isAdmin }) {
 
   return (
     <div>
+      <SectionHint title="¿Cómo funciona el horario del negocio?">
+        Define a qué hora abre y cierra cada día. El calendario respeta
+        este horario en toda la aplicación: pinta gris los huecos fuera
+        de horario y no permite crear citas ahí. Admite turno partido
+        (mañana y tarde): añade dos tramos en el mismo día.
+      </SectionHint>
       <div className="mb-4 flex flex-wrap gap-2 items-center">
         {isAdmin && (
           <>
@@ -860,6 +892,13 @@ function BoothsTab({ bId, isAdmin }) {
 
   return (
     <div>
+      <SectionHint title="¿Qué es una cabina?">
+        Una cabina representa un espacio físico de trabajo (sala, silla,
+        camilla, mesa…). Es útil cuando dos clientes pueden atenderse a
+        la misma hora en sitios distintos del local, para reservar la
+        cita al sitio concreto. Si tu negocio no necesita trackear esto,
+        déjalo vacío: las citas funcionan igual sin cabinas.
+      </SectionHint>
       <Toolbar
         rightCount={totalElements}
         rightLabel={isArchived
@@ -1097,6 +1136,13 @@ function BlocksTab({ bId, isAdmin }) {
 
   return (
     <div>
+      <SectionHint title="¿Qué es un bloqueo de agenda?">
+        Cierra días completos para que no se puedan agendar citas. Útil
+        para festivos, vacaciones del negocio o el cierre puntual de una
+        cabina o un empleado concreto. Puede aplicar a todo el negocio
+        (Global), a un empleado o a una cabina. Para huecos cortos dentro
+        del día usa el horario del empleado o sus ausencias.
+      </SectionHint>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
           {[

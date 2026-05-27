@@ -11,7 +11,7 @@
 import { useMemo } from 'react'
 import {
   PALETTES, GRAY_PALETTE, DAYS_ES_SHORT, paletteByName,
-  keyOf, isSameDay, layoutEvents, openRangesFor, startOfWeek,
+  keyOf, isSameDay, layoutEvents, openRangesFor, workingRangesFor, startOfWeek,
   blocksForCell, labelForBlock,
 } from './utils'
 import { HourColumn, HourSlots, NowLine, PositionedEvent, BlockOverlay, AbsenceOverlay } from './cells'
@@ -25,6 +25,7 @@ export function WeekResourceGrid({
   blocks = [],         // schedule_blocks aplicables al rango visible
   resourceType = null, // 'employee' | 'booth' | null
   absences = [],       // ausencias del rango; solo se pintan en columnas de empleado
+  schedulesByMembership = null, // Map<membershipId, EmployeeSchedule[]>; opcional. Igual que en ResourceDayGrid: pinta como gris los huecos del horario semanal del empleado.
   onDropAppointment,   // drag-and-drop: callback al soltar una cita en otra sub-columna
   appointmentInterval = 30, // snap del drag al intervalo del negocio
 }) {
@@ -65,7 +66,7 @@ export function WeekResourceGrid({
       <div className="flex" style={{ minWidth: minTotalWidth }}>
         {/* HourColumn con cabecera doble (40 + 28) para alinear con cuerpo */}
         <div className="w-14 shrink-0">
-          <div className="h-[68px] border-b-2 border-slate-300 border-r-2 bg-white sticky top-0 z-20" />
+          <div className="h-[68px] border-b-2 border-slate-300 border-r-2 bg-white sticky top-0 z-30" />
           <div className="-mt-px">
             <HourColumn
               withHeader={false}
@@ -96,15 +97,18 @@ export function WeekResourceGrid({
 
             return (
               <div key={i} className="relative border-r-2 border-slate-400 last:border-r-0">
-                {/* Cabecera de día (fila 1) */}
-                <div className={`h-10 border-b-2 border-slate-300 flex items-center justify-center gap-2 sticky top-0 z-20 ${isToday ? 'bg-blue-100' : 'bg-white'}`}>
+                {/* Cabecera de día (fila 1). z-30 para que se quede por
+                    encima de las citas posicionadas (z-20) al scrollear. */}
+                <div className={`h-10 border-b-2 border-slate-300 flex items-center justify-center gap-2 sticky top-0 z-30 ${isToday ? 'bg-blue-100' : 'bg-white'}`}>
                   <span className={`text-[10px] uppercase tracking-wider font-semibold ${i >= 5 ? 'text-blue-600' : 'text-slate-500'}`}>{DAYS_ES_SHORT[i]}</span>
                   <span className={`inline-flex items-center justify-center min-w-[22px] h-6 px-1.5 rounded-full text-xs font-bold ${isToday ? 'bg-gradient-to-br from-cyan-500 to-blue-500 text-white' : 'text-[#1e3a5f]'}`}>{d.getDate()}</span>
                 </div>
 
-                {/* Cabecera de sub-columnas (fila 2) */}
+                {/* Cabecera de sub-columnas (fila 2). z-30 igual que la
+                    fila 1; no se solapan en eje Y porque esta vive en
+                    top:40 (debajo de la fila 1 sticky en top:0). */}
                 <div
-                  className={`h-7 border-b-2 border-slate-300 grid sticky z-10 ${isToday ? 'bg-blue-50' : 'bg-slate-100'}`}
+                  className={`h-7 border-b-2 border-slate-300 grid sticky z-30 ${isToday ? 'bg-blue-50' : 'bg-slate-100'}`}
                   style={{ top: 40, gridTemplateColumns: `repeat(${nCols}, minmax(0, 1fr))` }}
                 >
                   {cols.map((c) => {
@@ -143,6 +147,12 @@ export function WeekResourceGrid({
                     const cellAbsences = (resourceType === 'employee' && c.id !== '__none__')
                       ? absences.filter((ab) => ab.membershipId === c.id)
                       : []
+                    // Rangos laborables del empleado para este dia (mismo
+                    // criterio que en ResourceDayGrid: solo aplica a las
+                    // sub-columnas de empleado con horario cargado).
+                    const cellWorkingRanges = (resourceType === 'employee' && c.id !== '__none__' && schedulesByMembership?.has(c.id))
+                      ? workingRangesFor(schedulesByMembership.get(c.id), d)
+                      : null
                     return (
                       <div
                         key={c.id}
@@ -162,6 +172,7 @@ export function WeekResourceGrid({
                           dayEnd={dayEnd}
                           hourPx={hourPx}
                           closedRanges={openRanges}
+                          workingRanges={cellWorkingRanges}
                           isBlocked={cellIsBlocked}
                           blockedReason={cellBlockLabel}
                         />

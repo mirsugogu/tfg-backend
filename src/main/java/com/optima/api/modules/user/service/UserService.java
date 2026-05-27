@@ -1,5 +1,6 @@
 package com.optima.api.modules.user.service;
 
+import com.optima.api.modules.appointment.repository.AppointmentRepository;
 import com.optima.api.modules.auth.dto.response.MembershipSummaryResponse;
 import com.optima.api.modules.business.model.Business;
 import com.optima.api.modules.business.model.Membership;
@@ -24,32 +25,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * UserService - Capa de lógica de negocio del modulo user.
+ * Servicio de negocio para usuarios y empleados.
  *
- * [v16 membership] Tras el refactor, este service trabaja sobre dos
- * tablas: `users` (identidad global) y `memberships` (pertenencia a un
- * negocio con rol). El listado y CRUD bajo
- * /api/businesses/{businessId}/users es en realidad un CRUD de
- * memberships del negocio; mostramos al cliente el "id del empleado"
- * que es el id de la membership.
- *
- * COMUNICACION:
- * - Lo invoca: UserController (CRUD de empleados del negocio),
- *   MeController (perfil propio + cambio de contrasena).
- * - Llama a:
- *     UserRepository             findByEmailIgnoreCase, save (identidad).
- *     MembershipRepository       CRUD tenant-safe de membership.
- *     BusinessRepository.findById verifica existencia del negocio.
- *     RoleRepository.findById    verifica existencia del rol.
- *     PasswordEncoder.encode     BCrypt al crear/cambiar password.
- * - Devuelve: UserResponse (membership-shape) o MeResponse (identidad pura).
- *
- * Patron find-or-create al crear empleado: si el email no existe se da
- * de alta un User nuevo; si ya existe (la persona trabaja en otro
- * negocio) se reutiliza la identidad y solo se crea la membership.
+ * User representa la identidad global de una persona, mientras Membership
+ * representa su pertenencia a un negocio concreto.
  */
 @Service
 @Slf4j
@@ -62,20 +45,10 @@ public class UserService {
     private final BusinessRepository businessRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AppointmentRepository appointmentRepository;
 
     /**
-     * Da de alta un empleado en el negocio.
-     *
-     * Pasos:
-     *   1. Verifica que el negocio existe (404 si no).
-     *   2. Verifica que el rol existe (404 si no).
-     *   3. Busca el User por email. Si NO existe, lo crea con el password
-     *      del request (hash BCrypt). Si SI existe (persona ya empleada
-     *      en otro negocio), reutiliza la identidad; el password del
-     *      request se ignora porque seria un reset enmascarado.
-     *   4. Verifica que ese usuario NO tenga ya una membership en este
-     *      negocio (409 si la tiene).
-     *   5. Crea la membership y devuelve UserResponse.
+     * Da de alta un empleado en un negocio.
      */
     public UserResponse create(Long businessId, CreateUserRequest request) {
         Business business = businessRepository.findById(businessId)
@@ -115,9 +88,7 @@ public class UserService {
     }
 
     /**
-     * Listado paginado de empleados del negocio. Con active=true (por
-     * defecto) devuelve los activos; con active=false los archivados
-     * (memberships desactivadas), la vista desde la que se reactivan.
+     * Lista empleados activos o archivados del negocio.
      */
     @Transactional(readOnly = true)
     public Page<UserResponse> listByBusiness(Long businessId, boolean active, Pageable pageable) {
@@ -128,8 +99,7 @@ public class UserService {
     }
 
     /**
-     * Detalle de un empleado por id de membership dentro del negocio.
-     * Cross-tenant: 404 si la membership no pertenece al negocio del path.
+     * Obtiene un empleado del negocio por su membership.
      */
     @Transactional(readOnly = true)
     public UserResponse getById(Long businessId, Long id) {
@@ -137,19 +107,7 @@ public class UserService {
     }
 
     /**
-     * Actualiza el rol y el color del empleado dentro de ESTE negocio.
-     *
-     * [v16 membership] Solo toca la membership (rol). Los datos globales
-     * de la identidad (fullName, email, phone) se actualizan desde
-     * PUT /api/me, donde el dueno de la identidad es quien decide; el
-     * admin del negocio no puede mutar campos que tambien se ven en otros
-     * negocios donde la persona trabaja.
-     *
-     * Pasos:
-     *   1. findOrThrow tenant-safe (404 si no existe).
-     *   2. La membership debe estar activa (400 si esta desactivada).
-     *   3. Verifica que el nuevo rol existe (404 si no).
-     *   4. Aplica el cambio y persiste.
+     * Actualiza el rol y el color del empleado dentro de este negocio.
      */
     public UserResponse update(Long businessId, Long id, UpdateUserRequest request) {
         Membership m = findOrThrow(businessId, id);
@@ -170,9 +128,10 @@ public class UserService {
     }
 
     /**
-     * Soft delete: marca la membership como inactiva. La identidad (User)
-     * no se toca, asi sus otras memberships en otros negocios siguen
-     * funcionando. Las citas pasadas siguen apuntando a esta membership.
+     * Desactiva la membership del empleado sin borrar su identidad.
+     * Falla con 409 si todavía tiene citas activas (PENDING, CONFIRMED
+     * o IN_PROGRESS) cuya hora de fin aún no ha pasado, para no dejar
+     * citas vivas apuntando a un empleado archivado.
      */
     public void deactivate(Long businessId, Long id) {
         Membership m = findOrThrow(businessId, id);
@@ -180,14 +139,19 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "El empleado ya está desactivado");
         }
+        long pendientes = appointmentRepository.countActiveByMembershipAndBusiness(
+                id, businessId, LocalDateTime.now());
+        if (pendientes > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "El empleado tiene " + pendientes + " cita(s) pendiente(s); "
+                            + "cancélalas o reasígnalas antes de archivar");
+        }
         m.setIsActive(false);
         membershipRepository.save(m);
     }
 
     /**
-     * Revierte el soft delete: vuelve a marcar la membership como activa.
-     * La usa la vista de empleados archivados. Lanza 400 si ya está activa.
-     * Solo toca la pertenencia a este negocio, no la identidad (User).
+     * Reactiva una membership archivada.
      */
     public UserResponse reactivate(Long businessId, Long id) {
         Membership m = findOrThrow(businessId, id);
@@ -200,9 +164,7 @@ public class UserService {
     }
 
     /**
-     * Perfil de la identidad autenticada (sin contexto de negocio).
-     * Util para MeController.getMe: el JWT identifica al usuario, no a
-     * la membership; las memberships activas se listan en otro endpoint.
+     * Devuelve el perfil de la identidad autenticada.
      */
     @Transactional(readOnly = true)
     public MeResponse getMyProfile(Long userId) {
@@ -215,22 +177,6 @@ public class UserService {
 
     /**
      * Actualiza los datos globales del propio usuario autenticado.
-     *
-     * [v16 membership] Punto de entrada unico para mutar fullName, email
-     * y phone. Antes el admin de cada negocio podia tocarlos via
-     * UpdateUserRequest; tras separar identidad de membership ese acceso
-     * desaparecio porque la identidad es propiedad de la propia persona,
-     * no del negocio. Por eso este metodo vive aqui y solo se invoca desde
-     * MeController, donde el userId viene del JWT (no del path).
-     *
-     * Pasos:
-     *   1. Cargar el User por id (404 si no existe — caso degenerado).
-     *   2. Si el email cambia: chequear unicidad global (409 si choca).
-     *   3. Normalizar email (trim + lower), aplicar y persistir.
-     *   4. Devolver MeResponse actualizado.
-     *
-     * El password NO se cambia aqui; existe PUT /api/me/password con
-     * verificacion del password actual.
      */
     public MeResponse updateMyProfile(Long userId, UpdateMeRequest request) {
         User user = userRepository.findById(userId)
@@ -252,9 +198,7 @@ public class UserService {
     }
 
     /**
-     * Lista las memberships activas de la identidad autenticada.
-     * La consume MeController.listMyBusinesses para el selector de negocio
-     * post-login cuando el usuario tiene varios accesos.
+     * Lista los negocios activos del usuario autenticado.
      */
     @Transactional(readOnly = true)
     public List<MembershipSummaryResponse> listMyBusinesses(Long userId) {
@@ -266,10 +210,6 @@ public class UserService {
 
     /**
      * Cambia la contrasena de la identidad autenticada.
-     *
-     * [v16 membership] Sin businessId: la password vive en `users`, no en
-     * `memberships`. Un usuario que trabaja en dos negocios usa la misma
-     * contrasena para ambos.
      */
     public void changePassword(Long userId, String currentPassword, String newPassword) {
         User u = userRepository.findById(userId)
@@ -299,8 +239,7 @@ public class UserService {
     }
 
     /**
-     * Helper privado: busca la membership asegurando que pertenece al
-     * negocio. Si no existe (o pertenece a otro tenant), lanza 404.
+     * Busca una membership asegurando que pertenece al negocio.
      */
     private Membership findOrThrow(Long businessId, Long id) {
         return membershipRepository.findByIdAndBusinessId(id, businessId)

@@ -11,35 +11,26 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 /**
- * ClientRepository - Acceso a la tabla `clients`.
+ * Repositorio de clientes.
  *
- * COMUNICACION:
- * - Lo inyectan: ClientService, AppointmentService (verifica cross-tenant
- *   que el cliente pertenece al negocio antes de crear cita).
- * - Habla con: MySQL via Hibernate.
- *
- * Multi-tenant via findByIdAndBusinessId, igual que el resto del proyecto.
+ * Incluye consultas filtradas por negocio para mantener el aislamiento
+ * entre tenants.
  */
 @Repository
 public interface ClientRepository extends JpaRepository<Client, Long> {
 
     /**
      * Lista paginada de clientes activos de un negocio.
-     * Pageable parsea page, size y sort del query string del HTTP.
      */
     Page<Client> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
     /**
-     * Lista paginada de clientes INACTIVOS (archivados) de un negocio.
-     * Alimenta la vista "Archivados" del listado de clientes, desde la
-     * que se reactivan.
+     * Lista paginada de clientes archivados de un negocio.
      */
     Page<Client> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
 
     /**
-     * Búsqueda paginada de clientes ACTIVOS de un negocio cuyo nombre,
-     * email o teléfono contenga el texto dado (case-insensitive). Alimenta
-     * el autocompletado del selector de cliente en el asistente de citas.
+     * Busca clientes activos por nombre, email o telefono.
      */
     @Query("SELECT c FROM Client c WHERE c.business.id = :businessId "
          + "AND c.isActive = true AND ("
@@ -51,7 +42,7 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
                                         Pageable pageable);
 
     /**
-     * Búsqueda tenant-safe: el cliente existe Y pertenece al negocio dado.
+     * Busca un cliente dentro de un negocio concreto.
      */
     Optional<Client> findByIdAndBusinessId(Long id, Long businessId);
 }

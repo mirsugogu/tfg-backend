@@ -9,19 +9,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-/**
- * UpdateServiceRequest - DTO de entrada para actualizar un servicio existente.
- * No incluye businessId: el negocio se toma del path
- * y NO se permite mover el servicio entre negocios.
- *
- * COMUNICACION:
- * - Lo deserializa Jackson, lo valida @Valid en BusinessServiceController.
- * - Lo consume BusinessServiceService.updateService.
- *
- * Mismas validaciones que CreateServiceRequest. La categoria y el impuesto
- * SI pueden cambiar (siempre dentro del mismo negocio): el service revalida
- * cross-tenant en cada update.
- */
+/** DTO de entrada para actualizar un servicio del catalogo. */
 public record UpdateServiceRequest(
 
         @NotNull(message = "El ID de la categoría es obligatorio")

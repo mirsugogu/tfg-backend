@@ -57,25 +57,6 @@
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
 		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.security</groupId>
-			<artifactId>spring-security-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<!-- H2 en memoria solo para tests @SpringBootTest. El backend real
-		     corre contra MySQL 8 (production-like). H2 con MODE=MySQL deja
-		     a JPA generar el schema desde las entidades, asi mvnw test
-		     funciona sin Docker ni MySQL local. -->
-		<dependency>
-			<groupId>com.h2database</groupId>
-			<artifactId>h2</artifactId>
-			<scope>test</scope>
-		</dependency>
 		<!-- OpenAPI / Swagger UI (genera /swagger-ui.html y /v3/api-docs)
 		     2.8.0+ es la rama compatible con Spring Boot 3.4.x. La 2.6.0
 		     usa una API de Spring Web que dejo de existir en 3.4
@@ -137,21 +118,6 @@
 						<phase>compile</phase>
 						<goals>
 							<goal>compile</goal>
-						</goals>
-						<configuration>
-							<annotationProcessorPaths>
-								<path>
-									<groupId>org.projectlombok</groupId>
-									<artifactId>lombok</artifactId>
-								</path>
-							</annotationProcessorPaths>
-						</configuration>
-					</execution>
-					<execution>
-						<id>default-testCompile</id>
-						<phase>test-compile</phase>
-						<goals>
-							<goal>testCompile</goal>
 						</goals>
 						<configuration>
 							<annotationProcessorPaths>

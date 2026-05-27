@@ -159,6 +159,28 @@ export const openRangesFor = (businessHours, date) => {
     })
 }
 
+/*
+ * Devuelve los rangos laborables de un empleado en una fecha concreta,
+ * a partir de su horario semanal (employee_schedules). Sigue el mismo
+ * formato y convencion de dia de la semana que openRangesFor, asi que
+ * los dos arrays son combinables (interseccion = tramos donde tanto el
+ * negocio como el empleado estan abiertos).
+ *
+ * Soporta turno partido: si el empleado tiene varias filas para el
+ * mismo dayOfWeek (manana y tarde), las devuelve todas. Si no tiene
+ * ninguna fila para ese dia, devuelve [] (no trabaja ese dia).
+ */
+export const workingRangesFor = (employeeSchedules, date) => {
+  const dow = date.getDay() === 0 ? 7 : date.getDay()
+  return employeeSchedules
+    .filter((s) => s.dayOfWeek === dow && s.startTime && s.endTime)
+    .map((s) => {
+      const [sh, sm] = s.startTime.slice(0, 5).split(':').map(Number)
+      const [eh, em] = s.endTime.slice(0, 5).split(':').map(Number)
+      return [sh + sm / 60, eh + em / 60]
+    })
+}
+
 /* ----- bloqueos de agenda (schedule_blocks) ----- */
 
 /**

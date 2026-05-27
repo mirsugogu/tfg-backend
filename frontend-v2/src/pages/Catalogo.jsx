@@ -53,10 +53,11 @@ const priceWithVat = (service, taxes) => {
   return pct == null ? null : Number(service.price) * (1 + pct / 100)
 }
 
-/* ============================================================
-   CATÁLOGO
-   ============================================================ */
-
+/**
+ * Catálogo de servicios del negocio activo: categorías, servicios y los
+ * impuestos aplicables, con vista de tarjetas, vista de tabla y soft
+ * delete con reactivación.
+ */
 export default function Catalogo() {
   const { user } = useAuth()
   const toast = useToast()
@@ -1100,7 +1101,9 @@ function ServicesTable({ list, taxes, isAdmin, archived, onOpen, onEdit, onArchi
                   </td>
                   <td className="px-2 py-3.5 text-right font-bold text-blue-600 tabular-nums">{fmtEur(s.price)}</td>
                   <td className="px-2 py-3.5 text-right hidden md:table-cell text-xs text-slate-500 tabular-nums">
-                    {totalWithVat == null ? '—' : fmtEur(totalWithVat)}
+                    {totalWithVat == null
+                      ? <span title="IVA no disponible (impuesto archivado)">N/D</span>
+                      : fmtEur(totalWithVat)}
                     <div className="text-[10px] text-slate-400">{s.taxName}</div>
                   </td>
                   <td className="px-6 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>

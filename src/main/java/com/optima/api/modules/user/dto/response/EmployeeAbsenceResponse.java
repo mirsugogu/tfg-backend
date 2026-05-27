@@ -5,29 +5,13 @@ import com.optima.api.modules.user.model.EmployeeAbsence;
 import java.time.LocalDateTime;
 
 /**
- * EmployeeAbsenceResponse - DTO de salida para una ausencia de empleado.
- *
- * Aplana la entidad EmployeeAbsence. Para la relacion @ManyToOne con
- * Membership expone membershipId + userFullName en lugar del objeto
- * entero, asi el frontend pinta "Vacaciones de Juan Garcia" sin tener
- * que pedir el nombre por otro endpoint.
- *
- * COMUNICACION:
- * - Lo construye EmployeeAbsenceResponse.from(EmployeeAbsence) en
- *   EmployeeAbsenceService.
- * - Lo serializa Jackson a JSON en las respuestas de
- *   EmployeeAbsenceController.
- *
- * Diseno: el DTO no conoce repositorios. Convertir entidad -> record es
- * una transformacion pura. El listado paginado de ausencias carga
- * membership y membership.user con @EntityGraph en el repositorio (un
- * unico JOIN), de modo que aplanar la relacion no dispara N+1.
+ * Respuesta de una ausencia de empleado.
  */
 public record EmployeeAbsenceResponse(
         Long id,
         Long businessId,
 
-        // Del empleado mostramos ID de la membership y nombre del User
+        // Se devuelve la membership y el nombre visible del empleado.
         Long membershipId,
         String userFullName,
 

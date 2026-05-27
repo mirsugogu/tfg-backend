@@ -7,10 +7,6 @@ import jakarta.validation.constraints.Size;
  * CreateCategoryRequest - DTO de entrada para crear una categoría.
  * El businessId viene del path, no del body.
  *
- * COMUNICACION:
- * - Lo deserializa Jackson, lo valida @Valid en ServiceCategoryController.
- * - Lo consume ServiceCategoryService.createCategory.
- *
  * Solo lleva el nombre: las categorias son objetos minimos (id+name+activo).
  */
 public record CreateCategoryRequest(

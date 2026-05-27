@@ -15,27 +15,10 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * EmployeeAbsenceController - CRUD de ausencias puntuales de empleados.
- * Recurso doblemente anidado:
- * /api/businesses/{businessId}/users/{userId}/absences.
+ * Controlador de ausencias puntuales de empleados.
  *
- * Las ausencias bloquean tramos del calendario (vacaciones, citas medicas)
- * que sobrescriben el horario semanal habitual del empleado.
- *
- * COMUNICACION:
- * - Recibe: CRUD HTTP. Requiere JWT.
- * - Le precede: JwtAuthFilter + TenantGuardFilter.
- * - Llama a: EmployeeAbsenceService.
- * - Devuelve: EmployeeAbsenceResponse(s) en JSON.
- *
- * Permisos:
- *   POST/PUT/DELETE -> @PreAuthorize("hasRole('ADMIN')") - solo admin
- *                      gestiona ausencias del personal.
- *   GET             -> sin @PreAuthorize.
- *
- * [v16 membership] El parametro externo `userId` del path es internamente
- * el id de la membership; los paths se mantienen por compatibilidad con
- * la collection Postman y los tests.
+ * Las ausencias bloquean tramos del calendario y las mutaciones requieren
+ * rol ADMIN.
  */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/users/{userId}/absences")
@@ -46,14 +29,7 @@ public class EmployeeAbsenceController {
     private final EmployeeAbsenceService absenceService;
 
     /**
-     * POST /api/businesses/{businessId}/users/{userId}/absences - Crea una
-     * ausencia para el empleado indicado en el path.
-     *
-     * El service valida: la membership existe y pertenece al negocio,
-     * start < end, no solapa con otra ausencia activa del empleado
-     * (regla A < D AND C < B). Si choca devuelve 409.
-     *
-     * Permiso: solo ADMIN.
+     * Crea una ausencia para el empleado indicado.
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -65,11 +41,7 @@ public class EmployeeAbsenceController {
     }
 
     /**
-     * GET /api/businesses/{businessId}/users/{userId}/absences - Lista
-     * paginada de ausencias del empleado, ordenadas por fecha de inicio
-     * ascendente.
-     *
-     * Query params: ?page=N&size=M, ?sort=field,asc|desc.
+     * Lista paginada de ausencias del empleado.
      */
     @GetMapping
     public Page<EmployeeAbsenceResponse> listByEmployee(@PathVariable @Positive Long businessId,
@@ -79,9 +51,7 @@ public class EmployeeAbsenceController {
     }
 
     /**
-     * GET /api/businesses/{businessId}/users/{userId}/absences/{id} -
-     * Detalle de una ausencia. Cross-tenant safe: si la ausencia no
-     * pertenece a esa membership/negocio devuelve 404.
+     * Obtiene una ausencia concreta del empleado.
      */
     @GetMapping("/{id}")
     public EmployeeAbsenceResponse getById(@PathVariable @Positive Long businessId,
@@ -91,11 +61,7 @@ public class EmployeeAbsenceController {
     }
 
     /**
-     * PUT /api/businesses/{businessId}/users/{userId}/absences/{id} -
-     * Actualiza el rango y motivo de una ausencia existente.
-     *
-     * Mismas validaciones que en create (rango coherente). 404 si la
-     * ausencia no pertenece al empleado/negocio. Permiso: solo ADMIN.
+     * Actualiza el rango y motivo de una ausencia.
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -107,9 +73,7 @@ public class EmployeeAbsenceController {
     }
 
     /**
-     * DELETE /api/businesses/{businessId}/users/{userId}/absences/{id} -
-     * Borra la ausencia. Hard delete (no hay soft delete en esta tabla).
-     * Permiso: solo ADMIN.
+     * Elimina una ausencia.
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

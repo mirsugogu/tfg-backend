@@ -5,24 +5,7 @@ import com.optima.api.modules.catalog.model.BusinessService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * BusinessServiceResponse - DTO de salida de un servicio del catalogo.
- *
- * COMUNICACION:
- * - Lo construye BusinessServiceResponse.from(BusinessService) en
- *   BusinessServiceService.
- * - Lo serializa Jackson a JSON en las respuestas de
- *   BusinessServiceController.
- *
- * Campos relevantes:
- *   categoryId + categoryName  para mostrar la categoria sin endpoint extra.
- *   taxId + taxName            idem para el impuesto.
- *   price                      BigDecimal preciso, sin redondeos.
- *   durationMinutes            necesario para calcular endDateTime al crear cita.
- *   isActive                   false significa soft-deleted (no se puede usar
- *                              en citas nuevas, pero las pasadas siguen
- *                              referenciandolo).
- */
+/** DTO de salida con los datos de un servicio del catalogo. */
 public record BusinessServiceResponse(
         Long id,
         Long businessId,

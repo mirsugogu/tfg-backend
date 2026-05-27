@@ -18,20 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
-/**
- * ServiceCategoryService - Logica de categorias de servicios.
- *
- * COMUNICACION:
- * - Lo invoca: ServiceCategoryController.
- * - Llama a:
- *     ServiceCategoryRepository    CRUD + existsByName tenant-safe.
- *     BusinessRepository           verifica que el negocio existe.
- * - Devuelve: ServiceCategoryResponse.
- *
- * Cross-tenant: usa findByIdAndBusinessId en TODOS los lookups por id.
- * Soft delete: las categorias se desactivan, no se borran (preserva
- * referencias desde servicios historicos).
- */
+/** Logica de categorias de servicios. */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -41,19 +28,7 @@ public class ServiceCategoryService {
     private final BusinessRepository businessRepository;
     private final BusinessServiceRepository businessServiceRepository;
 
-    /**
-     * Crea una nueva categoria en el catalogo del negocio.
-     *
-     * Pasos:
-     *   1. Valida que no exista otra categoria con ese nombre en el negocio (409).
-     *   2. Verifica que el negocio existe (404).
-     *   3. Persiste la entidad con isActive=true por defecto.
-     *
-     * @param businessId barrera multi-tenant contra la que se valida la
-     *                   unicidad del nombre.
-     * @param request payload validado: name.
-     * @return ServiceCategoryResponse con la entidad creada.
-     */
+    /** Crea una nueva categoria en el catalogo del negocio. */
     public ServiceCategoryResponse createCategory(Long businessId, CreateCategoryRequest request) {
 
         String name = request.name().trim();
@@ -127,16 +102,7 @@ public class ServiceCategoryService {
         return ServiceCategoryResponse.from(categoryRepository.save(category));
     }
 
-    /**
-     * Soft delete: marca la categoría como inactiva y registra el momento.
-     * Filtra por negocio (cross-tenant safe). No se puede desactivar dos veces.
-     *
-     * Decision de diseno D1: si la categoria tiene servicios activos, se
-     * rechaza con 409. Asi no quedan servicios huerfanos apuntando a una
-     * categoria archivada. Para borrar la categoria el admin debe archivar
-     * o mover sus servicios primero. Servicios YA archivados no cuentan:
-     * mantienen su referencia para preservar el historial.
-     */
+    /** Soft delete: marca la categoría como inactiva y registra el momento. */
     public void deactivateCategory(Long businessId, Long id) {
         ServiceCategory category = findOrThrow(businessId, id);
         if (!category.getIsActive()) {

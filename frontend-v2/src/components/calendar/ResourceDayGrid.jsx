@@ -7,7 +7,7 @@
 import { useMemo } from 'react'
 import {
   PALETTES, GRAY_PALETTE, paletteByName,
-  keyOf, isSameDay, layoutEvents, openRangesFor,
+  keyOf, isSameDay, layoutEvents, openRangesFor, workingRangesFor,
   blocksForCell, labelForBlock,
 } from './utils'
 import { HourColumn, HourSlots, NowLine, PositionedEvent, EventChip, BlockOverlay, AbsenceOverlay } from './cells'
@@ -21,6 +21,7 @@ export function ResourceDayGrid({
   blocks = [],         // schedule_blocks aplicables al rango visible
   resourceType = null, // 'employee' | 'booth' | null
   absences = [],       // ausencias del rango; solo se pintan en columnas de empleado
+  schedulesByMembership = null, // Map<membershipId, EmployeeSchedule[]>; opcional. Solo se consulta en columnas de empleado para pintar como gris los huecos del horario semanal del empleado (descansos, turno partido).
   onDropAppointment,   // drag-and-drop: callback al soltar una cita en otra sub-columna
   appointmentInterval = 30, // snap del drag al intervalo del negocio
 }) {
@@ -61,8 +62,10 @@ export function ResourceDayGrid({
                 const laidOut = layoutEvents(col.events)
                 return (
                   <div key={col.id} className="relative border-r-2 border-slate-300 last:border-r-0">
-                    {/* Cabecera sticky con el recurso */}
-                    <div className="h-10 border-b-2 border-slate-300 px-2.5 flex items-center justify-between gap-2 sticky top-0 z-10 bg-slate-50">
+                    {/* Cabecera sticky con el recurso. z-30 para que se quede
+                        por encima de las citas posicionadas (z-20) al hacer
+                        scroll vertical en pantallas estrechas. */}
+                    <div className="h-10 border-b-2 border-slate-300 px-2.5 flex items-center justify-between gap-2 sticky top-0 z-30 bg-slate-50">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className={`w-2 h-2 rounded-full shrink-0 ${palette.dot}`} />
                         <span className="text-[11px] font-bold uppercase tracking-wider text-[#1e3a5f] truncate">
@@ -92,6 +95,13 @@ export function ResourceDayGrid({
                         const cellAbsences = (resourceType === 'employee' && col.id !== '__none__')
                           ? absences.filter((ab) => ab.membershipId === col.id)
                           : []
+                        // Rangos laborables del empleado para este dia. Solo
+                        // se calculan en columnas de empleado con horario
+                        // cargado; en cabinas o cuando el fetch fallo, se
+                        // pasa null y HourSlots solo respeta openRanges.
+                        const cellWorkingRanges = (resourceType === 'employee' && col.id !== '__none__' && schedulesByMembership?.has(col.id))
+                          ? workingRangesFor(schedulesByMembership.get(col.id), cursor)
+                          : null
                         return (
                           <>
                             <HourSlots
@@ -101,6 +111,7 @@ export function ResourceDayGrid({
                               dayEnd={dayEnd}
                               hourPx={hourPx}
                               closedRanges={openRanges}
+                              workingRanges={cellWorkingRanges}
                               isBlocked={cellIsBlocked}
                               blockedReason={cellBlockLabel}
                             />

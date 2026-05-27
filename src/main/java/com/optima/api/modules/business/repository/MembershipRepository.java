@@ -14,39 +14,11 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * MembershipRepository - Acceso a la tabla `memberships`.
- *
- * Sustituye logicamente al patron `UserRepository.findByBusinessId*` de
- * la v15: ahora las consultas "del negocio X" se hacen aqui, porque la
- * pertenencia vive en memberships y no en users.
- *
- * COMUNICACION:
- * - Lo inyectan: AuthService (resolver memberships del usuario al
- *   loguear), UserService (CRUD de empleados de un negocio),
- *   AppointmentService / EmployeeScheduleService / EmployeeAbsenceService
- *   / ScheduleBlockService (cross-tenant: la membership existe Y
- *   pertenece al negocio del path).
- * - Habla con: MySQL via Hibernate.
- *
- * Multi-tenant via findByIdAndBusinessId: Membership lleva id_business,
- * asi que el patron del proyecto se aplica igual que en el resto de
- * tablas tenant-scoped. Los metodos findByUserId* son consultas de la
- * capa de identidad (login en 2 pasos, /api/me/businesses) — el caller
- * decide a que negocio pertenece la sesion despues.
- */
+/** Acceso a la tabla `memberships`. */
 @Repository
 public interface MembershipRepository extends JpaRepository<Membership, Long> {
 
-    /**
-     * Listado paginado de memberships activas de un negocio.
-     * Equivalente a "empleados activos del negocio".
-     *
-     * Anti-N+1: el @EntityGraph carga user y role en JOIN dentro de la
-     * query principal. UserResponse.from() accede a m.getUser() y
-     * m.getRole() inmediatamente al construir el DTO, asi que sin
-     * EntityGraph cada fila dispararia 2 selects LAZY adicionales.
-     */
+    /** Listado paginado de memberships activas de un negocio. */
     @EntityGraph(attributePaths = {"user", "role"})
     Page<Membership> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
@@ -59,15 +31,7 @@ public interface MembershipRepository extends JpaRepository<Membership, Long> {
     @EntityGraph(attributePaths = {"user", "role"})
     Page<Membership> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
 
-    /**
-     * Version sin paginar para el algoritmo de disponibilidad (necesita
-     * iterar todos los candidatos sin la imposicion de un Pageable).
-     *
-     * Lleva @EntityGraph(user): AvailabilityService lee user.fullName de
-     * cada empleado candidato al construir los slots; sin el grafo cada
-     * uno dispararia un select LAZY extra (N+1). No se incluye role: el
-     * algoritmo de disponibilidad no lo usa.
-     */
+    /** Lista las memberships activas sin paginar. */
     @EntityGraph(attributePaths = {"user"})
     List<Membership> findAllByBusinessIdAndIsActiveTrue(Long businessId);
 
@@ -77,18 +41,7 @@ public interface MembershipRepository extends JpaRepository<Membership, Long> {
      */
     Optional<Membership> findByIdAndBusinessId(Long id, Long businessId);
 
-    /**
-     * Variante de findByIdAndBusinessId con lock pesimista de escritura
-     * (SELECT ... FOR UPDATE). La usa AppointmentService.createAppointment
-     * para serializar la creacion concurrente de citas sobre la misma
-     * membership: dos POST simultaneos al mismo empleado se procesan en
-     * serie hasta el commit, eliminando la race condition entre
-     * validateNoOverlap y el INSERT (problema TOCTOU clasico).
-     *
-     * El lock se libera automaticamente al cerrar la transaccion (@Transactional
-     * de AppointmentService). Solo aplicarlo en operaciones de escritura
-     * cortas; para lectura usar findByIdAndBusinessId.
-     */
+    /** Busca una membership aplicando bloqueo pesimista. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT m FROM Membership m WHERE m.id = :id AND m.business.id = :businessId")
     Optional<Membership> findByIdAndBusinessIdForUpdate(@Param("id") Long id,
@@ -107,27 +60,13 @@ public interface MembershipRepository extends JpaRepository<Membership, Long> {
      */
     boolean existsByUserIdAndBusinessIdAndIsActiveTrue(Long userId, Long businessId);
 
-    /**
-     * Recupera la membership para revalidar la sesion en cada request del
-     * TenantGuardFilter (post-P9 hardening). Carga `role` en JOIN porque el
-     * filter compara role.name del JWT contra el actual en BD para invalidar
-     * sesiones cuyo rol haya cambiado desde la emision del token. Sin el
-     * @EntityGraph se dispararia 1 select LAZY por request.
-     */
+    /** Recupera la membership usada para validar la sesion. */
     @EntityGraph(attributePaths = {"role"})
     @Query("SELECT m FROM Membership m WHERE m.user.id = :userId AND m.business.id = :businessId")
     Optional<Membership> findForSessionGuard(@Param("userId") Long userId,
                                              @Param("businessId") Long businessId);
 
-    /**
-     * Lista todas las memberships del usuario (sin filtrar negocio). El
-     * login la usa para decidir si devuelve identity token o tenant token
-     * directo, y el endpoint /api/me/businesses la expone al cliente.
-     *
-     * Lleva @EntityGraph(business, role): MembershipSummaryResponse.from()
-     * lee business.name y role.name por fila; sin el grafo cada membership
-     * dispararia 2 selects LAZY extra (N+1 de baja cardinalidad).
-     */
+    /** Lista todas las memberships de un usuario. */
     @EntityGraph(attributePaths = {"business", "role"})
     List<Membership> findAllByUserId(Long userId);
 }

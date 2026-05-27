@@ -16,25 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalTime;
 import java.util.List;
 
-/**
- * BusinessHourService - Logica del horario semanal de apertura del negocio.
- * No usa soft delete: un horario se borra (DELETE) o se reemplaza (PUT).
- *
- * COMUNICACION:
- * - Lo invoca: BusinessHourController.
- * - Llama a:
- *     BusinessHourRepository       CRUD + findAllByBusinessIdAndDayOfWeek (overlap).
- *     BusinessRepository.findById  verifica que el negocio existe.
- * - Devuelve: BusinessHourResponse.
- *
- * Turno partido (P1-negocio): un mismo dia puede tener varios tramos
- * (10-14 + 16-20). La no-superposicion se valida en create/update con el
- * mismo patron A<D AND C<B que EmployeeScheduleService.
- *
- * Helper applyHours(): centraliza la coherencia entre isClosed y las
- * horas (si cerrado -> horas null; si abierto -> ambas obligatorias y
- * start < end). Lo usan create y update.
- */
+/** Logica del horario semanal de apertura del negocio. */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -84,13 +66,7 @@ public class BusinessHourService {
         return BusinessHourResponse.from(findOrThrow(businessId, id));
     }
 
-    /**
-     * Sustituye dia, hora de inicio y hora de fin de un tramo existente.
-     * 404 si el tramo no pertenece al negocio.
-     *
-     * Tambien valida que el nuevo rango no se solape
-     * con otros tramos abiertos del mismo dia, excluyendo el propio tramo.
-     */
+    /** Sustituye dia, hora de inicio y hora de fin de un tramo existente. */
     public BusinessHourResponse update(Long businessId, Long id, UpdateBusinessHourRequest request) {
         BusinessHour bh = findOrThrow(businessId, id);
 
@@ -112,17 +88,7 @@ public class BusinessHourService {
         hourRepository.delete(bh);
     }
 
-    /**
-     * Valida que el nuevo tramo no se solape con otros tramos abiertos del
-     * mismo (business, dayOfWeek). Aplica solo si el nuevo tramo es abierto:
-     * un tramo cerrado es un "marcador" sin horas y nunca solapa.
-     *
-     * Regla de solape (mismas semanticas que EmployeeScheduleService):
-     *   nuevo.start < existente.end AND nuevo.end > existente.start
-     *
-     * @param excludeId  id a excluir del check (util al actualizar para no
-     *                   detectar el propio tramo como solape).
-     */
+    /** Valida que el tramo no se solape con otros horarios abiertos. */
     private void validateNoOverlap(Long businessId, Integer dayOfWeek,
                                    Boolean isClosed, LocalTime startTime, LocalTime endTime,
                                    Long excludeId) {
@@ -142,11 +108,7 @@ public class BusinessHourService {
         }
     }
 
-    /**
-     * Aplica la logica de coherencia entre isClosed y las horas.
-     * - Si esta cerrado: las horas se ponen a null.
-     * - Si esta abierto: ambas horas son obligatorias y start < end.
-     */
+    /** Aplica la coherencia entre el cierre del dia y sus horas. */
     private void applyHours(BusinessHour bh, Boolean isClosed,
                             LocalTime startTime, LocalTime endTime) {
         boolean closed = Boolean.TRUE.equals(isClosed);

@@ -2,6 +2,11 @@ import { useId } from 'react'
 import { cn } from '@/lib/utils'
 import { ChevronDown } from 'lucide-react'
 
+/**
+ * Desplegable estilizado con etiqueta y mensaje de error opcionales,
+ * alineado visualmente con `Input` y `Textarea`. Las `<option>` se pasan
+ * como `children` para no atar la API del componente a un schema fijo.
+ */
 export function Select({ label, error, className, children, id, ...props }) {
   // useId asocia la <label> con el <select> (htmlFor/id) para accesibilidad.
   const autoId = useId()

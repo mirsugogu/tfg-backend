@@ -192,14 +192,14 @@ export function AppointmentDetailModal({
             ))}
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Estado</p>
               <StatusBadge status={current.statusName} />
             </div>
             <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Pago</p>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
                 <Badge variant={current.isPaid ? 'success' : 'warning'}>
                   {current.isPaid ? 'Pagado' : 'Pendiente'}
                 </Badge>

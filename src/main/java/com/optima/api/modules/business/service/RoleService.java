@@ -8,20 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/**
- * RoleService - Logica del catalogo global de roles.
- * No depende de tenant: los roles (ADMIN, EMPLOYEE) son globales.
- *
- * COMUNICACION:
- * - Lo invoca: RoleController.
- * - Llama a: RoleRepository.findAll() para leer la tabla `roles`.
- * - Devuelve: List<RoleResponse> mapeada desde List<Role>.
- *
- * @Transactional(readOnly = true) a nivel de clase: cada metodo publico
- * abre una transaccion JPA en modo solo-lectura. Optimiza Hibernate
- * (sin dirty checking ni flush) y garantiza un EntityManager activo
- * por si hubiera relaciones lazy.
- */
+/** Logica del catalogo global de roles. */
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor

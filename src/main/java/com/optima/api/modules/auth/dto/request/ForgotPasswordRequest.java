@@ -5,15 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * ForgotPasswordRequest - DTO de entrada para iniciar reset de password.
- *
- * El endpoint SIEMPRE responde 204 No Content (haya o no usuario con
- * ese email) para no exponer si una direccion existe en el sistema
- * (anti-enumeration). El email solo se valida sintacticamente aqui.
- *
- * COMUNICACION:
- * - Lo deserializa Jackson en POST /api/auth/forgot-password.
- * - Lo consume PasswordResetService.requestReset.
+ * Email usado para solicitar el restablecimiento de contrasena.
  */
 public record ForgotPasswordRequest(
 

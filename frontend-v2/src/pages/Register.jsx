@@ -51,10 +51,11 @@ const EMPTY_FORM = {
   terms: false,
 }
 
-/* ============================================================
-   REGISTER
-   ============================================================ */
-
+/**
+ * Auto-registro público: crea un negocio nuevo y su primer usuario
+ * administrador en la misma operación, e inicia sesión devolviendo un
+ * tenant token (sin pasar por el flujo de selección de negocio).
+ */
 export default function Register() {
   const { user, register, loading } = useAuth()
   const navigate = useNavigate()

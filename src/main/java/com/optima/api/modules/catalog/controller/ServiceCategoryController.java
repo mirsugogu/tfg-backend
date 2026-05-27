@@ -14,23 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * ServiceCategoryController - CRUD de categorias de servicios.
- * Recurso anidado bajo /api/businesses/{businessId}/categories.
- *
- * Las categorias agrupan servicios (ej: "Peluqueria", "Estetica", "Barberia").
- * Cada negocio tiene sus propias categorias.
- *
- * COMUNICACION:
- * - Recibe: CRUD HTTP bajo /api/businesses/{businessId}/categories.
- * - Le precede: JwtAuthFilter + TenantGuardFilter.
- * - Llama a: ServiceCategoryService.
- * - Devuelve: ServiceCategoryResponse(s) en JSON.
- *
- * Permisos:
- *   POST/PUT/DELETE -> @PreAuthorize("hasRole('ADMIN')").
- *   GET             -> sin @PreAuthorize.
- */
+/** CRUD de categorias de servicios. */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/categories")
 @RequiredArgsConstructor
@@ -51,13 +35,7 @@ public class ServiceCategoryController {
         return categoryService.createCategory(businessId, request);
     }
 
-    /**
-     * Lista paginada de categorías de un negocio.
-     *
-     * ?active=true (por defecto) devuelve las categorías activas;
-     * ?active=false devuelve las archivadas (la vista desde la que se
-     * reactivan).
-     */
+    /** Lista paginada de categorías de un negocio. */
     @GetMapping
     public Page<ServiceCategoryResponse> getActiveCategories(@PathVariable @Positive Long businessId,
                                                      @RequestParam(defaultValue = "true") boolean active,

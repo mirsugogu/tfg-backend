@@ -10,22 +10,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * EmployeeScheduleRepository - Acceso a la tabla `employee_schedules`.
+ * Repositorio de horarios de empleados.
  *
- * COMUNICACION:
- * - Lo inyectan: EmployeeScheduleService (CRUD), AppointmentValidator
- *   (verificar que una cita encaja en el horario del empleado).
- * - Habla con: MySQL via Hibernate.
- *
- * [v16 membership] Las consultas se hacen ahora por membershipId (FK
- * `id_membership` de la tabla). Externamente, EmployeeScheduleService
- * y los paths siguen llamando al parametro "userId" por compatibilidad,
- * pero el valor pasado es el id de la membership.
- *
- * Tenant safety a nivel de empleado: findByIdAndMembershipId asegura que
- * un tramo solo se gestiona si pertenece a la membership del path. La
- * doble proteccion cross-tenant (membership pertenece al negocio del
- * path) la hace EmployeeScheduleService antes de invocar este repo.
+ * Las consultas se realizan por membership para mantener el horario dentro
+ * del negocio correspondiente.
  */
 @Repository
 public interface EmployeeScheduleRepository extends JpaRepository<EmployeeSchedule, Long> {
@@ -38,30 +26,18 @@ public interface EmployeeScheduleRepository extends JpaRepository<EmployeeSchedu
     List<EmployeeSchedule> findAllByMembershipIdAndDayOfWeek(Long membershipId, Integer dayOfWeek);
 
     /**
-     * Lista todos los tramos del horario de un empleado, ordenados de lunes
-     * a domingo y dentro de cada día por hora de inicio.
-     *
-     * Lleva un grafo de entidad (membership, membership.user): Hibernate los
-     * trae en un unico JOIN y se evita el N+1 al construir
-     * EmployeeScheduleResponse, que lee membership.user.fullName por fila.
+     * Lista todos los tramos ordenados por dia y hora de inicio.
      */
     @EntityGraph(attributePaths = {"membership", "membership.user"})
     List<EmployeeSchedule> findAllByMembershipIdOrderByDayOfWeekAscStartTimeAsc(Long membershipId);
 
     /**
-     * Búsqueda tenant-safe a nivel de empleado: el tramo existe Y pertenece
-     * a la membership dada.
+     * Busca un tramo dentro de una membership concreta.
      */
     Optional<EmployeeSchedule> findByIdAndMembershipId(Long id, Long membershipId);
 
     /**
-     * Carga en UNA query todos los tramos de la lista de empleados para un
-     * dia de la semana. Sustituye el patron N+1 de
-     * findAllByMembershipIdAndDayOfWeek dentro de un bucle. La usa
-     * AvailabilityService al construir slots para todos los empleados
-     * candidatos del negocio.
-     *
-     * El caller agrupa por membershipId en memoria (Map).
+     * Carga los horarios de varias memberships para un dia concreto.
      */
     List<EmployeeSchedule> findAllByMembershipIdInAndDayOfWeek(Collection<Long> membershipIds,
                                                                Integer dayOfWeek);

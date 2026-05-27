@@ -26,48 +26,17 @@ import java.time.Instant;
 import java.util.stream.Collectors;
 
 /**
- * GlobalExceptionHandler - Traduce excepciones a respuestas HTTP JSON.
+ * Traduce excepciones de la API a respuestas JSON.
  *
- * Sin esta clase, cualquier excepcion no controlada resulta en una
- * pagina de error de Spring (HTML feo) con stacktrace expuesto. Aqui
- * capturamos las excepciones tipicas y las convertimos en cuerpos JSON
- * consistentes (ErrorResponse), seguros y utiles para el cliente.
- *
- * COMUNICACION:
- * - Lo activa Spring por @RestControllerAdvice: intercepta excepciones
- *   lanzadas por CUALQUIER @RestController o capa que invoquen.
- * - Devuelve ErrorResponse serializado a JSON.
- *
- * Mapeo de excepciones a status:
- *   MethodArgumentNotValidException        -> 400 (validacion @Valid falla)
- *   IllegalArgumentException               -> 400
- *   ConstraintViolationException           -> 400 (validacion path/query params)
- *   MissingServletRequestParameterException-> 400 (query param obligatorio ausente)
- *   MethodArgumentTypeMismatchException    -> 400 (path/query param con tipo erroneo)
- *   PropertyReferenceException             -> 400 (sort=campoInexistente)
- *   NumberFormatException                  -> 400 (parsing numerico fallido)
- *   ConversionFailedException              -> 400 (conversion de tipo fallida)
- *   HttpMessageNotReadableException        -> 400 (JSON malformado en body)
- *   HttpMediaTypeNotSupportedException     -> 415 (Content-Type no soportado)
- *   HttpRequestMethodNotSupportedException -> 405 (metodo HTTP no soportado)
- *   NoResourceFoundException               -> 404 (path no resuelve a handler)
- *   ResponseStatusException                -> el status que lleva (401/404/409...)
- *   EntityNotFoundException                -> 404
- *   AccessDeniedException                  -> 403 (de @PreAuthorize)
- *   DataIntegrityViolationException        -> 409 (constraint UNIQUE/CHECK/FK violada)
- *   Exception (catch-all)                  -> 500 + log con stacktrace
- *
- * El catch-all NO devuelve detalles del error al cliente (mensaje
- * generico) para no filtrar info sensible. El stacktrace queda en logs
- * del servidor.
+ * Centraliza los errores para que los controladores y servicios no tengan
+ * que construir manualmente el mismo formato de respuesta.
  */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     /**
-     * Captura fallos de validacion de @Valid en @RequestBody (DTOs Request).
-     * Concatena todos los field errors en un mensaje legible.
+     * Devuelve los errores de validacion de los DTOs recibidos en el body.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -80,15 +49,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Captura IllegalArgumentException - lanzadas tipicamente por el framework
-     * Spring cuando un argumento no respeta una precondicion (no del @Valid
-     * sino logica). La convencion del proyecto la prohibe en services (se
-     * prefiere ResponseStatusException), pero el framework la lanza en
-     * algunos casos legitimos de input del cliente -> 400.
-     *
-     * IllegalStateException NO se maneja aqui aposta: casi siempre indica un
-     * bug interno (estado inconsistente, race condition), no input del
-     * cliente. Cae al catch-all como 500 para no enmascarar bugs propios.
+     * Convierte argumentos invalidos en una respuesta 400.
      */
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -98,14 +59,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Captura fallos de validacion en parametros de metodo (@PathVariable
-     * y @RequestParam) anotados con @Positive, @NotBlank, etc., cuando la
-     * clase del controller lleva @Validated.
-     *
-     * MethodArgumentNotValidException cubre solo @RequestBody; este handler
-     * cubre el resto de entradas. Sin el handler, los fallos caerian al
-     * catch-all y devolverian 500 (incorrecto: el cliente mando input
-     * malformado, es 400).
+     * Devuelve 400 cuando fallan validaciones en parametros de ruta o query.
      */
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -118,9 +72,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Captura el error de Spring cuando un @RequestParam requerido NO viene
-     * en la query string. Sin este handler, caeria al catch-all como 500
-     * (incorrecto: es input del cliente, debe ser 400).
+     * Devuelve 400 cuando falta un parametro obligatorio.
      */
     @ExceptionHandler(MissingServletRequestParameterException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -131,10 +83,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Captura tipos incorrectos en @PathVariable y @RequestParam.
-     * Ej.: GET /api/businesses/abc cuando el path declara Long id.
-     * Sin este handler, Spring devuelve 500; lo correcto es 400 con el
-     * nombre del parametro y el tipo esperado.
+     * Devuelve 400 cuando un parametro no tiene el tipo esperado.
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -149,10 +98,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Captura ordenacion sobre un campo que no existe en la entidad.
-     * Spring Data lanza PropertyReferenceException al resolver Pageable
-     * con un sort=nombreCampoInvalido. Sin este handler, cae al catch-all
-     * y devuelve 500 — pero es input del cliente, debe ser 400.
+     * Devuelve 400 cuando se intenta ordenar por un campo inexistente.
      */
     @ExceptionHandler(PropertyReferenceException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -164,14 +110,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Captura fallos de parseo numerico en query/path params. El caso
-     * tipico: GET /availability?serviceIds=, manda un elemento vacio que
-     * Spring intenta convertir a Long y NumberFormatException sube sin
-     * traducirse — el catch-all devuelve 500 cuando es un 400 claro.
-     *
-     * ConversionFailedException cubre el mismo escenario cuando el
-     * fallo ocurre en el ConversionService de Spring (envuelve el
-     * NumberFormatException). Ambos -> 400.
+     * Devuelve 400 cuando Spring no puede convertir un parametro.
      */
     @ExceptionHandler({NumberFormatException.class, ConversionFailedException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -183,13 +122,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Captura JSON malformado o body ilegible en @RequestBody. Sin este
-     * handler, el catch-all devuelve 500 cuando el cliente manda un JSON
-     * incorrecto, que es claramente un error de input del cliente (400).
-     *
-     * Caso especial: si la causa es {@link TimezoneNotAllowedException}
-     * (LocalDateTime con sufijo Z u offset), surface ese mensaje
-     * especifico para que el frontend sepa exactamente como corregir.
+     * Devuelve 400 cuando el cuerpo JSON no se puede leer correctamente.
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -206,9 +139,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Captura metodo HTTP no soportado para la ruta (ej.: PUT donde solo
-     * existe PATCH). Devuelve 405 con la lista de metodos validos del
-     * recurso para que el cliente sepa cual usar.
+     * Devuelve 405 cuando la ruta existe, pero no admite ese metodo HTTP.
      */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
@@ -222,9 +153,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Captura URLs que no resuelven a ningun controller (404 de path).
-     * Sin este handler, Spring devuelve 500 al delegar al ResourceHttpRequestHandler
-     * cuando no encuentra recurso estatico ni dinamico.
+     * Devuelve 404 cuando la URL no corresponde a ningun recurso.
      */
     @ExceptionHandler(NoResourceFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
@@ -235,9 +164,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Captura Content-Type no soportado. Si el cliente manda text/plain en
-     * un endpoint que solo acepta application/json, devolvemos 415 explicito
-     * en lugar de un 500 generico.
+     * Devuelve 415 cuando el tipo de contenido no es compatible.
      */
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
@@ -249,9 +176,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Captura ResponseStatusException - el mecanismo principal que usan
-     * los services para devolver errores HTTP semanticos (404, 409, 401).
-     * Preserva el status original y el mensaje (reason) que puso el service.
+     * Respeta el codigo HTTP definido por los servicios.
      */
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex) {
@@ -265,10 +190,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Captura EntityNotFoundException de JPA - se lanza cuando se accede
-     * a una relacion lazy de un id que ya no existe en BD. En nuestro
-     * codigo es raro porque preferimos findById().orElseThrow(...), pero
-     * se mantiene por seguridad.
+     * Devuelve 404 si JPA no encuentra una entidad esperada.
      */
     @ExceptionHandler(EntityNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
@@ -278,10 +200,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Captura la excepcion que lanza Spring Security al rechazar un acceso
-     * por @PreAuthorize. La AOP la lanza a nivel de metodo y bypassa el
-     * AccessDeniedHandler del SecurityConfig (que solo cubre rechazos en
-     * la cadena de filtros), asi que la traducimos aqui al mismo 403.
+     * Devuelve 403 cuando Spring Security bloquea una operacion.
      */
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
@@ -292,14 +211,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Captura violaciones de integridad de la BD: UNIQUE duplicado, CHECK
-     * constraint, FK invalida. Pasa cuando dos requests concurrentes crean
-     * el mismo recurso a la vez y la validacion en codigo no lo detecto,
-     * o cuando un CHECK del schema rechaza valores fuera de rango.
-     *
-     * El 409 Conflict es semanticamente correcto (estado actual de la BD
-     * impide completar la operacion). Mensaje generico para no filtrar
-     * detalles del schema al cliente; el log del catch-all tiene el detalle.
+     * Devuelve 409 cuando la base de datos rechaza una restriccion.
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
@@ -311,9 +223,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Catch-all para cualquier excepcion no contemplada arriba.
-     * Loguea el stacktrace en el servidor pero NO lo devuelve al cliente:
-     * el cuerpo solo lleva un mensaje generico para no filtrar info sensible.
+     * Respuesta generica para errores no controlados.
      */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

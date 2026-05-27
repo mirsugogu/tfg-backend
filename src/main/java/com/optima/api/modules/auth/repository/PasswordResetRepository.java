@@ -7,24 +7,14 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 /**
- * PasswordResetRepository - Acceso a la tabla password_resets.
+ * Repositorio de tokens de restablecimiento de contrasena.
  *
- * Lookups por hash del token. El hash es la columna UNIQUE; no
- * almacenamos el token plano. Cuando un usuario llega con un token
- * plano, el service lo hashea y busca aqui.
- *
- * COMUNICACION:
- * - Lo inyecta: PasswordResetService.
- * - Habla con: MySQL via Hibernate.
- *
- * Identity-scoped: PasswordResetToken pertenece a la identidad global
- * (User), no a un negocio. El password es global desde v16, asi que
- * un reset afecta a todos los negocios donde la persona es miembro.
- * Por eso este repo NO tiene findByIdAndBusinessId.
+ * Permite buscar por hash, ya que el token original no se guarda en la
+ * base de datos.
  */
 @Repository
 public interface PasswordResetRepository extends JpaRepository<PasswordResetToken, Long> {
 
-    /** Lookup por hash. Devuelve Optional vacio si no existe. */
+    /** Busca un token de reset por su hash. */
     Optional<PasswordResetToken> findByTokenHash(String tokenHash);
 }

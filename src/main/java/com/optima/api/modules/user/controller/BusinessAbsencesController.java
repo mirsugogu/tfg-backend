@@ -17,23 +17,10 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * BusinessAbsencesController - Vista agregada de las ausencias del negocio
- * (todas las memberships) que solapan con un rango de fechas. Complementa al
- * EmployeeAbsenceController (CRUD por empleado) sin sustituirlo.
+ * Controlador para consultar ausencias de todo el negocio.
  *
- * COMUNICACION:
- * - Recibe: GET /api/businesses/{businessId}/absences?from=&to=. Requiere
- *   JWT (TenantGuardFilter garantiza el businessId).
- * - Llama a: EmployeeAbsenceService.listByBusinessAndRange.
- * - Devuelve: List<EmployeeAbsenceResponse>.
- *
- * Permisos: sin @PreAuthorize. Cualquier autenticado del negocio (ADMIN o
- * EMPLOYEE) ve las ausencias para que el calendario pueda renderizarlas.
- *
- * Por que un controller dedicado y no extender EmployeeAbsenceController:
- * el path de aquel es /users/{userId}/absences (siempre con empleado).
- * Este es la vista del negocio entero; tener su propio mapping mantiene
- * la convencion path = recurso jerarquico, sin trucos opcionales.
+ * Complementa el CRUD por empleado y permite al calendario cargar todas
+ * las ausencias de un rango.
  */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/absences")
@@ -44,11 +31,7 @@ public class BusinessAbsencesController {
     private final EmployeeAbsenceService absenceService;
 
     /**
-     * GET /api/businesses/{businessId}/absences?from=YYYY-MM-DD&to=YYYY-MM-DD
-     *
-     * Devuelve las ausencias del negocio que solapan con el rango (from
-     * inclusive a 00:00, to exclusivo al inicio del dia siguiente). Sin
-     * paginar (decenas por negocio en la practica).
+     * Devuelve las ausencias del negocio que solapan con el rango indicado.
      */
     @GetMapping
     public List<EmployeeAbsenceResponse> listByBusiness(

@@ -9,19 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * AppointmentStatusController - Catalogo PUBLICO de estados de cita.
- *
- * COMUNICACION:
- * - Recibe: GET /api/appointment-statuses(/{id}) desde clientes externos.
- * - Llama a: AppointmentStatusService.
- * - Devuelve: AppointmentStatusResponse(s) en JSON.
- *
- * Esta ruta esta en la allowlist de SecurityConfig (permitAll para GET
- * /api/appointment-statuses/**): NO requiere JWT. El frontend lo
- * consume al renderizar el dropdown "estado" en el formulario de
- * gestion de citas.
- */
+/** Catalogo PUBLICO de estados de cita. */
 @RestController
 @RequestMapping("/api/appointment-statuses")
 @RequiredArgsConstructor

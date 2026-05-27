@@ -7,12 +7,6 @@ import java.time.LocalTime;
 /**
  * BusinessHourResponse - DTO de salida de un tramo horario semanal.
  *
- * COMUNICACION:
- * - Lo construye BusinessHourResponse.from(BusinessHour) en
- *   BusinessHourService.
- * - Lo serializa Jackson a JSON en las respuestas de
- *   BusinessHourController.
- *
  * Campos: id, businessId, dayOfWeek (1-7), startTime, endTime (null si
  * cerrado), isClosed.
  */

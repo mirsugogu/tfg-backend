@@ -13,29 +13,8 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 /**
- * Entidad que representa una cita (reserva) de un cliente con un empleado de un negocio.
- *
- * Es la entidad central del sistema: los servicios se reservan a través de citas
- * (ver BookedService) y el flujo de una cita pasa por varios estados
- * (PENDING → CONFIRMED → IN_PROGRESS → COMPLETED, o CANCELLED / NO_SHOW).
- *
- * No utiliza soft delete porque su propio estado (id_status) cumple esa función:
- * las citas no se borran ni se desactivan, se marcan como CANCELLED o NO_SHOW.
- *
- * COMUNICACION:
- * - La instancia: Hibernate al hidratar, AppointmentService.createAppointment
- *   manualmente.
- * - La consume: AppointmentResponse.from(), AppointmentService (queries
- *   y validaciones), AppointmentValidator.
- * - Tiene relaciones @ManyToOne con: Business, Client, Membership
- *   (empleado en este negocio), Booth (cabina opcional, v14), AppointmentStatus.
- * - Tiene relacion uno-a-muchos (no @OneToMany declarada explicitamente)
- *   con BookedService via id_appointment.
- *
- * Mapea a la tabla `appointments` (docs/schema_v20.sql) con FKs a
- * businesses, clients, memberships, booths y appointment_statuses. Los
- * bookedServices estan en `appointment_services` con ON DELETE CASCADE.
- * updatedAt anyadido en v19 para auditar mutaciones (pago, cambio de estado).
+ * Entidad que representa una cita de un cliente con un empleado.
+ * El estado de la cita sustituye al borrado logico.
  */
 @Entity
 @Table(name = "appointments")
@@ -50,106 +29,62 @@ public class Appointment {
     @Column(name = "id_appointment")
     private Long id;
 
-    /**
-     * Negocio al que pertenece la cita.
-     */
+    /** Negocio al que pertenece la cita. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_business", nullable = false)
     private Business business;
 
-    /**
-     * Cliente que ha reservado la cita.
-     */
+    /** Cliente que ha reservado la cita. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_client", nullable = false)
     private Client client;
 
-    /**
-     * Membership (usuario en este negocio con su rol) que atiende la cita.
-     * [v16 membership] Antes apuntaba a User directamente; ahora apunta a
-     * Membership para soportar que un mismo email trabaje en varios
-     * negocios sin mezclar sus citas. El identificador externo se sigue
-     * llamando "membershipId" en la API por compatibilidad, pero
-     * internamente es el membership_id.
-     */
+    /** Membership (usuario en este negocio con su rol) que atiende la cita. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_membership", nullable = false)
     private Membership membership;
 
-    /**
-     * Cabina (espacio fisico) donde se realiza la cita. Nullable: una
-     * cita puede no tener cabina si el negocio no las usa o si el servicio
-     * no la requiere. Cuando la cita tiene cabina, el service valida que
-     * no esta ocupada en ese tramo (overlap check ortogonal al del empleado).
-     */
+    /** Cabina donde se realiza la cita, si aplica. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_booth")
     private Booth booth;
 
-    /**
-     * Estado actual de la cita (PENDING, CONFIRMED, IN_PROGRESS,
-     * COMPLETED, CANCELLED o NO_SHOW).
-     */
+    /** Estado actual de la cita. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_status", nullable = false)
     private AppointmentStatus status;
 
-    /**
-     * Control de pagos para los filtros del calendario.
-     */
+    /** Control de pagos para los filtros del calendario. */
     @Column(name = "is_paid", nullable = false)
     private Boolean isPaid = false;
 
-    /**
-     * Fecha y hora de inicio de la cita.
-     */
+    /** Fecha y hora de inicio de la cita. */
     @Column(name = "start_datetime", nullable = false)
     private LocalDateTime startDateTime;
 
-    /**
-     * Fecha y hora de fin de la cita.
-     * Se calcula a partir de la suma de duraciones de los servicios reservados.
-     */
+    /** Fecha y hora de fin de la cita. */
     @Column(name = "end_datetime", nullable = false)
     private LocalDateTime endDateTime;
 
-    /**
-     * Notas internas sobre la cita (TEXT: admite texto largo).
-     */
+    /** Notas internas sobre la cita (TEXT: admite texto largo). */
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
-    /**
-     * Fecha y hora en que se creo la cita (rellenado por @PrePersist).
-     */
+    /** Fecha y hora en que se creo la cita (rellenado por @PrePersist). */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /**
-     * Fecha y hora de la ultima mutacion (rellenado por @PreUpdate).
-     *
-     * Nullable hasta el primer UPDATE: si una cita se crea pero nunca
-     * cambia, vale NULL. Util para responder "cuando se confirmo / pago
-     * / cancelo esta cita" sin tablas de eventos. Patron canonico:
-     * createdAt @PrePersist + updatedAt @PreUpdate cuando la entidad
-     * muta (ver memoria del proyecto: entidad canonica).
-     */
+    /** Fecha y hora de la ultima modificacion. */
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    /**
-     * Se ejecuta automáticamente antes de hacer INSERT en la BD.
-     * Rellena la fecha de creación con el momento actual.
-     */
+    /** Asigna la fecha de creacion antes de guardar. */
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
     }
 
-    /**
-     * Se ejecuta automaticamente antes de cada UPDATE.
-     * Sella el momento de la mutacion en updatedAt.
-     */
+    /** Actualiza la fecha de modificacion antes de guardar cambios. */
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();

@@ -9,18 +9,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Configuracion de OpenAPI/Swagger.
+ * Configura la documentacion OpenAPI de la API.
  *
- * Declara un esquema de seguridad HTTP Bearer (JWT) para que la UI de
- * Swagger muestre el boton "Authorize" arriba a la derecha y permita
- * pegar un token JWT. Sin esta configuracion, springdoc no sabe que la
- * API esta protegida con JWT y la UI no ofrece autenticacion.
- *
- * La declaracion del scheme y el SecurityRequirement aplicado a nivel
- * global hace que todos los endpoints "heredien" el requisito en la UI.
- * Los endpoints publicos (login, swagger, catalogos) siguen siendo
- * accesibles sin token porque la decision de autorizar la toma
- * SecurityConfig, no springdoc - este solo describe.
+ * Tambien declara el esquema Bearer JWT para que Swagger permita probar
+ * endpoints protegidos desde el navegador.
  */
 @Configuration
 public class OpenApiConfig {

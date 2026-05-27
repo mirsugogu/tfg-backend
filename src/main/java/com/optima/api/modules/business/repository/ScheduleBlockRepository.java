@@ -13,50 +13,18 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * ScheduleBlockRepository - Acceso a la tabla `schedule_blocks`.
- *
- * COMUNICACION:
- * - Lo inyectan: ScheduleBlockService, AppointmentValidator (validacion
- *   al crear/editar citas), AvailabilityService (carga los bloqueos del
- *   dia para el algoritmo de slots).
- * - Habla con: MySQL via Hibernate.
- *
- * Multi-tenant via findByIdAndBusinessId, igual que el resto de
- * repositories del proyecto. Las dos @Query restringen siempre por
- * :businessId; un negocio nunca puede ver bloqueos de otro.
- */
+/** Acceso a la tabla `schedule_blocks`. */
 @Repository
 public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, Long> {
 
-    /**
-     * Listado paginado de bloqueos de un negocio (orden cronologico ASC).
-     * Sigue la convencion Spring Data: prefijo findBy (no findAll) cuando
-     * se devuelve Page. findAll* esta reservado para retornos List/Iterable.
-     *
-     * Lleva un grafo de entidad (membership, su user y booth): Hibernate los
-     * trae en un unico LEFT JOIN y se evita el N+1 al construir
-     * ScheduleBlockResponse, que dereferencia esas relaciones LAZY por cada
-     * fila del listado.
-     */
+    /** Listado paginado de bloqueos de un negocio (orden cronologico ASC). */
     @EntityGraph(attributePaths = {"membership", "membership.user", "booth"})
     Page<ScheduleBlock> findByBusinessIdOrderByStartDateAsc(Long businessId, Pageable pageable);
 
     /** Lookup tenant-safe por id+businessId. */
     Optional<ScheduleBlock> findByIdAndBusinessId(Long id, Long businessId);
 
-    /**
-     * Devuelve los bloqueos aplicables a una cita concreta: misma fecha y
-     * que afecten al negocio segun los tres tipos de bloqueo:
-     *   - global: membership NULL Y booth NULL,
-     *   - por empleado: membership.id = :membershipId,
-     *   - por cabina: booth.id = :boothId (solo si la cita lleva cabina;
-     *     el caller pasa :boothId=null para citas sin cabina y la clausula
-     *     se desactiva sola gracias al "b.booth IS NOT NULL AND ...").
-     *
-     * Devuelve LIST (no boolean) porque queremos el `reason` del primero
-     * para mostrarlo en el mensaje del 409.
-     */
+    /** Devuelve los bloqueos aplicables a una cita concreta. */
     @Query("""
             SELECT b FROM ScheduleBlock b
             WHERE b.business.id = :businessId
@@ -75,12 +43,7 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, Lo
             @Param("boothId") Long boothId
     );
 
-    /**
-     * Devuelve TODOS los bloqueos del negocio que tocan una fecha concreta,
-     * sin filtrar por empleado ni cabina. Usado por el algoritmo de
-     * disponibilidad: una sola query y luego se reparten en Java segun
-     * sean global / por empleado / por cabina.
-     */
+    /** Devuelve los bloqueos del negocio que afectan a una fecha. */
     @Query("""
             SELECT b FROM ScheduleBlock b
             WHERE b.business.id = :businessId

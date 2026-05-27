@@ -37,39 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * AvailabilityService - Calcula los huecos libres del negocio para una
- * fecha y unos servicios elegidos.
- *
- * Algoritmo: interseccion de calendarios. Para que un slot sea valido:
- *   1. El negocio abre ese dia (business_hours.is_closed=false).
- *   2. No hay schedule_block global aplicable.
- *   3. Existe al menos una MEMBERSHIP (empleado) candidata que:
- *      - Trabaja ese dia_of_week (employee_schedules).
- *      - No tiene schedule_block dirigido a ella.
- *      - El slot encaja en alguno de sus tramos (mañana/tarde) menos
- *        sus employee_absences del dia menos sus citas activas.
- *   4. Si el negocio tiene CABINAS configuradas:
- *      - Hay al menos una cabina libre (sin schedule_block, sin cita
- *        activa solapada).
- *      - Si no hay cabinas en el negocio, el constraint no aplica.
- *
- * [v16 membership] El concepto de "empleado" del path externo es ahora una
- * membership (pertenencia user-business). El DTO de salida mantiene
- * `membershipId` y `userFullName` por compatibilidad con el contrato del API.
- *
- * Granularidad: la hora de inicio del slot es multiplo del
- * appointmentInterval del negocio.
- *
- * COMUNICACION:
- * - Lo invoca: AvailabilityController.
- * - Llama a 9 repos (read-only): BusinessRepository, BusinessHourRepository,
- *   BusinessServiceRepository, MembershipRepository, EmployeeScheduleRepository,
- *   EmployeeAbsenceRepository, BoothRepository, ScheduleBlockRepository,
- *   AppointmentRepository.
- * - Devuelve: AvailabilityResponse con la lista plana de slots ordenada
- *   por hora de inicio asc y membershipId asc.
- */
+/** Calcula los huecos libres del negocio para una fecha y unos servicios elegidos. */
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -85,22 +53,7 @@ public class AvailabilityService {
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final AppointmentRepository appointmentRepository;
 
-    /**
-     * Punto de entrada. Aplica las 4 capas del algoritmo y devuelve la
-     * lista plana de slots libres ordenada (startTime asc, membershipId asc).
-     *
-     * @param businessId  negocio del path (cross-tenant garantizado por filtro).
-     * @param date        fecha consultada (un solo dia).
-     * @param serviceIds  servicios a reservar; su duracion total es la
-     *                    longitud de cada slot.
-     * @param membershipId  opcional; si viene, restringe a ese empleado.
-     * @param boothId     opcional; si viene, restringe a esa cabina.
-     * @param excludeAppointmentId  opcional (P9): id de cita a ignorar al
-     *                              calcular el "ocupado por citas activas".
-     *                              Pensado para el wizard en modo edicion:
-     *                              la propia cita que se reagenda no debe
-     *                              tapar su slot original ni los nuevos.
-     */
+    /** Punto de entrada. Aplica las 4 capas del algoritmo y devuelve la lista plana de slots libres ordenada (startTime asc, membershipId asc). */
     public AvailabilityResponse getAvailability(Long businessId,
                                                 LocalDate date,
                                                 List<Long> serviceIds,
@@ -138,7 +91,7 @@ public class AvailabilityService {
         if (hasGlobalBlock) {
             return new AvailabilityResponse(date, businessId, totalDuration, List.of());
         }
-        // [v16 membership] blocked employee ids son ids de membership.
+        // Los empleados bloqueados se identifican por su membership.
         List<Long> blockedEmployeeIds = blocksOfDay.stream()
                 .filter(b -> b.getMembership() != null)
                 .map(b -> b.getMembership().getId())
@@ -158,8 +111,8 @@ public class AvailabilityService {
         List<Booth> candidateBooths = resolveBoothCandidates(businessId, boothId);
 
         // 7) Citas activas del dia agrupadas por empleado y por cabina.
-        //    Si viene excludeAppointmentId (P9, modo edicion del wizard),
-        //    se filtra esa cita en memoria para que no tape su propio slot.
+        //    Si viene excludeAppointmentId, se filtra esa cita en memoria
+        //    para que no tape su propio slot al editar.
         //    Se filtra aqui y no en el repo para mantener el metodo
         //    findActiveByBusinessAndDay con una sola responsabilidad.
         LocalDateTime dayWindowStart = date.atStartOfDay();

@@ -42,6 +42,10 @@ const ROLE_PALETTE = {
   EMPLOYEE: 'from-emerald-400 to-teal-500',
 }
 
+/**
+ * Perfil del usuario autenticado: editar datos personales (nombre,
+ * email, teléfono) y cambiar la contraseña.
+ */
 export default function Perfil() {
   const { user, applyProfile, switchBusiness } = useAuth()
   const toast = useToast()

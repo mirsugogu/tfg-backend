@@ -15,58 +15,31 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * EmployeeAbsenceRepository - Acceso a la tabla `employee_absences`.
+ * Repositorio de ausencias de empleados.
  *
- * COMUNICACION:
- * - Lo inyecta: EmployeeAbsenceService, AvailabilityService.
- * - Habla con: MySQL via Hibernate.
- *
- * [v16 membership] Las consultas se hacen ahora por membershipId. El
- * nombre externo "employees" se mantiene en AvailabilityService por
- * consistencia con la nomenclatura del API; el valor pasado es id de
- * membership.
- *
- * Tenant safety a nivel de empleado: findByIdAndMembershipId. El
- * EmployeeAbsenceService valida cross-tenant antes (que la membership
- * pertenezca al negocio del path).
+ * Las consultas se filtran por membership o por negocio segun el caso.
  */
 @Repository
 public interface EmployeeAbsenceRepository extends JpaRepository<EmployeeAbsence, Long> {
 
     /**
-     * Lista paginada de ausencias de una membership. El OrderBy del nombre
-     * del metodo deja el orden cronologico ASC como default cuando el
-     * Pageable no trae un Sort. Si el cliente envia ?sort=startDateTime,desc,
-     * el Sort del Pageable prevalece.
-     *
-     * Sigue la convencion Spring Data: prefijo findBy (no findAll) cuando
-     * se devuelve Page. findAll* esta reservado para retornos List/Iterable.
-     *
-     * Lleva un grafo de entidad (membership, membership.user): Hibernate los
-     * trae en un unico JOIN y se evita el N+1 al construir
-     * EmployeeAbsenceResponse, que lee membership.user.fullName por fila.
+     * Lista paginada de ausencias de una membership.
      */
     @EntityGraph(attributePaths = {"membership", "membership.user"})
     Page<EmployeeAbsence> findByMembershipIdOrderByStartDateTimeAsc(Long membershipId, Pageable pageable);
 
     /**
-     * Lista todas las ausencias de un empleado (sin paginar, sin orden). La
-     * usa EmployeeAbsenceService.create al validar overlap con ausencias
-     * existentes antes de persistir la nueva.
+     * Lista todas las ausencias de una membership.
      */
     List<EmployeeAbsence> findAllByMembershipId(Long membershipId);
 
     /**
-     * Búsqueda tenant-safe a nivel de empleado: la ausencia existe Y
-     * pertenece a la membership dada.
+     * Busca una ausencia dentro de una membership concreta.
      */
     Optional<EmployeeAbsence> findByIdAndMembershipId(Long id, Long membershipId);
 
     /**
-     * Carga en UNA query todas las ausencias que solapan con el dia para la
-     * lista de empleados (anti N+1). La usa AvailabilityService al precargar
-     * absences de todos los empleados candidatos. El caller agrupa por
-     * membershipId en memoria (Map).
+     * Carga ausencias de varias memberships que solapan con un dia.
      */
     @Query("""
             SELECT a FROM EmployeeAbsence a
@@ -81,11 +54,7 @@ public interface EmployeeAbsenceRepository extends JpaRepository<EmployeeAbsence
     );
 
     /**
-     * Ausencias de una membership concreta que solapan con el rango
-     * [start, end). Misma logica de solape que el resto del proyecto:
-     * A < D AND C < B. La usa AppointmentValidator.validateNoEmployeeAbsence
-     * al crear una cita para impedir colocarla encima de una ausencia
-     * registrada (vacaciones, cita medica, etc.).
+     * Busca ausencias de una membership que solapan con un rango horario.
      */
     @Query("""
             SELECT a FROM EmployeeAbsence a
@@ -100,12 +69,7 @@ public interface EmployeeAbsenceRepository extends JpaRepository<EmployeeAbsence
     );
 
     /**
-     * Todas las ausencias del negocio que solapan con el rango [start, end).
-     * Sirve al calendario para pintar la franja en rojo sobre la sub-columna
-     * del empleado (vistas resource agrupadas por empleado).
-     *
-     * @EntityGraph para evitar el N+1 al construir EmployeeAbsenceResponse
-     * (lee membership.user.fullName).
+     * Busca ausencias del negocio que solapan con un rango horario.
      */
     @EntityGraph(attributePaths = {"membership", "membership.user"})
     @Query("""

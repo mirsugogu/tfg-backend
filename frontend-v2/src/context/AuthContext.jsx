@@ -7,15 +7,25 @@ const AuthContext = createContext(null)
  * Extrae los claims del JWT y devuelve el "user minimo" que se puede
  * inferir solo del token (sin tocar la red). Util como punto de partida
  * antes de enriquecer con GET /api/me.
+ *
+ * Si el token no es un JWT valido (atob falla, JSON corrupto, formato sin
+ * tres segmentos) lanza un Error con mensaje claro en lugar del
+ * SyntaxError/InvalidCharacterError cripticos que dejan a los callers
+ * (login/register/selectBusiness/switchBusiness) sin nada que mostrar al
+ * usuario.
  */
 function decodeJwt(token) {
-  const payload = JSON.parse(atob(token.split('.')[1]))
-  return {
-    token,
-    userId:     payload.userId,
-    businessId: payload.businessId,
-    email:      payload.sub,
-    role:       payload.role,
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return {
+      token,
+      userId:     payload.userId,
+      businessId: payload.businessId,
+      email:      payload.sub,
+      role:       payload.role,
+    }
+  } catch {
+    throw new Error('El token recibido del servidor no es válido.')
   }
 }
 
