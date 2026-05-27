@@ -53,7 +53,7 @@ public class AvailabilityService {
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final AppointmentRepository appointmentRepository;
 
-    /** Punto de entrada. Aplica las 4 capas del algoritmo y devuelve la lista plana de slots libres ordenada (startTime asc, membershipId asc). */
+    /** Calcula slots libres aplicando negocio, empleado, cabina y bloqueos. */
     public AvailabilityResponse getAvailability(Long businessId,
                                                 LocalDate date,
                                                 List<Long> serviceIds,
@@ -61,17 +61,13 @@ public class AvailabilityService {
                                                 Long boothId,
                                                 Long excludeAppointmentId) {
 
-        // 1) Verificar negocio
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "No se encontró el negocio con ID: " + businessId));
 
-        // 2) Resolver servicios -> sumar duracion total
         int totalDuration = resolveServicesAndSumDuration(businessId, serviceIds);
 
-        // 3) Horario de apertura del negocio para el dia consultado.
-        //    Puede ser turno partido (10-14 + 16-20): obtenemos todos los
-        //    tramos abiertos. Si no hay ninguno, el negocio esta cerrado.
+        // Puede haber varios tramos abiertos en el mismo dia, por ejemplo turno partido.
         int dayOfWeek = date.getDayOfWeek().getValue(); // 1=Lunes..7=Domingo
         List<BusinessHour> openHours = businessHourRepository
                 .findAllByBusinessIdAndDayOfWeekOrderByStartTimeAsc(businessId, dayOfWeek)
@@ -82,8 +78,7 @@ public class AvailabilityService {
             return new AvailabilityResponse(date, businessId, totalDuration, List.of());
         }
 
-        // 4) Bloqueos del dia: globales abortan; los del recurso se reparten
-        //    en Java para no lanzar N queries.
+        // Un bloqueo global deja el dia sin huecos disponibles.
         List<ScheduleBlock> blocksOfDay =
                 scheduleBlockRepository.findAllForDay(businessId, date);
         boolean hasGlobalBlock = blocksOfDay.stream()
@@ -91,7 +86,6 @@ public class AvailabilityService {
         if (hasGlobalBlock) {
             return new AvailabilityResponse(date, businessId, totalDuration, List.of());
         }
-        // Los empleados bloqueados se identifican por su membership.
         List<Long> blockedEmployeeIds = blocksOfDay.stream()
                 .filter(b -> b.getMembership() != null)
                 .map(b -> b.getMembership().getId())
@@ -101,20 +95,11 @@ public class AvailabilityService {
                 .map(b -> b.getBooth().getId())
                 .toList();
 
-        // 5) Memberships candidatas (filtro por membershipId si viene; el
-        //    membershipId externo es realmente el id de la membership).
         List<Membership> candidates = resolveEmployeeCandidates(businessId, membershipId);
 
-        // 6) Cabinas candidatas (filtro por boothId si viene). Lista vacia =
-        //    el negocio no tiene cabinas o las que tiene estan filtradas; el
-        //    constraint cabina libre solo aplica si la lista NO esta vacia.
         List<Booth> candidateBooths = resolveBoothCandidates(businessId, boothId);
 
-        // 7) Citas activas del dia agrupadas por empleado y por cabina.
-        //    Si viene excludeAppointmentId, se filtra esa cita en memoria
-        //    para que no tape su propio slot al editar.
-        //    Se filtra aqui y no en el repo para mantener el metodo
-        //    findActiveByBusinessAndDay con una sola responsabilidad.
+        // Al editar, la cita actual no debe ocupar su propio slot.
         LocalDateTime dayWindowStart = date.atStartOfDay();
         LocalDateTime dayWindowEnd = date.plusDays(1).atStartOfDay();
         List<Appointment> activeAppointments =
@@ -125,11 +110,7 @@ public class AvailabilityService {
                                 || !excludeAppointmentId.equals(a.getId()))
                         .toList();
 
-        // 8) Recorrer memberships (empleados) y construir slots.
-        //    Precarga batch (anti-N+1): UNA query a employee_schedules y UNA
-        //    a employee_absences para TODOS los empleados candidatos, en vez
-        //    de N+N dentro del bucle. Agrupamos por membershipId con
-        //    Collectors.groupingBy y luego leemos del Map dentro del for.
+        // Se precargan horarios y ausencias para no consultar dentro del bucle.
         int interval = business.getAppointmentInterval();
         List<AvailabilitySlotResponse> slots = new ArrayList<>();
 
@@ -166,10 +147,7 @@ public class AvailabilityService {
                     .toList();
 
             for (EmployeeSchedule range : ranges) {
-                // Cada tramo del empleado se intersecta con cada tramo abierto
-                // del negocio por separado. Asi el descanso 14-16 del turno
-                // partido del negocio nunca produce slots, aunque el empleado
-                // tenga horario continuo 09-20.
+                // Asi se respetan descansos del negocio aunque el empleado tenga horario continuo.
                 for (BusinessHour bh : openHours) {
                     LocalDateTime dayStart = date.atTime(bh.getStartTime());
                     LocalDateTime dayEnd = date.atTime(bh.getEndTime());
@@ -183,7 +161,6 @@ public class AvailabilityService {
             }
         }
 
-        // 9) Orden estable por hora asc y luego membershipId asc
         slots.sort(Comparator
                 .comparing(AvailabilitySlotResponse::startTime)
                 .thenComparing(AvailabilitySlotResponse::membershipId));
@@ -191,19 +168,12 @@ public class AvailabilityService {
         return new AvailabilityResponse(date, businessId, totalDuration, slots);
     }
 
-    // ------------------------------------------------------------------
-    // helpers privados
-    // ------------------------------------------------------------------
-
     private int resolveServicesAndSumDuration(Long businessId, List<Long> serviceIds) {
         if (serviceIds == null || serviceIds.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Debe indicar al menos un servicio");
         }
-        // Una sola query para todos los servicios del request (anti-N+1).
-        // De-duplicamos por si el caller mando el mismo serviceId repetido:
-        // contaria duracion doble y devolveria size desigual aunque todos
-        // existan.
+        // Se quitan repetidos para no sumar dos veces el mismo servicio.
         Set<Long> uniqueIds = new HashSet<>(serviceIds);
         List<BusinessService> services =
                 serviceRepository.findAllByIdInAndBusinessId(uniqueIds, businessId);
@@ -278,11 +248,10 @@ public class AvailabilityService {
             List<Long> blockedBoothIds,
             List<Appointment> allActiveAppointments
     ) {
-        // Intersectar el tramo del empleado con el horario de apertura
         LocalDateTime rangeStart = max(date.atTime(range.getStartTime()), dayStart);
         LocalDateTime rangeEnd   = min(date.atTime(range.getEndTime()),   dayEnd);
 
-        // Alinear el inicio al multiplo del intervalo (redondeo hacia arriba)
+        // Se redondea hacia arriba al intervalo configurado por el negocio.
         LocalDateTime cursor = alignUpToInterval(rangeStart, interval);
 
         while (!cursor.plusMinutes(totalDuration).isAfter(rangeEnd)) {
@@ -294,9 +263,7 @@ public class AvailabilityService {
                         slotStart, slotEnd,
                         candidateBooths, blockedBoothIds, allActiveAppointments);
 
-                // Si NO hay cabinas configuradas en el negocio, el constraint
-                // no aplica: el slot es valido con booth=null.
-                // Si SI hay cabinas pero ninguna libre: slot descartado.
+                // Sin cabinas configuradas, el slot es valido con booth=null.
                 boolean boothConstraintSatisfied =
                         candidateBooths.isEmpty() || booth != null;
 
@@ -327,11 +294,7 @@ public class AvailabilityService {
         return false;
     }
 
-    /**
-     * Devuelve la primera cabina libre para el rango, o null si ninguna
-     * lo esta. Si la lista de candidatas viene vacia (negocio sin cabinas)
-     * devuelve null y el caller decide si es valido o no.
-     */
+    /** Devuelve la primera cabina libre del rango, o null si no hay ninguna. */
     private Booth pickFreeBooth(LocalDateTime start, LocalDateTime end,
                                 List<Booth> candidates,
                                 List<Long> blockedBoothIds,

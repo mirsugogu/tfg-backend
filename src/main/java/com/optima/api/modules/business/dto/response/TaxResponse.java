@@ -5,12 +5,7 @@ import com.optima.api.modules.business.model.Tax;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * TaxResponse - DTO de salida de un impuesto.
- *
- * percentage es BigDecimal para no perder precision (importante en
- * calculos monetarios).
- */
+/** Respuesta con los datos de un impuesto. */
 public record TaxResponse(
     Long id,
     Long businessId,

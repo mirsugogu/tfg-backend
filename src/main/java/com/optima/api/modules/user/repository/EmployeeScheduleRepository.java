@@ -9,20 +9,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Repositorio de horarios de empleados.
- *
- * Las consultas se realizan por membership para mantener el horario dentro
- * del negocio correspondiente.
- */
+/** Repositorio de horarios semanales de empleados. */
 @Repository
 public interface EmployeeScheduleRepository extends JpaRepository<EmployeeSchedule, Long> {
 
-    /**
-     * Lista los tramos de un empleado para un día concreto.
-     * La usa AppointmentValidator al validar que una cita encaja
-     * en el horario del empleado.
-     */
+    /** Lista los tramos de un empleado para un dia concreto. */
     List<EmployeeSchedule> findAllByMembershipIdAndDayOfWeek(Long membershipId, Integer dayOfWeek);
 
     /**

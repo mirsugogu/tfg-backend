@@ -37,7 +37,6 @@ public class BusinessServiceService {
 
         String name = request.name().trim();
 
-        // 1. Validar nombre duplicado en el mismo negocio
         if (serviceRepository.existsByBusinessIdAndNameIgnoreCase(
                 businessId, name)) {
             throw new ResponseStatusException(
@@ -46,14 +45,13 @@ public class BusinessServiceService {
             );
         }
 
-        // 2. Validar que el negocio existe
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "No se encontró el negocio con ID: " + businessId
                 ));
 
-        // 3. Cross-tenant: la categoría pertenece a este negocio y está activa
+        // La categoria debe pertenecer al negocio y estar activa.
         ServiceCategory category = categoryRepository
                 .findByIdAndBusinessId(request.categoryId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -66,7 +64,7 @@ public class BusinessServiceService {
                     "La categoría con ID: " + request.categoryId() + " está desactivada");
         }
 
-        // 4. Cross-tenant: el impuesto pertenece a este negocio y está activo
+        // El impuesto debe pertenecer al negocio y estar activo.
         Tax tax = taxRepository
                 .findByIdAndBusinessId(request.taxId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -79,7 +77,6 @@ public class BusinessServiceService {
                     "El impuesto con ID: " + request.taxId() + " está desactivado");
         }
 
-        // 5. Crear la entidad
         BusinessService newService = new BusinessService();
         newService.setBusiness(business);
         newService.setCategory(category);
@@ -89,15 +86,10 @@ public class BusinessServiceService {
         newService.setPrice(request.price());
         newService.setDurationMinutes(request.durationMinutes());
 
-        // 6. Guardar y devolver DTO
         return BusinessServiceResponse.from(serviceRepository.save(newService));
     }
 
-    /**
-     * Lista los servicios de un negocio. Con active=true (por defecto)
-     * devuelve los activos; con active=false los archivados (soft-deleted),
-     * la vista desde la que se reactivan.
-     */
+    /** Lista servicios activos o archivados de un negocio. */
     @Transactional(readOnly = true)
     public Page<BusinessServiceResponse> getActiveServicesByBusiness(Long businessId, boolean active, Pageable pageable) {
         Page<BusinessService> page = active
@@ -106,10 +98,7 @@ public class BusinessServiceService {
         return page.map(BusinessServiceResponse::from);
     }
 
-    /**
-     * Obtiene un servicio por ID dentro de un negocio (cross-tenant safe).
-     * Si el servicio no existe o pertenece a otro negocio, devuelve 404.
-     */
+    /** Obtiene un servicio del negocio. */
     @Transactional(readOnly = true)
     public BusinessServiceResponse getServiceById(Long businessId, Long id) {
         return BusinessServiceResponse.from(findOrThrow(businessId, id));
@@ -127,8 +116,7 @@ public class BusinessServiceService {
                     "Ya existe un servicio con ese nombre en este negocio (revisa también los archivados)");
         }
 
-        // Cross-tenant: la nueva categoría pertenece a este negocio; si se
-        // cambia, además debe estar activa.
+        // Si cambia la categoria, la nueva debe estar activa.
         ServiceCategory category = categoryRepository
                 .findByIdAndBusinessId(request.categoryId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -141,8 +129,7 @@ public class BusinessServiceService {
                     "La categoría con ID: " + request.categoryId() + " está desactivada");
         }
 
-        // Cross-tenant: el nuevo impuesto pertenece a este negocio; si se
-        // cambia, además debe estar activo.
+        // Si cambia el impuesto, el nuevo debe estar activo.
         Tax tax = taxRepository
                 .findByIdAndBusinessId(request.taxId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(

@@ -52,11 +52,7 @@ public class BoothService {
         return BoothResponse.from(boothRepository.save(b));
     }
 
-    /**
-     * Listado paginado de cabinas del negocio. Con active=true (por
-     * defecto) devuelve las activas; con active=false las archivadas
-     * (soft-deleted), la vista desde la que se reactivan.
-     */
+    /** Lista cabinas activas o archivadas del negocio. */
     @Transactional(readOnly = true)
     public Page<BoothResponse> listActive(Long businessId, boolean active, Pageable pageable) {
         Page<Booth> page = active
@@ -65,10 +61,7 @@ public class BoothService {
         return page.map(BoothResponse::from);
     }
 
-    /**
-     * Detalle de una cabina por id dentro del negocio (cross-tenant safe).
-     * Lanza 404 si no existe o pertenece a otro negocio.
-     */
+    /** Devuelve una cabina del negocio. */
     @Transactional(readOnly = true)
     public BoothResponse getById(Long businessId, Long id) {
         return BoothResponse.from(findOrThrow(businessId, id));
@@ -98,13 +91,7 @@ public class BoothService {
         return BoothResponse.from(boothRepository.save(b));
     }
 
-    /**
-     * Soft delete: marca la cabina como inactiva y rellena deactivatedAt.
-     * Lanza 400 si ya estaba desactivada y 409 si todavía tiene citas
-     * activas (PENDING, CONFIRMED o IN_PROGRESS) cuya hora de fin aún
-     * no ha pasado, para no dejar citas vivas apuntando a una cabina
-     * archivada.
-     */
+    /** Archiva una cabina si no tiene citas activas futuras. */
     public void deactivate(Long businessId, Long id) {
         Booth b = findOrThrow(businessId, id);
         if (!b.getIsActive()) {
@@ -123,10 +110,7 @@ public class BoothService {
         boothRepository.save(b);
     }
 
-    /**
-     * Reactiva una cabina archivada: pone isActive=true y deactivatedAt=null.
-     * Filtra por negocio (cross-tenant safe). Lanza 400 si ya estaba activa.
-     */
+    /** Reactiva una cabina archivada. */
     public BoothResponse reactivate(Long businessId, Long id) {
         Booth b = findOrThrow(businessId, id);
         if (b.getIsActive()) {

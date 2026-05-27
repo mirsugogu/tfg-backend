@@ -5,12 +5,7 @@ import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilde
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Configura la lectura de fechas en los JSON de entrada.
- *
- * Las fechas con hora se tratan como hora local, por eso no se aceptan
- * valores con zona horaria.
- */
+/** Configura Jackson para aceptar solo fechas locales en la API. */
 @Configuration
 public class JacksonConfig {
 

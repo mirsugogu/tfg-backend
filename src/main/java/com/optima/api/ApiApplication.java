@@ -3,12 +3,7 @@ package com.optima.api;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-/**
- * Clase principal del backend.
- *
- * Al estar en el paquete raiz, Spring puede encontrar los controladores,
- * servicios, repositorios y configuraciones del proyecto.
- */
+/** Clase principal del backend; desde aqui Spring detecta los componentes. */
 @SpringBootApplication
 public class ApiApplication {
 

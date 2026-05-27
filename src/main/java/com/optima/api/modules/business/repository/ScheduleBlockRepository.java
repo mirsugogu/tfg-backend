@@ -21,7 +21,7 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, Lo
     @EntityGraph(attributePaths = {"membership", "membership.user", "booth"})
     Page<ScheduleBlock> findByBusinessIdOrderByStartDateAsc(Long businessId, Pageable pageable);
 
-    /** Lookup tenant-safe por id+businessId. */
+    /** Busca por id dentro del negocio. */
     Optional<ScheduleBlock> findByIdAndBusinessId(Long id, Long businessId);
 
     /** Devuelve los bloqueos aplicables a una cita concreta. */

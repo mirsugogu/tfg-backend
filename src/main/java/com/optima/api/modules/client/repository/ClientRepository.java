@@ -10,12 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-/**
- * Repositorio de clientes.
- *
- * Incluye consultas filtradas por negocio para mantener el aislamiento
- * entre tenants.
- */
+/** Repositorio de clientes filtrados por negocio. */
 @Repository
 public interface ClientRepository extends JpaRepository<Client, Long> {
 

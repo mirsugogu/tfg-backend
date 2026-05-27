@@ -26,7 +26,7 @@ public interface BusinessServiceRepository extends JpaRepository<BusinessService
     @EntityGraph(attributePaths = {"category", "tax"})
     Page<BusinessService> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
 
-    /** Lookup tenant-safe por id+businessId. */
+    /** Busca por id dentro del negocio. */
     Optional<BusinessService> findByIdAndBusinessId(Long id, Long businessId);
 
     /** Carga varios servicios de un negocio en una sola consulta. */

@@ -14,12 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * Controlador para gestionar los empleados de un negocio.
- *
- * Las mutaciones requieren rol ADMIN. Las consultas pueden hacerlas los
- * usuarios autenticados del negocio.
- */
+/** Endpoints para gestionar empleados de un negocio. */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/users")
 @RequiredArgsConstructor

@@ -25,12 +25,7 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Optional;
 
-/**
- * Servicio para restablecer contrasenas por correo.
- *
- * Guarda solo el hash del token, marca los tokens usados y responde de
- * forma neutra cuando se solicita un reset para evitar revelar emails.
- */
+/** Gestiona el reset de contrasena sin revelar si el email existe. */
 @Service
 @Transactional
 @RequiredArgsConstructor

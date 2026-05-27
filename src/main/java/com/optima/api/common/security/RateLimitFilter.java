@@ -25,12 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-/**
- * Limita por IP los intentos en endpoints publicos de autenticacion.
- *
- * Usa cubos de tokens en memoria para reducir abusos como muchos intentos
- * de login o solicitudes repetidas de recuperacion de contrasena.
- */
+/** Limita por IP los endpoints publicos de autenticacion. */
 @Component
 @RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {

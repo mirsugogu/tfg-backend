@@ -28,12 +28,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.time.Instant;
 import java.util.List;
 
-/**
- * Configuracion principal de seguridad.
- *
- * Define que rutas son publicas, que filtros se aplican a cada peticion
- * y como se gestionan los errores de autenticacion y permisos.
- */
+/** Define rutas publicas, filtros y errores de seguridad. */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity

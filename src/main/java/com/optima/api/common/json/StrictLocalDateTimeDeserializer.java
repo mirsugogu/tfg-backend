@@ -9,12 +9,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.regex.Pattern;
 
-/**
- * Deserializador que rechaza fechas con zona horaria.
- *
- * El proyecto trabaja con horas locales para citas y ausencias. Por eso
- * solo se aceptan valores como 2027-06-07T10:00:00.
- */
+/** Deserializa fechas locales y rechaza valores con zona horaria. */
 public class StrictLocalDateTimeDeserializer extends LocalDateTimeDeserializer {
 
     private static final Pattern OFFSET_PATTERN = Pattern.compile(".*[+-]\\d{2}:\\d{2}$");

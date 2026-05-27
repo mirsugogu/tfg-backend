@@ -23,10 +23,7 @@ public class ServiceCategoryController {
 
     private final ServiceCategoryService categoryService;
 
-    /**
-     * Crea una nueva categoría dentro del negocio.
-     * El businessId se toma del path; el body solo lleva el nombre.
-     */
+    /** Crea una categoria dentro del negocio. */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
@@ -43,18 +40,14 @@ public class ServiceCategoryController {
         return categoryService.getActiveCategories(businessId, active, pageable);
     }
 
-    /**
-     * Obtiene una categoría por ID dentro del negocio (cross-tenant safe).
-     */
+    /** Obtiene una categoria del negocio. */
     @GetMapping("/{id}")
     public ServiceCategoryResponse getCategoryById(@PathVariable @Positive Long businessId,
                                             @PathVariable @Positive Long id) {
         return categoryService.getCategoryById(businessId, id);
     }
 
-    /**
-     * Actualiza el nombre de una categoría dentro del negocio.
-     */
+    /** Actualiza el nombre de una categoria. */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ServiceCategoryResponse updateCategory(@PathVariable @Positive Long businessId,
@@ -63,9 +56,7 @@ public class ServiceCategoryController {
         return categoryService.updateCategory(businessId, id, request);
     }
 
-    /**
-     * Soft delete de la categoría dentro del negocio.
-     */
+    /** Archiva una categoria del negocio. */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
@@ -73,12 +64,7 @@ public class ServiceCategoryController {
         categoryService.deactivateCategory(businessId, id);
     }
 
-    /**
-     * PATCH /api/businesses/{businessId}/categories/{id}/reactivate -
-     * Revierte el soft delete de una categoría archivada (ADMIN). Pone
-     * isActive=true. Devuelve el ServiceCategoryResponse actualizado.
-     * 400 si ya estaba activa.
-     */
+    /** Reactiva una categoria archivada. */
     @PatchMapping("/{id}/reactivate")
     @PreAuthorize("hasRole('ADMIN')")
     public ServiceCategoryResponse reactivateCategory(@PathVariable @Positive Long businessId,

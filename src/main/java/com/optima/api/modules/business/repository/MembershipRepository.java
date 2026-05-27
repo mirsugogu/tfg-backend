@@ -22,12 +22,7 @@ public interface MembershipRepository extends JpaRepository<Membership, Long> {
     @EntityGraph(attributePaths = {"user", "role"})
     Page<Membership> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
-    /**
-     * Listado paginado de memberships INACTIVAS (empleados archivados) de
-     * un negocio. Alimenta la vista "Archivados" del listado de empleados,
-     * desde la que el ADMIN los reactiva. Mismo @EntityGraph que la
-     * variante activa para evitar el N+1 al construir UserResponse.
-     */
+    /** Lista empleados archivados con usuario y rol cargados. */
     @EntityGraph(attributePaths = {"user", "role"})
     Page<Membership> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
 
@@ -35,10 +30,7 @@ public interface MembershipRepository extends JpaRepository<Membership, Long> {
     @EntityGraph(attributePaths = {"user"})
     List<Membership> findAllByBusinessIdAndIsActiveTrue(Long businessId);
 
-    /**
-     * Lookup tenant-safe por id+businessId.
-     * Es el sustituto del antiguo UserRepository.findByIdAndBusinessId.
-     */
+    /** Busca una membership dentro del negocio. */
     Optional<Membership> findByIdAndBusinessId(Long id, Long businessId);
 
     /** Busca una membership aplicando bloqueo pesimista. */
@@ -47,11 +39,7 @@ public interface MembershipRepository extends JpaRepository<Membership, Long> {
     Optional<Membership> findByIdAndBusinessIdForUpdate(@Param("id") Long id,
                                                        @Param("businessId") Long businessId);
 
-    /**
-     * Busca la membership de un usuario en un negocio concreto. Sirve al
-     * login para identificar la membresia que se usara como tenant token,
-     * y para detectar duplicados en UserService.create.
-     */
+    /** Busca la pertenencia de un usuario a un negocio. */
     Optional<Membership> findByUserIdAndBusinessId(Long userId, Long businessId);
 
     /**

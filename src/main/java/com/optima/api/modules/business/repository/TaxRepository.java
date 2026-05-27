@@ -8,27 +8,19 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-/**
- * TaxRepository - Acceso a la tabla `taxes`.
- *
- * Multi-tenant via findByIdAndBusinessId, igual que el resto.
- */
+/** Acceso a impuestos filtrados por negocio. */
 @Repository
 public interface TaxRepository extends JpaRepository<Tax, Long> {
 
     /** Lista paginada de impuestos activos (excluye soft-deleted). */
     Page<Tax> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
-    /**
-     * Lista paginada de impuestos INACTIVOS (archivados) de un negocio.
-     * Alimenta la vista "Archivados" del listado de impuestos, desde la
-     * que se reactivan.
-     */
+    /** Lista impuestos archivados de un negocio. */
     Page<Tax> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
 
     /** Para validar unicidad del nombre dentro del negocio (case-insensitive). */
     boolean existsByBusinessIdAndNameIgnoreCase(Long businessId, String name);
 
-    /** Lookup tenant-safe por id+businessId. */
+    /** Busca por id dentro del negocio. */
     Optional<Tax> findByIdAndBusinessId(Long id, Long businessId);
 }

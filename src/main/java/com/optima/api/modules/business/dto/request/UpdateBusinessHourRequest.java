@@ -6,11 +6,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalTime;
 
-/**
- * UpdateBusinessHourRequest - DTO de entrada para actualizar un tramo horario.
- * Mismo contrato que CreateBusinessHourRequest: si cambias el dia
- * de la semana se valida que no choque con otro tramo del mismo negocio.
- */
+/** Datos para actualizar un tramo horario del negocio. */
 public record UpdateBusinessHourRequest(
 
         @NotNull(message = "El día de la semana es obligatorio")

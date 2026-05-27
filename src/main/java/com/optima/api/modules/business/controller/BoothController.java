@@ -40,11 +40,7 @@ public class BoothController {
         return boothService.listActive(businessId, active, pageable);
     }
 
-    /**
-     * GET /api/businesses/{businessId}/booths/{id} - Detalle de una
-     * cabina. Cross-tenant safe: si el id no existe en este businessId
-     * devuelve 404.
-     */
+    /** Devuelve el detalle de una cabina del negocio. */
     @GetMapping("/{id}")
     public BoothResponse getById(@PathVariable @Positive Long businessId,
                                  @PathVariable @Positive Long id) {
@@ -60,12 +56,7 @@ public class BoothController {
         return boothService.update(businessId, id, request);
     }
 
-    /**
-     * DELETE /api/businesses/{businessId}/booths/{id} - Soft delete:
-     * marca is_active=false y deactivated_at=now. NO borra fisicamente
-     * la fila (preserva integridad referencial con citas pasadas que
-     * referencian la cabina). Devuelve 204 No Content. Permiso: solo ADMIN.
-     */
+    /** Archiva la cabina sin borrarla fisicamente. */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
@@ -74,12 +65,7 @@ public class BoothController {
         boothService.deactivate(businessId, id);
     }
 
-    /**
-     * PATCH /api/businesses/{businessId}/booths/{id}/reactivate - Revierte
-     * el soft delete de una cabina archivada (ADMIN). Pone is_active=true
-     * y deactivated_at=null. Devuelve el BoothResponse actualizado. 400 si
-     * ya estaba activa.
-     */
+    /** Reactiva una cabina archivada. */
     @PatchMapping("/{id}/reactivate")
     @PreAuthorize("hasRole('ADMIN')")
     public BoothResponse reactivate(@PathVariable @Positive Long businessId,

@@ -6,12 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-/**
- * AppointmentStatusRepository - Acceso al catalogo `appointment_statuses`.
- *
- * Catalogo global (sin id_business): los mismos estados aplican a
- * todos los negocios.
- */
+/** Acceso al catalogo global de estados de cita. */
 @Repository
 public interface AppointmentStatusRepository extends JpaRepository<AppointmentStatus, Long> {
 

@@ -25,11 +25,7 @@ public class BusinessHourService {
     private final BusinessHourRepository hourRepository;
     private final BusinessRepository businessRepository;
 
-    /**
-     * Crea un tramo horario para un dia del negocio. Si el nuevo tramo es
-     * abierto, valida que no se solape con otros tramos abiertos del mismo
-     * dia (regla A<D AND C<B; 409 si choca).
-     */
+    /** Crea un tramo horario y evita solapes en el mismo dia. */
     public BusinessHourResponse create(Long businessId, CreateBusinessHourRequest request) {
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -58,9 +54,7 @@ public class BusinessHourService {
                 .stream().map(BusinessHourResponse::from).toList();
     }
 
-    /**
-     * Obtiene un tramo por ID dentro del negocio (cross-tenant safe).
-     */
+    /** Obtiene un tramo horario del negocio. */
     @Transactional(readOnly = true)
     public BusinessHourResponse getById(Long businessId, Long id) {
         return BusinessHourResponse.from(findOrThrow(businessId, id));
@@ -80,9 +74,7 @@ public class BusinessHourService {
         return BusinessHourResponse.from(hourRepository.save(bh));
     }
 
-    /**
-     * Hard delete del tramo (no es soft delete: un horario o existe o no existe).
-     */
+    /** Borra el tramo horario. */
     public void delete(Long businessId, Long id) {
         BusinessHour bh = findOrThrow(businessId, id);
         hourRepository.delete(bh);

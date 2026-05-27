@@ -18,12 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * ScheduleBlockService - Logica de bloqueos de agenda.
- *
- * Sin soft delete: los bloqueos son eventos puntuales. Si el ADMIN se
- * equivoca, hard-delete y vuelve a crear.
- */
+/** Gestiona bloqueos de agenda globales, por empleado o por cabina. */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -34,12 +29,7 @@ public class ScheduleBlockService {
     private final MembershipRepository membershipRepository;
     private final BoothRepository boothRepository;
 
-    /**
-     * Crea un bloqueo de agenda. Segun los IDs presentes en el request es:
-     * global (ninguno), por empleado (membershipId) o por cabina (boothId).
-     * Valida que las referencias cruzadas pertenecen al negocio y que
-     * startDate no es posterior a endDate.
-     */
+    /** Crea un bloqueo de agenda y valida sus referencias del negocio. */
     public ScheduleBlockResponse create(Long businessId, CreateScheduleBlockRequest request) {
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
@@ -50,11 +40,7 @@ public class ScheduleBlockService {
                     "La fecha de inicio no puede ser posterior a la de fin");
         }
 
-        // Un bloqueo es global (ambos null), por empleado (solo membershipId)
-        // o por cabina (solo boothId). La combinacion "ambos no null" no
-        // tiene semantica definida en findApplicableBlocks; el schema v19
-        // tambien lo impone con CHECK chk_block_target, esto evita el viaje
-        // a BD con un 400 mas descriptivo.
+        // El bloqueo solo puede apuntar a un tipo de recurso.
         if (request.membershipId() != null && request.boothId() != null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Un bloqueo no puede dirigirse simultaneamente a un empleado "
@@ -98,16 +84,13 @@ public class ScheduleBlockService {
                 .map(ScheduleBlockResponse::from);
     }
 
-    /**
-     * Detalle de un bloqueo por id dentro del negocio (cross-tenant safe).
-     * Lanza 404 si no existe o pertenece a otro negocio.
-     */
+    /** Devuelve un bloqueo del negocio. */
     @Transactional(readOnly = true)
     public ScheduleBlockResponse getById(Long businessId, Long id) {
         return ScheduleBlockResponse.from(findOrThrow(businessId, id));
     }
 
-    /** Hard delete: el bloqueo desaparece de la BD. */
+    /** Borra el bloqueo de la base de datos. */
     public void delete(Long businessId, Long id) {
         ScheduleBlock b = findOrThrow(businessId, id);
         blockRepository.delete(b);

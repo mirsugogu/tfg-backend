@@ -12,12 +12,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Optional;
 
-/**
- * Servicio que convierte una direccion en coordenadas usando Nominatim.
- *
- * Funciona como apoyo: si la API externa falla, devuelve Optional.empty()
- * y el alta o edicion del negocio puede continuar.
- */
+/** Convierte direcciones en coordenadas sin bloquear si la API externa falla. */
 @Slf4j
 @Service
 public class GeocodingService {

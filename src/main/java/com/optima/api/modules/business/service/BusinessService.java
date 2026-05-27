@@ -29,12 +29,7 @@ public class BusinessService {
         return BusinessResponse.from(createEntity(request));
     }
 
-    /**
-     * Misma logica de create pero devuelve la entidad persistida en lugar
-     * del DTO. Existe para que AuthService.register pueda crear un negocio
-     * dentro de la transaccion del auto-registro y enlazar la Membership
-     * ADMIN sin tener que volver a buscar el Business por id.
-     */
+    /** Crea el negocio y devuelve la entidad para usarla dentro del registro. */
     public Business createEntity(CreateBusinessRequest request) {
         String slug = request.slug().trim().toLowerCase();
         String email = request.email().trim().toLowerCase();
@@ -80,22 +75,13 @@ public class BusinessService {
         return businessRepository.save(b);
     }
 
-    /**
-     * Detalle de un negocio por id. 404 si no existe.
-     * NO filtra por isActive: util para que el admin pueda ver negocios
-     * desactivados antes de reactivarlos.
-     */
+    /** Devuelve un negocio aunque este desactivado. */
     @Transactional(readOnly = true)
     public BusinessResponse getById(Long id) {
         return BusinessResponse.from(findOrThrow(id));
     }
 
-    /**
-     * Actualiza datos editables del negocio. Re-geocodifica siempre
-     * (no solo si address cambio: simple y sin caching).
-     * Bloquea si el negocio esta desactivado (400). Si email choca con
-     * otro negocio -> 409.
-     */
+    /** Actualiza los datos del negocio y vuelve a calcular coordenadas. */
     public BusinessResponse update(Long id, UpdateBusinessRequest request) {
         Business b = findOrThrow(id);
         String email = request.email().trim().toLowerCase();
@@ -134,10 +120,7 @@ public class BusinessService {
         return BusinessResponse.from(businessRepository.save(b));
     }
 
-    /**
-     * Soft delete: isActive=false, deactivatedAt=now. Lanza 400 si ya
-     * estaba desactivado. NO borra fisicamente.
-     */
+    /** Archiva el negocio sin borrarlo fisicamente. */
     public void deactivate(Long id) {
         Business b = findOrThrow(id);
         if (!b.getIsActive()) {
@@ -149,10 +132,7 @@ public class BusinessService {
         businessRepository.save(b);
     }
 
-    /**
-     * Reactiva un negocio soft-deleted. Pone isActive=true y
-     * deactivatedAt=null. Lanza 400 si ya estaba activo.
-     */
+    /** Reactiva un negocio archivado. */
     public BusinessResponse reactivate(Long id) {
         Business b = findOrThrow(id);
         if (b.getIsActive()) {
@@ -164,10 +144,7 @@ public class BusinessService {
         return BusinessResponse.from(businessRepository.save(b));
     }
 
-    /**
-     * Helper privado: busca por id o lanza 404. Centraliza el mensaje
-     * de error y evita repetir el orElseThrow en cada metodo.
-     */
+    /** Busca un negocio por id o lanza 404. */
     private Business findOrThrow(Long id) {
         return businessRepository.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,

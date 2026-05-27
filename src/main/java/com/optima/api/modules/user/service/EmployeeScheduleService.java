@@ -16,12 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalTime;
 import java.util.List;
 
-/**
- * Servicio de negocio para horarios semanales de empleados.
- *
- * Cada operacion valida que la membership pertenece al negocio antes de
- * tocar sus horarios.
- */
+/** Servicio de horarios semanales de empleados. */
 @Service
 @Transactional
 @RequiredArgsConstructor

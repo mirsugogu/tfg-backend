@@ -13,12 +13,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Utilidad para crear y validar tokens JWT.
- *
- * Usa una clave secreta configurada por entorno y una duracion definida en
- * application.properties.
- */
+/** Utilidad para crear y validar tokens JWT. */
 @Component
 public class JwtUtil {
 

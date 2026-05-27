@@ -62,15 +62,12 @@ public class AppointmentService {
      */
     public AppointmentResponse createAppointment(Long businessId, CreateAppointmentRequest request) {
 
-        // 1. Buscar el negocio (necesitamos el appointmentInterval)
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "No se encontró el negocio con ID: " + businessId
                 ));
 
-        // 1b. El negocio debe estar activo: un negocio desactivado no acepta
-        //     nuevas citas (ver Business.java, javadoc del campo isActive).
         if (!Boolean.TRUE.equals(business.getIsActive())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -78,7 +75,6 @@ public class AppointmentService {
             );
         }
 
-        // 2. Cross-tenant: el cliente pertenece a este negocio
         Client client = clientRepository.findByIdAndBusinessId(
                         request.clientId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -87,7 +83,6 @@ public class AppointmentService {
                                 + " en el negocio con ID: " + businessId
                 ));
 
-        // 2b. El cliente debe estar activo
         if (!client.getIsActive()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -95,13 +90,7 @@ public class AppointmentService {
             );
         }
 
-        // 3. Cross-tenant: la membership del empleado existe en este negocio.
-        //
-        //    Lock pesimista (SELECT ... FOR UPDATE) sobre la membership: dos
-        //    POST concurrentes al mismo empleado se serializan hasta el commit,
-        //    impidiendo el TOCTOU entre validateNoOverlap (paso 8) y el INSERT
-        //    del paso 10 (double-booking). Aceptable porque la transaccion es
-        //    corta y no hace llamadas externas.
+        // Bloqueamos la membership para que dos altas a la vez no pasen el solape.
         Membership membership = membershipRepository.findByIdAndBusinessIdForUpdate(
                         request.membershipId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -110,7 +99,6 @@ public class AppointmentService {
                                 + " en el negocio con ID: " + businessId
                 ));
 
-        // 3b. La membership debe estar activa (equivale al user activo de v15).
         if (!membership.getIsActive()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -118,14 +106,11 @@ public class AppointmentService {
             );
         }
 
-        // 4. Validar que la hora respeta el intervalo del negocio
-        //    (solo necesita startDateTime, no depende de endDateTime)
         validator.validateAppointmentInterval(
                 request.startDateTime(),
                 business.getAppointmentInterval()
         );
 
-        // 5. Buscar los servicios y validar cada uno (cross-tenant directo en la query)
         List<BusinessService> services = new ArrayList<>();
         for (Long serviceId : request.serviceIds()) {
             BusinessService service = serviceRepository
@@ -136,7 +121,6 @@ public class AppointmentService {
                                     + " en el negocio con ID: " + businessId
                     ));
 
-            // El servicio debe estar activo
             if (!service.getIsActive()) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
@@ -147,35 +131,25 @@ public class AppointmentService {
             services.add(service);
         }
 
-        // 6. Calcular endDateTime sumando las duraciones de los servicios
-        //    El frontend no manda endDateTime, lo calculamos aquí.
+        // El frontend no manda endDateTime, se calcula con la duracion total.
         int totalMinutes = services.stream()
                 .mapToInt(BusinessService::getDurationMinutes)
                 .sum();
 
         LocalDateTime endDateTime = request.startDateTime().plusMinutes(totalMinutes);
 
-        // 6b. Validar que la cita cae dentro del horario de apertura del negocio
-        //     (restriccion mas general: si el negocio esta cerrado, no se acepta
-        //     cita aunque el empleado tenga schedule ese dia). Coherente con
-        //     GET /availability (que devuelve [] cuando el negocio esta cerrado).
         validator.validateBusinessHours(
                 businessId,
                 request.startDateTime(),
                 endDateTime
         );
 
-        // 7. Validar que la cita cae dentro del horario del empleado
-        //    (ahora sí tenemos endDateTime calculado)
         validator.validateEmployeeSchedule(
                 request.membershipId(),
                 request.startDateTime(),
                 endDateTime
         );
 
-        // 8. Validar que no hay solapamiento con otra cita del empleado.
-        //    excludeAppointmentId=null porque es una creacion: no hay "propia
-        //    cita" que excluir del check.
         validator.validateNoOverlap(
                 request.membershipId(),
                 request.startDateTime(),
@@ -183,23 +157,14 @@ public class AppointmentService {
                 null
         );
 
-        // 8a. La cita no puede caer sobre una ausencia registrada del empleado.
-        //     GET /availability ya excluye estos huecos; POST debe rechazar
-        //     el mismo intervalo para que el calendario sea coherente aunque
-        //     el cliente salte la consulta previa.
+        // POST repite esta validacion aunque el calendario ya oculte esos huecos.
         validator.validateNoEmployeeAbsence(
                 request.membershipId(),
                 request.startDateTime(),
                 endDateTime
         );
 
-        // 8b. Si la cita lleva cabina: cross-tenant + activa + overlap.
-        //     Si no lleva (boothId=null), se omite todo este bloque.
-        //
-        //     Lock pesimista sobre la cabina (analogo al de Membership en el
-        //     paso 3): dos POST con empleados distintos compartiendo cabina
-        //     se serializan aqui, garantizando la regla "1 empleado por
-        //     cabina y slot" frente al TOCTOU de validateNoBoothOverlap.
+        // Si hay cabina, tambien se bloquea para evitar dos reservas simultaneas.
         Booth booth = null;
         if (request.boothId() != null) {
             booth = boothRepository
@@ -225,8 +190,6 @@ public class AppointmentService {
             );
         }
 
-        // 8c. La fecha de la cita no puede caer en un bloqueo de agenda
-        //     (global / por empleado / por cabina) -> 409 si choca.
         validator.validateNoScheduleBlock(
                 businessId,
                 request.membershipId(),
@@ -234,8 +197,7 @@ public class AppointmentService {
                 request.startDateTime()
         );
 
-        // 9. Buscar el estado PENDING. Si no existe es un error de configuración
-        //    del servidor (faltan los INSERT del schema), por eso 500 INTERNAL_SERVER_ERROR.
+        // Si falta PENDING, el problema es de datos base del servidor.
         AppointmentStatus pendingStatus = statusRepository.findByName("PENDING")
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -243,7 +205,6 @@ public class AppointmentService {
                                 + "en la base de datos. Ejecutar los INSERT del schema."
                 ));
 
-        // 10. Crear y guardar la cita
         Appointment appointment = new Appointment();
         appointment.setBusiness(business);
         appointment.setClient(client);
@@ -254,14 +215,7 @@ public class AppointmentService {
         appointment.setEndDateTime(endDateTime);
         appointment.setNotes(request.notes());
 
-        // saveAndFlush fuerza el INSERT inmediatamente para que cualquier
-        // violacion de los UNIQUE uq_appointment_active_slot /
-        // uq_appointment_active_booth_slot (definidos sobre columnas
-        // virtuales en docs/schema_v20.sql) salte AQUI y no al commit.
-        // Esto cierra posibles carreras: los locks pesimistas sobre
-        // Membership/Booth solo serializan la
-        // fila de la entidad, no el predicado "no hay otra cita activa
-        // en este slot"; el UNIQUE a nivel BD si.
+        // El flush permite convertir los UNIQUE de agenda en un 409 controlado.
         Appointment saved;
         try {
             saved = appointmentRepository.saveAndFlush(appointment);
@@ -282,17 +236,14 @@ public class AppointmentService {
             throw ex;
         }
 
-        // 11. Crear los BookedService con precios congelados
         List<BookedService> bookedServices = new ArrayList<>();
         for (BusinessService service : services) {
             BookedService booked = new BookedService();
             booked.setAppointment(saved);
             booked.setService(service);
 
-            // Congelamos el precio actual del servicio
             booked.setAppliedPrice(service.getPrice());
 
-            // Congelamos el porcentaje del impuesto actual
             booked.setAppliedTaxPercentage(service.getTax().getPercentage());
 
             bookedServices.add(booked);
@@ -301,8 +252,6 @@ public class AppointmentService {
         List<BookedService> savedBookedServices =
                 bookedServiceRepository.saveAll(bookedServices);
 
-        // 12. Devolver respuesta — pasamos la lista que acabamos de persistir
-        //     para que el DTO no tenga que volver a consultar el repositorio.
         return AppointmentResponse.from(saved, savedBookedServices);
     }
 
@@ -354,9 +303,7 @@ public class AppointmentService {
         ));
     }
 
-    /**
-     * Busca una cita por ID dentro de un negocio (protección cross-tenant).
-     */
+    /** Busca una cita dentro de un negocio. */
     @Transactional(readOnly = true)
     public AppointmentResponse getAppointmentById(Long businessId, Long id) {
         Appointment appointment = appointmentRepository.findByIdAndBusinessId(id, businessId)
@@ -378,7 +325,6 @@ public class AppointmentService {
                                                        Long appointmentId,
                                                        UpdateAppointmentStatusRequest request) {
 
-        // 1. Buscar la cita (con protección cross-tenant)
         Appointment appointment = appointmentRepository
                 .findByIdAndBusinessId(appointmentId, businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -387,9 +333,7 @@ public class AppointmentService {
                                 + " en el negocio con ID: " + businessId
                 ));
 
-        // 2. Buscar el nuevo estado por nombre. Un nombre que no existe es
-        //    input invalido del cliente (no un recurso ausente del catalogo),
-        //    por eso 400 BAD_REQUEST con la lista completa de estados validos.
+        // Un estado inexistente es entrada invalida, no un recurso del negocio.
         AppointmentStatus newStatus = statusRepository
                 .findByName(request.statusName())
                 .orElseThrow(() -> new ResponseStatusException(
@@ -399,14 +343,11 @@ public class AppointmentService {
                                 + "COMPLETED, CANCELLED, NO_SHOW"
                 ));
 
-        // 3. Validar que la transición es permitida
         String currentStatusName = appointment.getStatus().getName();
         validator.validateStatusTransition(currentStatusName, request.statusName());
 
-        // 4. Aplicar el cambio
         appointment.setStatus(newStatus);
 
-        // 5. Guardar y devolver
         Appointment updated = appointmentRepository.save(appointment);
         List<BookedService> bookedServices =
                 bookedServiceRepository.findAllByAppointmentId(updated.getId());
@@ -425,7 +366,6 @@ public class AppointmentService {
                                                  Long appointmentId,
                                                  UpdateAppointmentRequest request) {
 
-        // 1. Lock pesimista sobre la propia cita (cross-tenant safe).
         Appointment appointment = appointmentRepository
                 .findByIdAndBusinessIdForUpdate(appointmentId, businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -434,8 +374,6 @@ public class AppointmentService {
                                 + " en el negocio con ID: " + businessId
                 ));
 
-        // 2. Estado no editable (solo COMPLETED): rechazo temprano antes
-        //    de validar nada mas.
         String currentStatus = appointment.getStatus().getName();
         if (NON_EDITABLE_STATUSES.contains(currentStatus)) {
             throw new ResponseStatusException(
@@ -444,7 +382,6 @@ public class AppointmentService {
             );
         }
 
-        // 3. Negocio (necesitamos el appointmentInterval).
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
@@ -457,7 +394,7 @@ public class AppointmentService {
             );
         }
 
-        // 4. Cross-tenant + lock pesimista del nuevo empleado.
+        // Se bloquea el empleado nuevo porque puede cambiar al reagendar.
         Membership membership = membershipRepository
                 .findByIdAndBusinessIdForUpdate(request.membershipId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -472,13 +409,11 @@ public class AppointmentService {
             );
         }
 
-        // 5. Intervalo del negocio.
         validator.validateAppointmentInterval(
                 request.startDateTime(),
                 business.getAppointmentInterval()
         );
 
-        // 6. Servicios cross-tenant + activos.
         List<BusinessService> services = new ArrayList<>();
         for (Long serviceId : request.serviceIds()) {
             BusinessService service = serviceRepository
@@ -497,27 +432,24 @@ public class AppointmentService {
             services.add(service);
         }
 
-        // 7. endDateTime recalculado segun la duracion actual de los servicios.
+        // Al editar se recalcula la duracion con los servicios actuales.
         int totalMinutes = services.stream()
                 .mapToInt(BusinessService::getDurationMinutes)
                 .sum();
         LocalDateTime endDateTime = request.startDateTime().plusMinutes(totalMinutes);
 
-        // 8. Horario de apertura del negocio.
         validator.validateBusinessHours(
                 businessId,
                 request.startDateTime(),
                 endDateTime
         );
 
-        // 9. Horario del empleado.
         validator.validateEmployeeSchedule(
                 request.membershipId(),
                 request.startDateTime(),
                 endDateTime
         );
 
-        // 10. No solape con otra cita del empleado, EXCLUYENDO la propia cita.
         validator.validateNoOverlap(
                 request.membershipId(),
                 request.startDateTime(),
@@ -525,15 +457,13 @@ public class AppointmentService {
                 appointmentId
         );
 
-        // 11. No solape con ausencia del empleado.
         validator.validateNoEmployeeAbsence(
                 request.membershipId(),
                 request.startDateTime(),
                 endDateTime
         );
 
-        // 12. Cabina (si cambia o se mantiene): cross-tenant + lock + activa +
-        //     overlap excluyendo la propia cita.
+        // Si hay cabina, se valida igual que en la creacion pero excluyendo esta cita.
         Booth booth = null;
         if (request.boothId() != null) {
             booth = boothRepository
@@ -557,7 +487,6 @@ public class AppointmentService {
             );
         }
 
-        // 13. Bloqueos de agenda.
         validator.validateNoScheduleBlock(
                 businessId,
                 request.membershipId(),
@@ -565,11 +494,7 @@ public class AppointmentService {
                 request.startDateTime()
         );
 
-        // 14. Mutar la cita. createdAt/isPaid/client se conservan.
-        //     Si venia de CANCELLED o NO_SHOW, el reagendado equivale a un
-        //     ciclo de vida nuevo: el estado vuelve a PENDING para que
-        //     pueda transicionar normalmente (CONFIRMED -> IN_PROGRESS -> ...).
-        //     En cualquier otro estado activo el estado se conserva.
+        // Reagendar una cita cancelada la devuelve al flujo normal desde PENDING.
         if (RESET_TO_PENDING_ON_EDIT.contains(currentStatus)) {
             AppointmentStatus pending = statusRepository.findByName("PENDING")
                     .orElseThrow(() -> new ResponseStatusException(
@@ -585,10 +510,7 @@ public class AppointmentService {
         appointment.setEndDateTime(endDateTime);
         appointment.setNotes(request.notes());
 
-        // 15. saveAndFlush: si el UPDATE viola uq_appointment_active_slot o
-        //     uq_appointment_active_booth_slot (race condition residual a
-        //     pesar de los locks), MySQL devuelve la violacion AHORA, no al
-        //     commit. Se traduce a 409 con mensaje especifico.
+        // El flush adelanta posibles choques de UNIQUE para traducirlos a 409.
         Appointment saved;
         try {
             saved = appointmentRepository.saveAndFlush(appointment);
@@ -609,11 +531,7 @@ public class AppointmentService {
             throw ex;
         }
 
-        // 16. Re-congelar precios: borrar los BookedService actuales y
-        //     recrear con los precios e IVA actuales del catalogo. Asi una
-        //     cita renegociada refleja el acuerdo del momento de la edicion.
-        //     flush() entre el delete y el saveAll para asegurar el orden
-        //     SQL: si Hibernate reordenara, podriamos chocar con FKs.
+        // Al editar se congelan de nuevo precios e impuestos del catalogo.
         bookedServiceRepository.deleteAllByAppointmentId(saved.getId());
         bookedServiceRepository.flush();
 
@@ -632,12 +550,7 @@ public class AppointmentService {
         return AppointmentResponse.from(saved, savedBookedServices);
     }
 
-    /**
-     * Marca una cita como pagada o no pagada (operacion de pago independiente
-     * del flujo de estados). Cross-tenant safe; 404 si la cita no esta en
-     * este negocio. Devuelve el AppointmentResponse actualizado con isPaid
-     * reflejado.
-     */
+    /** Cambia el estado de pago de una cita del negocio. */
     public AppointmentResponse markPayment(Long businessId,
                                            Long appointmentId,
                                            UpdatePaymentRequest request) {

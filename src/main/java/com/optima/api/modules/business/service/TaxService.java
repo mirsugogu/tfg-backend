@@ -48,11 +48,7 @@ public class TaxService {
         return TaxResponse.from(taxRepository.save(t));
     }
 
-    /**
-     * Listado paginado de impuestos del negocio. Con active=true (por
-     * defecto) devuelve los activos; con active=false los archivados
-     * (soft-deleted), la vista desde la que se reactivan.
-     */
+    /** Lista impuestos activos o archivados del negocio. */
     @Transactional(readOnly = true)
     public Page<TaxResponse> listActive(Long businessId, boolean active, Pageable pageable) {
         Page<Tax> page = active
@@ -61,20 +57,13 @@ public class TaxService {
         return page.map(TaxResponse::from);
     }
 
-    /**
-     * Detalle de un impuesto por id dentro del negocio (cross-tenant safe).
-     * Lanza 404 si no existe o pertenece a otro negocio.
-     */
+    /** Devuelve un impuesto del negocio. */
     @Transactional(readOnly = true)
     public TaxResponse getById(Long businessId, Long id) {
         return TaxResponse.from(findOrThrow(businessId, id));
     }
 
-    /**
-     * Actualiza nombre y porcentaje del impuesto. Lanza 400 si esta
-     * desactivado, 409 si el nuevo nombre choca con otro impuesto del
-     * mismo negocio.
-     */
+    /** Actualiza un impuesto activo y evita nombres duplicados. */
     public TaxResponse update(Long businessId, Long id, UpdateTaxRequest request) {
         Tax t = findOrThrow(businessId, id);
 
@@ -95,10 +84,7 @@ public class TaxService {
         return TaxResponse.from(taxRepository.save(t));
     }
 
-    /**
-     * Soft delete: marca el impuesto como inactivo y rellena deactivatedAt.
-     * Lanza 400 si ya estaba desactivado.
-     */
+    /** Archiva el impuesto sin borrarlo. */
     public void deactivate(Long businessId, Long id) {
         Tax t = findOrThrow(businessId, id);
         if (!t.getIsActive()) {
@@ -110,10 +96,7 @@ public class TaxService {
         taxRepository.save(t);
     }
 
-    /**
-     * Reactiva un impuesto archivado: pone isActive=true y deactivatedAt=null.
-     * Filtra por negocio (cross-tenant safe). Lanza 400 si ya estaba activo.
-     */
+    /** Reactiva un impuesto archivado. */
     public TaxResponse reactivate(Long businessId, Long id) {
         Tax t = findOrThrow(businessId, id);
         if (t.getIsActive()) {

@@ -2,12 +2,7 @@ package com.optima.api.modules.auth.dto.response;
 
 import java.util.List;
 
-/**
- * Respuesta de autenticacion con el token generado.
- *
- * Puede ser un token de negocio o un token de identidad cuando el usuario
- * debe elegir entre varios negocios.
- */
+/** Token devuelto tras login o seleccion de negocio. */
 public record TokenResponse(
         String token,
         String tokenType,

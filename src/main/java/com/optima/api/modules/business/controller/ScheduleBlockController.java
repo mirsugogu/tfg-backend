@@ -13,7 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/** Gestion de bloqueos de agenda (dias completos. */
+/** Gestion de bloqueos de agenda del negocio. */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/schedule-blocks")
 @RequiredArgsConstructor
@@ -31,34 +31,21 @@ public class ScheduleBlockController {
         return blockService.create(businessId, request);
     }
 
-    /**
-     * GET /api/businesses/{businessId}/schedule-blocks - Lista paginada
-     * de bloqueos del negocio.
-     *
-     * Pageable se rellena con ?page=&size=&sort=field,asc.
-     */
+    /** Lista paginada de bloqueos de agenda. */
     @GetMapping
     public Page<ScheduleBlockResponse> listByBusiness(@PathVariable @Positive Long businessId,
                                                       Pageable pageable) {
         return blockService.listByBusiness(businessId, pageable);
     }
 
-    /**
-     * GET /api/businesses/{businessId}/schedule-blocks/{id} - Detalle de
-     * un bloqueo. Cross-tenant safe: si el id no existe en este
-     * businessId devuelve 404.
-     */
+    /** Devuelve el detalle de un bloqueo del negocio. */
     @GetMapping("/{id}")
     public ScheduleBlockResponse getById(@PathVariable @Positive Long businessId,
                                          @PathVariable @Positive Long id) {
         return blockService.getById(businessId, id);
     }
 
-    /**
-     * DELETE /api/businesses/{businessId}/schedule-blocks/{id} - Borra el
-     * bloqueo. Hard delete (un bloqueo o existe o no existe; no se
-     * conserva historico). Devuelve 204 No Content. Permiso: solo ADMIN.
-     */
+    /** Borra un bloqueo de agenda. */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")

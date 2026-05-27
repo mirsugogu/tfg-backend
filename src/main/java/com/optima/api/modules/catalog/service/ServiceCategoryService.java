@@ -33,34 +33,26 @@ public class ServiceCategoryService {
 
         String name = request.name().trim();
 
-        // 1. Validar regla de negocio: no nombres duplicados en el mismo negocio
         if (categoryRepository.existsByBusinessIdAndNameIgnoreCase(businessId, name)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Ya existe una categoría con ese nombre en este negocio (revisa también los archivados)");
         }
 
-        // 2. Buscar el negocio
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
                         "No se encontró el negocio con ID: " + businessId
                 ));
 
-        // 3. Crear la entidad
         ServiceCategory category = new ServiceCategory();
         category.setBusiness(business);
         category.setName(name);
         category.setIsActive(true);
 
-        // 4. Guardar y devolver DTO
         return ServiceCategoryResponse.from(categoryRepository.save(category));
     }
 
-    /**
-     * Lista las categorias de un negocio. Con active=true (por defecto)
-     * devuelve las activas; con active=false las archivadas (soft-deleted),
-     * la vista desde la que se reactivan.
-     */
+    /** Lista categorias activas o archivadas del negocio. */
     @Transactional(readOnly = true)
     public Page<ServiceCategoryResponse> getActiveCategories(Long businessId, boolean active, Pageable pageable) {
         Page<ServiceCategory> page = active
@@ -69,20 +61,13 @@ public class ServiceCategoryService {
         return page.map(ServiceCategoryResponse::from);
     }
 
-    /**
-     * Obtiene una categoría por ID, filtrando por negocio (cross-tenant safe).
-     * Si la categoría no existe o pertenece a otro negocio, devuelve 404.
-     */
+    /** Obtiene una categoria del negocio. */
     @Transactional(readOnly = true)
     public ServiceCategoryResponse getCategoryById(Long businessId, Long id) {
         return ServiceCategoryResponse.from(findOrThrow(businessId, id));
     }
 
-    /**
-     * Actualiza el nombre de una categoría. Valida cross-tenant y unicidad
-     * del nombre dentro del mismo negocio. No permite operar sobre una
-     * categoría desactivada.
-     */
+    /** Actualiza una categoria activa y evita nombres duplicados. */
     public ServiceCategoryResponse updateCategory(Long businessId, Long id, UpdateCategoryRequest request) {
         ServiceCategory category = findOrThrow(businessId, id);
 
@@ -102,7 +87,7 @@ public class ServiceCategoryService {
         return ServiceCategoryResponse.from(categoryRepository.save(category));
     }
 
-    /** Soft delete: marca la categoría como inactiva y registra el momento. */
+    /** Archiva una categoria si no tiene servicios activos. */
     public void deactivateCategory(Long businessId, Long id) {
         ServiceCategory category = findOrThrow(businessId, id);
         if (!category.getIsActive()) {
@@ -122,11 +107,7 @@ public class ServiceCategoryService {
         categoryRepository.save(category);
     }
 
-    /**
-     * Reactiva una categoría archivada: pone isActive=true y
-     * deactivatedAt=null. Filtra por negocio (cross-tenant safe). Lanza 400
-     * si ya estaba activa.
-     */
+    /** Reactiva una categoria archivada del negocio. */
     public ServiceCategoryResponse reactivateCategory(Long businessId, Long id) {
         ServiceCategory category = findOrThrow(businessId, id);
         if (category.getIsActive()) {
@@ -138,11 +119,7 @@ public class ServiceCategoryService {
         return ServiceCategoryResponse.from(categoryRepository.save(category));
     }
 
-    /**
-     * Helper privado: busca la categoría asegurando que pertenece al negocio.
-     * Si no existe, lanza 404 (no se filtra información sobre categorías
-     * de otros tenants).
-     */
+    /** Busca una categoria dentro del negocio. */
     private ServiceCategory findOrThrow(Long businessId, Long id) {
         return categoryRepository.findByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new ResponseStatusException(

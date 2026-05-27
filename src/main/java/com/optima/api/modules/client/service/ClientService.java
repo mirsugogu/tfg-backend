@@ -18,12 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
-/**
- * Servicio de negocio para clientes.
- *
- * Todas las busquedas por id validan el negocio para evitar accesos entre
- * tenants. Los clientes se desactivan en vez de borrarse.
- */
+/** Servicio de clientes con validacion por negocio. */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -97,12 +92,7 @@ public class ClientService {
         return ClientResponse.from(clientRepository.save(c));
     }
 
-    /**
-     * Desactiva un cliente sin borrarlo de la base de datos. Falla con
-     * 409 si el cliente todavía tiene citas activas (PENDING, CONFIRMED
-     * o IN_PROGRESS) cuya hora de fin aún no ha pasado, para no dejar
-     * citas vivas apuntando a un cliente archivado.
-     */
+    /** Archiva un cliente si no tiene citas activas futuras. */
     public void deactivate(Long businessId, Long id) {
         Client c = findOrThrow(businessId, id);
         if (!c.getIsActive()) {

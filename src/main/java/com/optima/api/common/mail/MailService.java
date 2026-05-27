@@ -8,11 +8,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-/**
- * Servicio comun para enviar correos de texto plano.
- * El envio es best-effort: si SMTP falla se registra en logs y no se rompe
- * la operacion principal.
- */
+/** Envia correos simples sin romper la operacion principal si SMTP falla. */
 @Service
 @Slf4j
 @RequiredArgsConstructor

@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.util.List;
 
-/** Consulta de huecos libres del negocio para una. */
+/** Consulta huecos libres para una fecha y unos servicios. */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/availability")
 @RequiredArgsConstructor

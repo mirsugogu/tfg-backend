@@ -4,11 +4,7 @@ import com.optima.api.modules.catalog.model.ServiceCategory;
 
 import java.time.LocalDateTime;
 
-/**
- * ServiceCategoryResponse - DTO de salida de una categoria de servicios.
- *
- * Expone businessId para que el frontend pueda confirmar el tenant.
- */
+/** Respuesta con una categoria de servicios. */
 public record ServiceCategoryResponse(
         Long id,
         Long businessId,

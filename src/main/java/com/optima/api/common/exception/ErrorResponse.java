@@ -1,11 +1,6 @@
 package com.optima.api.common.exception;
 
-/**
- * Formato comun para las respuestas de error.
- *
- * Mantiene una estructura sencilla para que el cliente reciba siempre
- * codigo HTTP, tipo de error, mensaje y fecha.
- */
+/** Formato comun que devuelve la API cuando ocurre un error. */
 public record ErrorResponse(
     int status,
     String error,

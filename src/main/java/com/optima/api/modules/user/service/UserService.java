@@ -28,12 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Servicio de negocio para usuarios y empleados.
- *
- * User representa la identidad global de una persona, mientras Membership
- * representa su pertenencia a un negocio concreto.
- */
+/** Servicio para empleados y perfil del usuario autenticado. */
 @Service
 @Slf4j
 @Transactional
@@ -127,12 +122,7 @@ public class UserService {
         return UserResponse.from(membershipRepository.save(m));
     }
 
-    /**
-     * Desactiva la membership del empleado sin borrar su identidad.
-     * Falla con 409 si todavía tiene citas activas (PENDING, CONFIRMED
-     * o IN_PROGRESS) cuya hora de fin aún no ha pasado, para no dejar
-     * citas vivas apuntando a un empleado archivado.
-     */
+    /** Archiva la membership del empleado si no tiene citas activas futuras. */
     public void deactivate(Long businessId, Long id) {
         Membership m = findOrThrow(businessId, id);
         if (!m.getIsActive()) {

@@ -19,12 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
-/**
- * Valida el JWT recibido en el header Authorization.
- *
- * Si el token es correcto, guarda los datos del usuario en el contexto de
- * seguridad para que el resto de filtros y controladores puedan usarlos.
- */
+/** Valida el JWT y carga el usuario en el contexto de seguridad. */
 @Component
 @Slf4j
 @RequiredArgsConstructor

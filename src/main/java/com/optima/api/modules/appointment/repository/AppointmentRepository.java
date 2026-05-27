@@ -21,12 +21,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 
     Optional<Appointment> findByIdAndBusinessId(Long id, Long businessId);
 
-    /**
-     * Variante con lock pesimista (SELECT ... FOR UPDATE) sobre la fila de la
-     * cita. Usado por updateAppointment para serializar dos PUT concurrentes
-     * sobre la misma cita. Sigue el patron de MembershipRepository y
-     * BoothRepository.findByIdAndBusinessIdForUpdate.
-     */
+    /** Bloquea la cita para evitar ediciones concurrentes sobre la misma fila. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM Appointment a WHERE a.id = :id AND a.business.id = :businessId")
     Optional<Appointment> findByIdAndBusinessIdForUpdate(@Param("id") Long id,
@@ -128,11 +123,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("dayEnd") LocalDateTime dayEnd
     );
 
-    /**
-     * Cuenta las citas activas (PENDING, CONFIRMED, IN_PROGRESS) de un
-     * cliente cuya hora de fin aún no ha pasado. Sirve para impedir
-     * archivar a un cliente que todavía tiene citas vivas pendientes.
-     */
+    /** Cuenta citas activas futuras de un cliente antes de archivarlo. */
     @Query("""
             SELECT COUNT(a) FROM Appointment a
             WHERE a.client.id = :clientId
@@ -146,13 +137,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("now") LocalDateTime now
     );
 
-    /**
-     * Cuenta las citas activas (PENDING, CONFIRMED, IN_PROGRESS) cuya
-     * hora de fin aún no ha pasado y que apuntan a una cabina concreta.
-     * Sirve para impedir archivar una cabina con reservas vivas. Las
-     * citas sin cabina (booth NULL) no se cuentan: solo afecta a las
-     * que efectivamente referencian ese recurso.
-     */
+    /** Cuenta reservas activas futuras de una cabina antes de archivarla. */
     @Query("""
             SELECT COUNT(a) FROM Appointment a
             WHERE a.booth.id = :boothId
@@ -166,12 +151,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("now") LocalDateTime now
     );
 
-    /**
-     * Cuenta las citas activas (PENDING, CONFIRMED, IN_PROGRESS) cuya
-     * hora de fin aún no ha pasado y que apuntan a una membership
-     * concreta (empleado en un negocio). Sirve para impedir archivar a
-     * un empleado con citas asignadas en su agenda.
-     */
+    /** Cuenta citas activas futuras de un empleado antes de archivarlo. */
     @Query("""
             SELECT COUNT(a) FROM Appointment a
             WHERE a.membership.id = :membershipId

@@ -21,12 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Controlador de autenticacion.
- *
- * Agrupa el registro, el login, la seleccion de negocio y el reset de
- * contrasena.
- */
+/** Endpoints de registro, login, seleccion de negocio y reset de contrasena. */
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor

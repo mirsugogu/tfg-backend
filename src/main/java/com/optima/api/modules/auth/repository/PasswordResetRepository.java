@@ -6,12 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-/**
- * Repositorio de tokens de restablecimiento de contrasena.
- *
- * Permite buscar por hash, ya que el token original no se guarda en la
- * base de datos.
- */
+/** Acceso a tokens de reset guardados por hash. */
 @Repository
 public interface PasswordResetRepository extends JpaRepository<PasswordResetToken, Long> {
 

@@ -8,11 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-/**
- * UpdateTaxRequest - DTO para PUT /api/businesses/{id}/taxes/{id}.
- *
- * Mismo contrato que CreateTaxRequest.
- */
+/** Datos para actualizar un impuesto. */
 public record UpdateTaxRequest(
 
         @NotBlank(message = "El nombre del impuesto es obligatorio")

@@ -25,12 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Servicio principal de autenticacion.
- *
- * Gestiona el login, la seleccion de negocio y el auto-registro inicial
- * de un negocio con su usuario administrador.
- */
+/** Gestiona login, seleccion de negocio y registro inicial. */
 @Service
 @Slf4j
 @Transactional(readOnly = true)

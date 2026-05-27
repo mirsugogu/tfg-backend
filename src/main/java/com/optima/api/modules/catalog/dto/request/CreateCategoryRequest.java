@@ -3,12 +3,7 @@ package com.optima.api.modules.catalog.dto.request;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/**
- * CreateCategoryRequest - DTO de entrada para crear una categoría.
- * El businessId viene del path, no del body.
- *
- * Solo lleva el nombre: las categorias son objetos minimos (id+name+activo).
- */
+/** Datos para crear una categoria de servicios. */
 public record CreateCategoryRequest(
 
         @NotBlank(message = "El nombre es obligatorio")

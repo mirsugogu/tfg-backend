@@ -25,12 +25,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.time.Instant;
 import java.util.stream.Collectors;
 
-/**
- * Traduce excepciones de la API a respuestas JSON.
- *
- * Centraliza los errores para que los controladores y servicios no tengan
- * que construir manualmente el mismo formato de respuesta.
- */
+/** Centraliza las excepciones y las convierte en respuestas JSON. */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {

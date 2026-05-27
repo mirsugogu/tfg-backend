@@ -17,16 +17,10 @@ public interface BusinessHourRepository extends JpaRepository<BusinessHour, Long
      */
     List<BusinessHour> findAllByBusinessIdOrderByDayOfWeekAscStartTimeAsc(Long businessId);
 
-    /**
-     * Búsqueda tenant-safe: el horario existe Y pertenece al negocio dado.
-     */
+    /** Busca un tramo horario dentro del negocio. */
     Optional<BusinessHour> findByIdAndBusinessId(Long id, Long businessId);
 
-    /**
-     * Devuelve los tramos de un dia concreto del negocio ordenados por hora
-     * de inicio. Puede contener 0, 1 o N tramos: con turno partido habra
-     * varios, p.ej. [10-14, 16-20].
-     */
+    /** Devuelve los tramos de un dia ordenados por hora de inicio. */
     List<BusinessHour> findAllByBusinessIdAndDayOfWeekOrderByStartTimeAsc(
             Long businessId, Integer dayOfWeek);
 }

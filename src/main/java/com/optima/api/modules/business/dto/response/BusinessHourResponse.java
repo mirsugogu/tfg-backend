@@ -4,12 +4,7 @@ import com.optima.api.modules.business.model.BusinessHour;
 
 import java.time.LocalTime;
 
-/**
- * BusinessHourResponse - DTO de salida de un tramo horario semanal.
- *
- * Campos: id, businessId, dayOfWeek (1-7), startTime, endTime (null si
- * cerrado), isClosed.
- */
+/** Respuesta con un tramo horario semanal del negocio. */
 public record BusinessHourResponse(
         Long id,
         Long businessId,

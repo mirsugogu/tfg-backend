@@ -14,12 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * Controlador de ausencias puntuales de empleados.
- *
- * Las ausencias bloquean tramos del calendario y las mutaciones requieren
- * rol ADMIN.
- */
+/** Endpoints para ausencias puntuales de empleados. */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/users/{userId}/absences")
 @RequiredArgsConstructor

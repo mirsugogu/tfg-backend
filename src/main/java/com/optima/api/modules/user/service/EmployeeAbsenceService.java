@@ -18,12 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Servicio de negocio para ausencias puntuales de empleados.
- *
- * Cada operacion valida que la membership pertenece al negocio antes de
- * tocar una ausencia.
- */
+/** Servicio de ausencias puntuales de empleados. */
 @Service
 @Transactional
 @RequiredArgsConstructor

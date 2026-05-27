@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** Catalogo PUBLICO de estados de cita. */
+/** Catalogo publico de estados de cita. */
 @RestController
 @RequestMapping("/api/appointment-statuses")
 @RequiredArgsConstructor

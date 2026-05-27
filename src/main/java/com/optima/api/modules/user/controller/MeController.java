@@ -20,12 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/**
- * Controlador del usuario autenticado.
- *
- * Permite consultar y actualizar los datos propios de la identidad, sin
- * depender de un negocio concreto.
- */
+/** Endpoints del usuario autenticado. */
 @RestController
 @RequestMapping("/api/me")
 @RequiredArgsConstructor

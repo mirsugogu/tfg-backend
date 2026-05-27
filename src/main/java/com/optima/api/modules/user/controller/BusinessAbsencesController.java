@@ -16,12 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * Controlador para consultar ausencias de todo el negocio.
- *
- * Complementa el CRUD por empleado y permite al calendario cargar todas
- * las ausencias de un rango.
- */
+/** Consulta ausencias de todos los empleados de un negocio. */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/absences")
 @RequiredArgsConstructor

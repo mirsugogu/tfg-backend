@@ -38,18 +38,14 @@ public class BusinessHourController {
         return hourService.listByBusiness(businessId);
     }
 
-    /**
-     * GET /api/businesses/{businessId}/hours/{id} - Detalle de un tramo.
-     * Cross-tenant safe: si el id no existe en este businessId devuelve
-     * 404.
-     */
+    /** Devuelve el detalle de un tramo horario del negocio. */
     @GetMapping("/{id}")
     public BusinessHourResponse getById(@PathVariable @Positive Long businessId,
                                         @PathVariable @Positive Long id) {
         return hourService.getById(businessId, id);
     }
 
-    /** Sustituye el dia,. */
+    /** Sustituye el dia y las horas de un tramo. */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public BusinessHourResponse update(@PathVariable @Positive Long businessId,
@@ -58,11 +54,7 @@ public class BusinessHourController {
         return hourService.update(businessId, id, request);
     }
 
-    /**
-     * DELETE /api/businesses/{businessId}/hours/{id} - Borra el tramo.
-     * Hard delete (no hay soft delete en esta tabla; un horario o existe
-     * o no existe). Devuelve 204 No Content. Permiso: solo ADMIN.
-     */
+    /** Borra un tramo horario del negocio. */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")

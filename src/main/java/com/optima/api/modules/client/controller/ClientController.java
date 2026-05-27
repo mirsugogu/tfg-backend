@@ -13,12 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * Controlador para gestionar los clientes de un negocio.
- *
- * Tanto administradores como empleados pueden usar estos endpoints porque
- * forman parte de la operativa diaria.
- */
+/** Endpoints para gestionar clientes del negocio. */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/clients")
 @RequiredArgsConstructor
@@ -46,7 +41,7 @@ public class ClientController {
         return clientService.listByBusiness(businessId, active, search, pageable);
     }
 
-    /** Obtiene un cliente por ID dentro del negocio (cross-tenant safe). */
+    /** Obtiene un cliente del negocio. */
     @GetMapping("/{id}")
     public ClientResponse getById(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
         return clientService.getById(businessId, id);
@@ -60,7 +55,7 @@ public class ClientController {
         return clientService.update(businessId, id, request);
     }
 
-    /** Soft delete: marca el cliente como inactivo. */
+    /** Archiva un cliente sin borrarlo. */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactivate(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {

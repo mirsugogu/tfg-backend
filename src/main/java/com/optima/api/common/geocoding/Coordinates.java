@@ -2,12 +2,7 @@ package com.optima.api.common.geocoding;
 
 import java.math.BigDecimal;
 
-/**
- * Coordenadas geograficas devueltas por el geocoding.
- *
- * Se usa BigDecimal para conservar la precision que despues se guarda en
- * la base de datos.
- */
+/** Coordenadas que devuelve el servicio de geocoding. */
 public record Coordinates(BigDecimal latitude, BigDecimal longitude) {
 
     private static final BigDecimal MIN_LAT = BigDecimal.valueOf(-90);

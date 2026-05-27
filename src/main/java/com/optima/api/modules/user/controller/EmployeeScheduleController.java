@@ -14,12 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * Controlador del horario semanal de un empleado.
- *
- * Un empleado puede tener varios tramos por dia. Las mutaciones requieren
- * rol ADMIN.
- */
+/** Endpoints del horario semanal de un empleado. */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/users/{userId}/schedules")
 @RequiredArgsConstructor

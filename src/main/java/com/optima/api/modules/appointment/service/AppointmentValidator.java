@@ -80,11 +80,7 @@ public class AppointmentValidator {
         }
     }
 
-    /**
-     * Validacion ortogonal a la del empleado: comprueba que la cabina no
-     * esta ocupada por otra cita activa en el rango. Solo se invoca cuando
-     * la cita lleva boothId (no aplica si el negocio no usa cabinas).
-     */
+    /** Comprueba que una cabina no tenga otra cita activa en el mismo rango. */
     public void validateNoBoothOverlap(Long boothId,
                                        LocalDateTime startDateTime,
                                        LocalDateTime endDateTime,
