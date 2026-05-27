@@ -115,10 +115,7 @@ const fmtMinsLeft = (m) => {
   return r ? `${h} h ${r} min` : `${h} h`
 }
 
-/**
- * Listado de citas del negocio activo, con filtros (fecha, empleado,
- * estado) y CRUD desde un modal en dos pasos (cliente → detalles).
- */
+/** Listado de citas con filtros por fecha, empleado y estado, y wizard para crear o editar. */
 export default function Citas() {
   const { user } = useAuth()
   const { statuses, statusLabel } = useCatalog()
@@ -558,6 +555,7 @@ export default function Citas() {
    SUBCOMPONENTES
    ============================================================ */
 
+/** Tarjeta de KPI del strip superior. */
 function StatTile({ label, value, tone }) {
   const tones = {
     default: 'text-[#1e3a5f]',
@@ -577,6 +575,7 @@ function StatTile({ label, value, tone }) {
 // ya fue cerrada manualmente por el admin, su pasado es esperado).
 const STATES_CERRADOS = new Set(['COMPLETED', 'CANCELLED', 'NO_SHOW'])
 
+/** Tarjeta de cita con bloque de fecha, datos del cliente y resumen del estado. */
 function AppointmentCard({ appointment: a, onClick, employeeColor }) {
   const isInProgress = a.statusName === 'IN_PROGRESS'
   const servicesLabel = a.bookedServices?.map((b) => b.serviceName).join(' + ') || 'Sin servicios'
@@ -655,6 +654,7 @@ function AppointmentCard({ appointment: a, onClick, employeeColor }) {
   )
 }
 
+/** Lista agrupada por día con cabeceras y AppointmentCard por cita. */
 function DayGroupedList({ list, onOpen, empColorMap }) {
   // Agrupa por fecha (yyyy-mm-dd) manteniendo el orden de `list`.
   const groups = useMemo(() => {

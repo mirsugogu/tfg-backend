@@ -1,9 +1,4 @@
-/*
- * Celdas y eventos del calendario: rejilla horaria, slots, línea
- * "ahora", cápsula posicionada absoluta y chip plano (vista Mes /
- * sidebar). Estilo tipo hoja de cálculo: bordes slate-300, zebra sutil
- * cada hora, slots cerrados con fondo gris pleno.
- */
+/* Celdas y eventos del calendario: rejilla horaria, slots, línea "ahora", evento posicionado y chip. */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Ban, Clock, User, MapPin, Scissors } from 'lucide-react'
@@ -13,18 +8,7 @@ import { totalBooked } from '@/lib/format'
 import { useDragAppointment } from './drag'
 import { useCatalog } from '@/context/CatalogContext'
 
-/*
- * useApptHover — hook que gestiona el hover de un evento del calendario.
- *
- * Devuelve los handlers para enganchar a un boton y un elemento JSX listo
- * para inyectar (el portal del tooltip si esta visible, null si no).
- *
- * - delay de 250 ms al entrar: evita parpadeos cuando el cursor recorre
- *   varias citas al scrollear.
- * - inmediato al salir: no se queda colgado.
- * - guarda el getBoundingClientRect del propio boton para anclar la
- *   tarjeta sin necesidad de seguir el cursor.
- */
+/** Hook de hover con delay de 250ms; devuelve handlers y un tooltip listo para inyectar. */
 function useApptHover(appt, employeeColor) {
   const [rect, setRect] = useState(null)
   const timerRef = useRef(null)
@@ -44,22 +28,8 @@ function useApptHover(appt, employeeColor) {
   return { onMouseEnter, onMouseLeave, tooltip }
 }
 
-/*
- * ApptHoverCard — tarjeta flotante con el resumen de una cita.
- *
- * Se renderiza con createPortal sobre <body> para no quedar recortada por
- * el overflow-auto del calendario. Se ancla a la derecha del boton si cabe
- * en la viewport; si no, a la izquierda. Vertical: se intenta alinear al
- * top del boton, sin pasarse de los limites de la ventana.
- *
- * Contenido: cliente, hora, empleado con su punto de color, cabina si
- * aplica, lista de servicios, estado y total. pointer-events-none para no
- * interferir con clicks fuera del propio tooltip.
- */
+/** Tarjeta flotante portaleada con el resumen de la cita; se ancla a un rect dado. */
 function ApptHoverCard({ appt, anchorRect, employeeColor }) {
-  // useCatalog traduce el statusName (CONFIRMED, IN_PROGRESS...) a su
-  // etiqueta en espanol; si el catalogo todavia no esta cargado, hace
-  // fallback al nombre crudo y no rompe el render del hover.
   const { statusLabel } = useCatalog()
   const CARD_W = 280
   const CARD_H_ESTIMATED = 220
@@ -128,6 +98,7 @@ function ApptHoverCard({ appt, anchorRect, employeeColor }) {
   )
 }
 
+/** Columna izquierda con las etiquetas horarias del día. */
 export function HourColumn({ withHeader = true, dayStart, dayEnd, hourPx }) {
   const hours = []
   for (let h = dayStart; h < dayEnd; h++) hours.push(h)
@@ -136,10 +107,7 @@ export function HourColumn({ withHeader = true, dayStart, dayEnd, hourPx }) {
       {withHeader && <div className="h-10 border-b-2 border-slate-300" />}
       {hours.map((h, idx) => (
         <div key={h} style={{ height: hourPx }} className="relative border-b border-slate-200">
-          {/* El estilo "Excel" coloca el label entre dos filas (top -8px),
-              pero eso saca el primer label fuera del contenedor y queda
-              recortado por el header. Para idx=0 lo dejamos dentro del
-              slot. */}
+          {/* idx=0 mantiene el label dentro del slot para no salirse del header. */}
           <span className={`absolute ${idx === 0 ? 'top-1' : '-top-2'} right-1.5 text-[10px] font-semibold text-slate-500 bg-white px-1`}>
             {pad2(h)}:00
           </span>
@@ -149,6 +117,7 @@ export function HourColumn({ withHeader = true, dayStart, dayEnd, hourPx }) {
   )
 }
 
+/** Slots horarios clicables del día; pinta cerrado fuera del negocio/empleado y bloqueado en blocks. */
 export function HourSlots({
   dayKey, onSlotClick, dayStart, dayEnd, hourPx, closedRanges,
   workingRanges = null,
@@ -156,18 +125,10 @@ export function HourSlots({
 }) {
   const hours = []
   for (let h = dayStart; h < dayEnd; h++) hours.push(h)
-  // Una hora se considera cerrada si NO cae dentro de ningun tramo
-  // abierto. La invariante funciona con 0, 1 o N tramos (turno partido):
-  // - 0 tramos -> some() false sobre array vacio -> todo cerrado.
-  // - 1 tramo  -> equivalente a la version anterior.
-  // - N tramos -> abierta si esta dentro de cualquiera de ellos.
+  // Una hora está abierta si cae en algún tramo; soporta 0/1/N tramos (turno partido).
   const inRange = (h, ranges) => ranges.some(([s, e]) => h >= s && h < e)
   const closedByBusiness  = (h) => !inRange(h, closedRanges)
-  // Si la celda pertenece a una columna de empleado y se ha proporcionado
-  // su horario semanal, una hora dentro del horario del negocio pero
-  // fuera del tramo del empleado (descanso para comer, turno partido) se
-  // considera tambien cerrada. Sin workingRanges, esta condicion no
-  // aplica y la rejilla se comporta como antes.
+  // Si la columna es de un empleado con horario propio, su descanso también cierra el slot.
   const closedByEmployee  = (h) => workingRanges != null && !inRange(h, workingRanges)
   return (
     <>
@@ -175,12 +136,8 @@ export function HourSlots({
         const byBusiness = closedByBusiness(h)
         const byEmployee = !byBusiness && closedByEmployee(h)
         const closed = byBusiness || byEmployee
-        // Zebra sutil para escanear filas; bordes Excel-style (slate-300).
         const zebra = idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white'
-        // Una franja "fuera de horario" sigue siendo no clickable. Una franja
-        // dentro de un bloqueo (festivo / vacaciones / mantenimiento) tampoco
-        // debe permitir crear cita: lo mismo que el backend devuelve con
-        // validateNoScheduleBlock (409), pero anticipado en la UI.
+        // Inactivo si cerrado por horario o si hay bloqueo aplicable; el backend valida igual con 409.
         const inactive = closed || isBlocked
         const title = byBusiness ? 'Fuera de horario'
                     : byEmployee ? 'Fuera del horario del empleado'
@@ -208,28 +165,10 @@ export function HourSlots({
   )
 }
 
-/*
- * AbsenceOverlay — franja roja que cubre las horas en las que un empleado
- * tiene una ausencia registrada (vacaciones, baja, cita medica). Se pinta
- * solo en las sub-columnas del empleado afectado en las vistas resource
- * agrupadas por empleado.
- *
- * Una ausencia puede durar varios días; este componente recibe `dayDate`
- * (la fecha de la sub-columna que se está pintando) y hace clamp del rango
- * absence.start / absence.end a las horas visibles de ese día. Asi cubre
- * solo la franja que corresponde.
- *
- * pointer-events-none: las citas (PositionedEvent z-20) y los slots
- * permanecen clicables; el overlay es solo informativo. El backend ya
- * rechaza crear citas dentro de una ausencia (validateNoEmployeeAbsence,
- * 409).
- */
+/** Franja roja con trama diagonal que cubre las horas de ausencia del empleado en la columna. */
 export function AbsenceOverlay({ absences, dayDate, dayStart, dayEnd, hourPx }) {
   if (!absences || absences.length === 0) return null
-  // Clamp al RANGO HORARIO VISIBLE de la rejilla (dayStart..dayEnd), no al
-  // dia completo 00-24. Si la ausencia empieza a las 17:53 pero la rejilla
-  // termina en 21:00, la franja debe cortarse en 21:00 — no salirse al
-  // hueco que hay por debajo del calendario.
+  // Clamp al rango visible (dayStart..dayEnd), no al día completo.
   const dayMidnightMs = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate()).getTime()
   const gridStartMs = dayMidnightMs + dayStart * 60 * 60 * 1000
   const gridEndMs = dayMidnightMs + dayEnd * 60 * 60 * 1000
@@ -245,7 +184,7 @@ export function AbsenceOverlay({ absences, dayDate, dayStart, dayEnd, hourPx }) 
         const minutesFromGridStart = (visStart - gridStartMs) / 60000
         const durationMinutes = (visEnd - visStart) / 60000
         const topPx = (minutesFromGridStart / 60) * hourPx
-        // Clamp final del alto por si acaso: nunca exceder el contenedor.
+        // Clamp final: nunca exceder el contenedor.
         const rawHeight = (durationMinutes / 60) * hourPx
         const heightPx = Math.max(8, Math.min(rawHeight, gridTotalPx - topPx))
         const label = abs.reason ? `Ausencia: ${abs.reason}` : 'Ausencia'
@@ -277,21 +216,7 @@ export function AbsenceOverlay({ absences, dayDate, dayStart, dayEnd, hourPx }) 
   )
 }
 
-/*
- * BlockOverlay — capa visual que cubre la rejilla horaria de un día (o una
- * sub-columna en las vistas resource) cuando hay un schedule_block aplicable.
- *
- * Diseño: trama diagonal + icono Ban + reason del bloqueo, sobre fondo rose
- * con baja opacidad para que el patrón de la rejilla siga visible.
- *
- * Comportamiento: captura los clicks (cursor not-allowed) y stopea su
- * propagacion para que no abran el wizard ni naveguen al día. HourSlots
- * tambien valida `isBlocked` internamente; el overlay es la red de defensa
- * superior y el backend (validateNoScheduleBlock) sigue siendo la última.
- *
- * blocks: array de schedule_blocks aplicables a esta celda; si esta vacio,
- *         no se renderiza nada. El primero manda la etiqueta visible.
- */
+/** Capa con trama diagonal e icono Ban que cubre la celda cuando hay un bloqueo aplicable. */
 export function BlockOverlay({ blocks }) {
   if (!blocks || blocks.length === 0) return null
   const label = labelForBlock(blocks[0])
@@ -316,6 +241,7 @@ export function BlockOverlay({ blocks }) {
   )
 }
 
+/** Línea horizontal que marca la hora actual sobre la rejilla. */
 export function NowLine({ now, dayStart, dayEnd, hourPx }) {
   const minutes = now.getHours() * 60 + now.getMinutes() - dayStart * 60
   const total = (dayEnd - dayStart) * 60
@@ -329,25 +255,13 @@ export function NowLine({ now, dayStart, dayEnd, hourPx }) {
   )
 }
 
-/*
- * PositionedEvent — cápsula de cita en la rejilla Día/Semana. Bloque de
- * color sólido (s.dot, tono -500) con texto adaptativo según altura:
- *   - height >= 44 px (≈30 min en densidad cómoda): 2 líneas, hora + nombre.
- *   - 28 px <= height < 44 px (≈15 min cómoda o 30 min compacta): nombre solo,
- *     truncado; la hora se infiere de la posición en la rejilla.
- *   - height < 28 px (citas muy cortas o vista densa al máximo): sin texto,
- *     el color y la posición siguen comunicando la información esencial.
- *
- * Tooltip (title) y aria-label conservan SIEMPRE la información completa
- * para el hover y los lectores de pantalla, independientemente del modo
- * visual elegido.
- */
+// Umbrales de altura para mostrar hora+nombre, solo nombre o nada.
 const POS_EVENT_TEXT_HEIGHT      = 28
 const POS_EVENT_TWO_LINES_HEIGHT = 44
 
+/** Cápsula de cita posicionada en la rejilla Día/Semana con drag-and-drop y tooltip. */
 export function PositionedEvent({ appt, onClick, onDrop, col, cols, colorBy, dayStart, hourPx }) {
   const topPx = ((minutesOf(appt.startDateTime) - dayStart * 60) / 60) * hourPx
-  // Sin "- 4": el bloque ocupa el alto completo de su franja horaria.
   const heightPx = Math.max(22, (apptDuration(appt) / 60) * hourPx)
   const widthPct = 100 / cols
   const s = styleFor(appt, colorBy)
@@ -359,13 +273,9 @@ export function PositionedEvent({ appt, onClick, onDrop, col, cols, colorBy, day
   const showText     = heightPx >= POS_EVENT_TEXT_HEIGHT
   const showTwoLines = heightPx >= POS_EVENT_TWO_LINES_HEIGHT
 
-  // Tooltip rico (G): aprovecha el employeeColor que Calendario enriquece
-  // en `filtered`. El title nativo se mantiene como fallback de a11y.
   const hover = useApptHover(appt, appt.employeeColor)
 
-  // Drag-and-drop (Fase D): solo activo si el padre proporciona onDrop y la
-  // cita no esta en estado terminal. Las citas COMPLETED/CANCELLED/NO_SHOW
-  // no se arrastran porque el backend ya las rechazaria con 400 al editar.
+  // Drag activo solo si el padre da onDrop y la cita no es terminal.
   const isDraggable = Boolean(onDrop) && !isTerminal
   const drag = useDragAppointment({
     appt,
@@ -378,9 +288,7 @@ export function PositionedEvent({ appt, onClick, onDrop, col, cols, colorBy, day
     <>
       <button
         onPointerDown={(e) => {
-          // preventDefault evita el click sintetico posterior al pointerup;
-          // el hook re-emite el click manualmente si no hubo drag, asi se
-          // controla con precision si abrir el detalle o disparar el drop.
+          // preventDefault evita el click sintético post-pointerup; el hook lo re-emite si no hubo drag.
           e.preventDefault()
           e.stopPropagation()
           drag.onPointerDown(e)
@@ -413,21 +321,12 @@ export function PositionedEvent({ appt, onClick, onDrop, col, cols, colorBy, day
   )
 }
 
-/*
- * EventChip — chip plano de cita (no posicionado). Dos variantes:
- *  - 'grid' (vista Mes): bloque de color + solo la hora, sin nombre. El
- *    color es la señal a primera vista; el nombre va en tooltip y al hacer
- *    clic. La vista Mes no tiene eje de tiempo, por eso conserva la hora.
- *  - 'list' (barra lateral "Agenda"): es una lista PARA LEER, así que
- *    mantiene la barra de color + el nombre del cliente + la hora.
- */
+/** Chip plano de cita en variante 'grid' (Mes, solo hora) o 'list' (sidebar, nombre + hora). */
 export function EventChip({ appt, onClick, colorBy, variant = 'list' }) {
   const s = styleFor(appt, colorBy)
   const isInProgress = appt.statusName === 'IN_PROGRESS'
   const isTerminal = appt.statusName === 'CANCELLED' || appt.statusName === 'NO_SHOW'
   const label = `${appt.clientName} · ${apptHHMM(appt.startDateTime)}–${apptHHMM(appt.endDateTime)} · ${appt.userFullName}${appt.boothName ? ' · ' + appt.boothName : ''}`
-  // Tooltip rico tambien en los chips (Mes y sidebar): la informacion del
-  // bloque pequeno es limitada, asi que el hover aporta especialmente.
   const hover = useApptHover(appt, appt.employeeColor)
 
   if (variant === 'grid') {

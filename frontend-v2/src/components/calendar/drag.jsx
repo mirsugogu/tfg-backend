@@ -1,38 +1,9 @@
-/*
- * useDragAppointment — hook que gestiona el drag-and-drop de una cita en
- * el calendario, sin librerias externas.
- *
- * Distingue click de drag con un umbral de 5 px:
- *   - pointerdown + pointerup sin moverse mas de 5 px = click normal
- *     (invoca onClick(appt)).
- *   - pointerdown + pointermove > 5 px = drag. Se pinta un "ghost"
- *     (rectangulo semitransparente) que sigue al cursor en un portal
- *     sobre <body>. Al pointerup, se hace hit-test con
- *     document.elementFromPoint para detectar la celda destino y se
- *     invoca onDrop con la nueva fecha/hora/recurso ya calculados.
- *
- * Snap a intervalo: la hora destino se redondea al multiplo del
- * appointmentInterval del negocio. Por defecto 30 min hasta que las
- * grids puedan exponerlo via data-attribute.
- *
- * Las celdas destino DEBEN llevar data-attributes:
- *   data-cal-cell                  marcador de celda valida.
- *   data-day="YYYY-MM-DD"          fecha de la columna.
- *   data-resource-type="employee" | "booth" | "none"
- *   data-resource-id="<id>" | "__none__"
- *   data-hour-px="<numero>"        pixeles por hora.
- *   data-day-start="<numero>"      hora visible inicial (ej. 8).
- *   data-interval="<numero>"       intervalo de snap en minutos.
- *
- * Las citas en estado terminal (COMPLETED / CANCELLED / NO_SHOW) llegan
- * con isDraggable=false: el pointerdown se ignora y el click sigue
- * funcionando como antes.
- */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 const DRAG_THRESHOLD_PX = 5
 
+/** Hook de drag-and-drop de citas: distingue click de arrastre y resuelve la celda destino con snap a intervalo. */
 export function useDragAppointment({ appt, isDraggable, onClick, onDrop }) {
   const stateRef = useRef({
     startX: 0,

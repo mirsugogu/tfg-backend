@@ -51,11 +51,7 @@ const EMPTY_FORM = {
   terms: false,
 }
 
-/**
- * Auto-registro público: crea un negocio nuevo y su primer usuario
- * administrador en la misma operación, e inicia sesión devolviendo un
- * tenant token (sin pasar por el flujo de selección de negocio).
- */
+/** Auto-registro de negocio + administrador en una sola operación con sesión inmediata. */
 export default function Register() {
   const { user, register, loading } = useAuth()
   const navigate = useNavigate()
@@ -414,6 +410,7 @@ export default function Register() {
    SUBCOMPONENTES
    ============================================================ */
 
+/** Indicador visual de los 4 pasos del registro. */
 function Stepper({ step }) {
   const items = [
     { idx: 0, label: 'Negocio' },
@@ -447,6 +444,7 @@ function Stepper({ step }) {
   )
 }
 
+/** Cabecera con icono para cada sección del wizard. */
 function SectionHeader({ icon: Icon, children }) {
   return (
     <div className="flex items-center gap-2 mb-3">
@@ -456,6 +454,7 @@ function SectionHeader({ icon: Icon, children }) {
   )
 }
 
+/** Contador de caracteres restantes para campos con maxLength. */
 function CharCount({ value, max }) {
   if (!value) return null
   const pct = Math.round((value.length / max) * 100)
@@ -463,6 +462,7 @@ function CharCount({ value, max }) {
   return <p className={`text-[10px] mt-0.5 text-right tabular-nums ${tone}`}>{value.length} / {max}</p>
 }
 
+/** Resumen del paso final antes de confirmar el registro. */
 function SummaryPreview({ form }) {
   if (!form.bizName) return null
   return (

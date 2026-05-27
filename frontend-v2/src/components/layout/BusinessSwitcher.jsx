@@ -7,20 +7,7 @@ import { useCatalog } from '@/context/CatalogContext'
 import { useToast } from '@/components/ui/Toast'
 import api, { getErrorMessage } from '@/lib/api'
 
-/**
- * BusinessSwitcher — muestra el negocio activo en el sidebar y, si el
- * usuario pertenece a varios, permite cambiar sin cerrar sesión:
- *   - GET  /api/me/businesses              lista de memberships.
- *   - POST /api/auth/select-business/{id}  canjea por token tenant.
- *
- * Mejora sobre la versión original: buscador inline en el modal cuando
- * hay más de 5 negocios.
- *
- * Nota: GET /api/me/businesses devuelve MembershipSummaryResponse
- * (membershipId, businessId, businessName, role). NO incluye estado
- * activo/inactivo del negocio, así que aquí no se pinta ninguna insignia
- * de "dado de baja" — la lista solo trae memberships activas.
- */
+/** Selector de negocio activo; si el usuario tiene varios, abre modal con buscador. */
 export function BusinessSwitcher() {
   const { user, switchBusiness } = useAuth()
   const { roleLabel } = useCatalog()

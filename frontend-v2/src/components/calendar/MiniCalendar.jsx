@@ -1,27 +1,10 @@
-/*
- * MiniCalendar y MiniCalendarPopover — selector compacto de fecha para la
- * toolbar del Calendario.
- *
- * MiniCalendar: rejilla 7x6 con los días del mes navegable; el día actual
- * del cursor del padre se marca con fondo solido, hoy con anillo cian. Al
- * pulsar un día, invoca onPick(Date).
- *
- * MiniCalendarPopover: wrapper que añade un botón a la toolbar y abre/cierra
- * el panel con click-outside y Escape. Reutiliza los helpers de utils.js
- * (buildMonthGrid, MONTHS_ES, etc.) para no duplicar logica.
- *
- * Sin dependencias externas. Renderizado relative (no portal): la toolbar
- * tiene sitio de sobra y mantener el popover en flujo evita problemas de
- * z-index con los modales (que sí usan portal).
- */
 import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, CalendarSearch } from 'lucide-react'
 import { MONTHS_ES, DAYS_ES_SHORT, buildMonthGrid, isSameDay } from './utils'
 
+/** Rejilla 7x6 navegable que invoca onPick(Date) al elegir un día. */
 function MiniCalendar({ selected, today, onPick }) {
-  // El mes visible en el popover puede diferir del seleccionado en el padre:
-  // el usuario navega por el popover sin "cometer" la fecha hasta que pulsa
-  // un día. Inicia en el mes del `selected`.
+  // El mes visible puede diferir del seleccionado mientras el usuario navega sin confirmar.
   const [viewDate, setViewDate] = useState(
     () => new Date(selected.getFullYear(), selected.getMonth(), 1),
   )
@@ -93,6 +76,7 @@ function MiniCalendar({ selected, today, onPick }) {
   )
 }
 
+/** Botón de toolbar que abre un MiniCalendar en popover con cierre por outside/Esc. */
 export function MiniCalendarPopover({ cursor, today, onPick }) {
   const [open, setOpen] = useState(false)
   const popRef = useRef(null)

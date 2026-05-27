@@ -4,16 +4,7 @@ import { Menu } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { Sidebar } from './Sidebar'
 
-/**
- * Layout de las páginas protegidas: sidebar + contenido.
- *
- * - Escritorio (lg+): el Sidebar va en el flujo normal, a la izquierda.
- * - Móvil/tablet (<lg): el Sidebar es un drawer deslizante fuera de
- *   pantalla; esta barra superior aporta el botón de menú (hamburguesa)
- *   para abrirlo. El estado `mobileOpen` vive aquí porque lo comparten la
- *   hamburguesa (abre) y el Sidebar (se cierra solo al navegar, con Esc o
- *   al tocar el backdrop).
- */
+/** Layout de páginas protegidas: sidebar fijo en escritorio, drawer en móvil. */
 export function AppLayout() {
   const { user } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)

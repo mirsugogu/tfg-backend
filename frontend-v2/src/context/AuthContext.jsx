@@ -3,17 +3,7 @@ import api from '@/lib/api'
 
 const AuthContext = createContext(null)
 
-/**
- * Extrae los claims del JWT y devuelve el "user minimo" que se puede
- * inferir solo del token (sin tocar la red). Util como punto de partida
- * antes de enriquecer con GET /api/me.
- *
- * Si el token no es un JWT valido (atob falla, JSON corrupto, formato sin
- * tres segmentos) lanza un Error con mensaje claro en lugar del
- * SyntaxError/InvalidCharacterError cripticos que dejan a los callers
- * (login/register/selectBusiness/switchBusiness) sin nada que mostrar al
- * usuario.
- */
+/** Extrae los claims del JWT y lanza un Error claro si el token está malformado. */
 function decodeJwt(token) {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
@@ -29,10 +19,7 @@ function decodeJwt(token) {
   }
 }
 
-/**
- * true si el JWT no se puede leer o si su claim `exp` ya ha pasado. Un
- * token caducado o ilegible se trata como sesion invalida.
- */
+/** True si el JWT está caducado o no se puede leer. */
 function isJwtExpired(token) {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
@@ -51,13 +38,7 @@ function safeParse(raw) {
   }
 }
 
-/**
- * Lee el user persistido en localStorage de forma defensiva. Si el JSON
- * esta corrupto, o el token esta caducado/malformado, limpia el storage y
- * devuelve null. Evita dos problemas: (1) que un JSON.parse roto deje la
- * app en blanco durante el render inicial del AuthProvider; (2) que un
- * token caducado se acepte como sesion valida hasta el primer 401.
- */
+/** Lee el user persistido; limpia y devuelve null si el JSON o el JWT no son válidos. */
 function loadStoredUser() {
   const u = safeParse(localStorage.getItem('optima_user'))
   if (!u?.token || isJwtExpired(u.token)) {
@@ -68,13 +49,7 @@ function loadStoredUser() {
   return u
 }
 
-/**
- * Persiste el user en localStorage y limpia los restos del flujo identity
- * (sessionStorage). Se llama dos veces durante un login con exito:
- *  1) inmediatamente despues de decodificar el JWT, para que el
- *     interceptor de api.js pueda usar el token en la llamada a /api/me.
- *  2) tras enriquecer con /api/me, para guardar fullName/phone/etc.
- */
+/** Persiste el user en localStorage y limpia los restos del flujo identity. */
 function persistUser(user) {
   localStorage.setItem('optima_token', user.token)
   localStorage.setItem('optima_user', JSON.stringify(user))
@@ -82,12 +57,7 @@ function persistUser(user) {
   sessionStorage.removeItem('optima_pending_businesses')
 }
 
-/**
- * Mezcla la identidad real (GET /api/me) sobre los claims del JWT. Si la
- * llamada falla por 401 propaga el error (el interceptor de api.js ya
- * limpia la sesion); cualquier otro fallo se degrada a warn + datos
- * minimos del JWT para no bloquear el acceso a la aplicacion.
- */
+/** Enriquece el user del JWT con GET /api/me; propaga 401, degrada el resto a warn. */
 async function enrichWithMe(baseUser) {
   try {
     const { data: me } = await api.get('/api/me')
@@ -105,13 +75,12 @@ async function enrichWithMe(baseUser) {
   }
 }
 
+/** Provider de autenticación: login 2 pasos, switch de negocio, registro y perfil. */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(loadStoredUser)
   const [loading, setLoading] = useState(false)
 
-  // Estado del flujo identity (multi-membership). Sobrevive a recargas
-  // gracias a sessionStorage; se limpia al elegir negocio o al cerrar
-  // sesion.
+  // Estado del flujo identity persistido en sessionStorage.
   const [pendingBusinesses, setPendingBusinesses] = useState(
     () => safeParse(sessionStorage.getItem('optima_pending_businesses'))
   )
@@ -137,8 +106,7 @@ export function AuthProvider({ children }) {
       const fullUser = await enrichWithMe(baseUser)
       persistUser(fullUser)
       setUser(fullUser)
-      // Limpia los restos de un eventual login identity previo en este
-      // mismo navegador.
+      // Limpia restos de un login identity previo en este navegador.
       setPendingBusinesses(null)
       setIdentityToken(null)
       return { type: 'tenant' }
@@ -168,11 +136,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  /**
-   * Registra un negocio nuevo (POST /api/auth/register). El backend crea
-   * identidad + negocio + primera membership (ADMIN) y devuelve un token
-   * tenant, así que se inicia sesión directamente.
-   */
+  /** Registra un negocio nuevo y arranca sesión con el token tenant devuelto. */
   const register = async (payload) => {
     setLoading(true)
     try {
@@ -187,11 +151,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  /**
-   * Cambia de negocio activo sin cerrar sesión. select-business acepta el
-   * token tenant actual (lo añade el interceptor de api.js), de modo que
-   * un usuario con varias memberships puede saltar de un negocio a otro.
-   */
+  /** Cambia de negocio activo sin cerrar sesión usando el token tenant actual. */
   const switchBusiness = async (businessId) => {
     setLoading(true)
     try {
@@ -216,11 +176,7 @@ export function AuthProvider({ children }) {
     setIdentityToken(null)
   }
 
-  /**
-   * Sincroniza en el contexto los datos de identidad (fullName, email,
-   * phone) tras un PUT /api/me, para que el sidebar y el resto de la app
-   * reflejen el cambio sin necesidad de volver a iniciar sesion.
-   */
+  /** Refresca en el contexto los datos de identidad tras un PUT /api/me. */
   const applyProfile = (me) => {
     setUser((prev) => {
       if (!prev) return prev
@@ -237,6 +193,7 @@ export function AuthProvider({ children }) {
   )
 }
 
+/** Hook para consumir AuthContext; lanza si se usa fuera del provider. */
 export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be inside AuthProvider')

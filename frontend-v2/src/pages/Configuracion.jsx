@@ -24,12 +24,7 @@ const TH   = 'px-6 py-3.5 text-left text-[11px] font-semibold text-slate-400 upp
 const emptyTax   = { name: '', percentage: '' }
 const emptyHour  = { dayOfWeek: '1', startTime: '09:00', endTime: '18:00', isClosed: false }
 
-/**
- * Tarjeta de ayuda contextual que cabecera cada pestaña de
- * Configuración. Explica en una frase qué es la sección y para qué
- * sirve, pensada para usuarios nuevos. Visualmente discreta (azul
- * suave) para no competir con el contenido principal.
- */
+/** Cabecera azul con descripción breve de la pestaña activa. */
 function SectionHint({ title, children }) {
   return (
     <div className="mb-5 flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
@@ -71,11 +66,7 @@ const BOOTH_PALETTE = [
 ]
 const boothColor = (id) => BOOTH_PALETTE[(id ?? 0) % BOOTH_PALETTE.length]
 
-/**
- * Configuración del negocio activo: datos generales, horario de
- * apertura, impuestos, cabinas y bloqueos de agenda. Estructurada en
- * pestañas para no saturar la pantalla.
- */
+/** Configuración del negocio por pestañas: datos, horario, impuestos, cabinas y bloqueos. */
 export default function Configuracion() {
   const { user } = useAuth()
   const bId = user?.businessId
@@ -132,6 +123,7 @@ export default function Configuracion() {
 
 const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim())
 
+/** Pestaña de datos generales del negocio. */
 function BusinessTab({ bId, isAdmin }) {
   const toast = useToast()
   const [biz, setBiz]   = useState(null)
@@ -322,6 +314,7 @@ function BusinessTab({ bId, isAdmin }) {
    IMPUESTOS
    ============================================================ */
 
+/** Pestaña de impuestos con CRUD y soft delete. */
 function TaxesTab({ bId, isAdmin }) {
   const toast = useToast()
   const [pageSize, setPageSize] = useState(() => parseInt(localStorage.getItem('optima_cfg_taxes_size') || '20', 10))
@@ -518,6 +511,7 @@ function TaxesTab({ bId, isAdmin }) {
    HORARIOS — vista visual semanal + acciones rápidas
    ============================================================ */
 
+/** Pestaña del horario semanal de apertura del negocio. */
 function HoursTab({ bId, isAdmin }) {
   const toast = useToast()
   const [hours, setHours] = useState(null)
@@ -825,6 +819,7 @@ function HoursTab({ bId, isAdmin }) {
    CABINAS
    ============================================================ */
 
+/** Pestaña de cabinas físicas con CRUD y color asignado. */
 function BoothsTab({ bId, isAdmin }) {
   const toast = useToast()
   const [pageSize, setPageSize] = useState(() => parseInt(localStorage.getItem('optima_cfg_booths_size') || '20', 10))
@@ -1027,6 +1022,7 @@ function BoothsTab({ bId, isAdmin }) {
    BLOQUEOS
    ============================================================ */
 
+/** Pestaña de bloqueos de agenda (global, por empleado o por cabina). */
 function BlocksTab({ bId, isAdmin }) {
   const toast = useToast()
   const [typeFilter, setTypeFilter] = useState('ALL')
@@ -1255,6 +1251,7 @@ function BlocksTab({ bId, isAdmin }) {
    TOOLBAR — barra superior reutilizable para Impuestos / Cabinas
    ============================================================ */
 
+/** Barra superior con contador, filtros, orden y acción principal. */
 function Toolbar({ rightCount, rightLabel, extraStats, filter, sortOptions, sortValue, onSortChange, pageSize, onPageSize, onRefresh, loading, primary }) {
   return (
     <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -1294,6 +1291,7 @@ function Toolbar({ rightCount, rightLabel, extraStats, filter, sortOptions, sort
 }
 
 /* Control segmentado Activos / Archivados — compartido por Impuestos y Cabinas */
+/** Toggle Activos/Archivados para los listados con soft delete. */
 function ArchiveViewToggle({ view, onChange }) {
   return (
     <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">

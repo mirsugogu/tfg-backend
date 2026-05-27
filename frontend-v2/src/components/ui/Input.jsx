@@ -1,47 +1,20 @@
 import { useId } from 'react'
 import { cn } from '@/lib/utils'
 
-/**
- * Sanitizadores predefinidos que se pueden pasar a la prop `sanitize` del
- * Input. Cada uno es una regex que MATCHEA los caracteres a eliminar (la
- * regex se aplica con .replace(regex, '')).
- *
- * - DIGITS_ONLY: solo digitos (codigo postal, DNI numerico, etc.).
- * - PHONE: digitos + simbolos comunes de telefonia internacional. Permite
- *   formatos como "+34 600 000 000" o "(91) 555 0000" sin imponer un pais.
- *
- * Aplicar uno de estos a un Input garantiza que el usuario no pueda
- * teclear (ni pegar) caracteres invalidos: el setter nativo del <input>
- * reescribe el value antes de que llegue al onChange del caller.
- */
+/** Regex de saneo predefinidas para la prop `sanitize` del Input. */
 export const INPUT_SANITIZE = {
   DIGITS_ONLY: /[^0-9]/g,
   PHONE: /[^0-9+\s()\-]/g,
 }
 
-/**
- * Teclas de edición/navegación que NUNCA se filtran, sea cual sea el type.
- * Sin esta lista, el handler que sanea inputs numéricos rompería el borrado
- * y el desplazamiento con flechas.
- */
+// Teclas de edición/navegación que nunca se filtran.
 const CONTROL_KEYS = new Set([
   'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
   'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
   'Home', 'End',
 ])
 
-/**
- * `<input type="number">` admite por defecto la notación científica (`e`, `E`)
- * y los signos `+`/`-`, lo que permite teclear "letras" en un campo numérico
- * y romper la validación visual. Este handler filtra todo lo que no sea
- * dígito, con la excepción del punto decimal cuando el `step` es decimal.
- *
- * Pega-segura: Ctrl+A/C/V/X y las teclas de edición pasan tal cual.
- *
- * @param e             evento keydown
- * @param allowDecimal  permitir el punto (cuando el caller indica step="0.x")
- * @param userOnKeyDown handler original del caller, para no perder cadenas
- */
+/** Filtra teclas no numéricas en inputs type=number, respetando atajos de edición. */
 function saneNumericKey(e, allowDecimal, userOnKeyDown) {
   if (CONTROL_KEYS.has(e.key)) {
     userOnKeyDown?.(e)
@@ -60,27 +33,19 @@ function saneNumericKey(e, allowDecimal, userOnKeyDown) {
   userOnKeyDown?.(e)
 }
 
+/** Input con label, error y sanitizado opcional para campos numéricos o por regex. */
 export function Input({ className, label, error, id, onKeyDown, onChange, sanitize, ...props }) {
-  // useId genera un id estable y unico por instancia: asi la <label> queda
-  // asociada al <input> (htmlFor/id) y los lectores de pantalla la anuncian
-  // al enfocar el campo. Si el caller pasa `id` explicito, ese tiene prioridad.
   const autoId = useId()
   const fieldId = id ?? autoId
 
-  // Para los campos type=number aplicamos un saneamiento de tecla: bloquea
-  // 'e', 'E', '+', '-', ',' y cualquier carácter no dígito. El punto decimal
-  // se permite solo si el caller indicó un step decimal (p. ej. step="0.01"
-  // para precios o porcentajes).
   const isNumber = props.type === 'number'
   const allowDecimal = isNumber && props.step != null && String(props.step).includes('.')
   const handleKeyDown = isNumber
     ? (e) => saneNumericKey(e, allowDecimal, onKeyDown)
     : onKeyDown
 
-  // Sanitize: cubre lo que el filtro de tecla no llega a tapar (pegar con
-  // raton, autocompletar del navegador, drag&drop, IME). Reescribe el
-  // value DOM con el setter nativo para que React detecte el cambio
-  // sintetico y propague el onChange con el valor ya limpio.
+  // Cubre lo que el filtro de tecla no llega a tapar (pegar, autocompletar, IME):
+  // reescribe el value DOM con el setter nativo para que React detecte el cambio.
   const handleChange = (e) => {
     if (sanitize) {
       const cleaned = e.target.value.replace(sanitize, '')

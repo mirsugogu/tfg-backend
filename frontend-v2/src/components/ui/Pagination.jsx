@@ -1,15 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
-/**
- * Control de paginacion sencillo: prev/next + indicador "Pagina X de Y".
- * Se oculta automaticamente si hay 1 o 0 paginas.
- *
- * Props:
- *   page          numero de pagina actual (0-indexed)
- *   totalPages    total de paginas
- *   totalElements total de elementos (mostrado como info)
- *   onChange(n)   callback al cambiar de pagina
- */
+/** Paginador prev/next con indicador "Pagina X de Y"; se oculta con 1 o 0 paginas. */
 export function Pagination({ page, totalPages, totalElements, onChange }) {
   if (!totalPages || totalPages <= 1) return null
 

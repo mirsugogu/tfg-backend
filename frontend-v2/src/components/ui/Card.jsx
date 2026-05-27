@@ -1,11 +1,6 @@
 import { cn } from '@/lib/utils'
 
-/**
- * Tarjeta blanca con borde y sombra suave. Es el contenedor visual
- * estándar de las secciones de la aplicación. `CardHeader`, `CardTitle`
- * y `CardContent` son sub-componentes opcionales para estructurar el
- * interior con paddings coherentes.
- */
+/** Contenedor blanco con borde y sombra suave. */
 export function Card({ children, className, ...props }) {
   return (
     <div

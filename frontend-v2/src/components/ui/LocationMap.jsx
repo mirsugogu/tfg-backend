@@ -2,24 +2,12 @@ import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-/**
- * LocationMap — mapa de OpenStreetMap (con la librería Leaflet) que
- * muestra un pin en unas coordenadas. Se usa como vista previa de la
- * ubicación del negocio en el registro.
- *
- * Leaflet es una librería de mapas gratuita y sin API key; los mosaicos
- * los sirve OpenStreetMap — el mismo proyecto que el geocodificador
- * Nominatim que usa el backend para resolver direcciones.
- *
- * Props: lat, lon (números). Mientras no haya coordenadas el mapa se
- * queda centrado en una vista general.
- */
+/** Mapa Leaflet/OpenStreetMap con un pin en las coordenadas dadas. */
 export function LocationMap({ lat, lon }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const markerRef = useRef(null)
 
-  // Crea el mapa una sola vez, cuando se monta el componente.
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
     const map = L.map(containerRef.current).setView([40.4168, -3.7038], 5)
@@ -37,7 +25,6 @@ export function LocationMap({ lat, lon }) {
     }
   }, [])
 
-  // Centra el mapa y coloca / mueve el pin al cambiar las coordenadas.
   useEffect(() => {
     const map = mapRef.current
     if (!map || lat == null || lon == null) return

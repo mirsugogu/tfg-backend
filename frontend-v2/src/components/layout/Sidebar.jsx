@@ -19,20 +19,18 @@ const navItems = [
   { to: '/configuracion', icon: Settings,         label: 'Configuración', key: '7' },
 ]
 
+/** Sidebar de navegación con modo colapsado, drawer móvil, command palette y atajos. */
 export function Sidebar({ mobileOpen = false, onMobileClose }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  /* Preferencia de colapso (solo escritorio), persistida en localStorage.
-     En movil el sidebar es un drawer a pantalla completa: mientras el
-     drawer esta abierto se ignora el colapso (`collapsed` es derivado). */
+  // Preferencia de colapso (escritorio) persistida; en móvil con drawer abierto se ignora.
   const [collapsedPref, setCollapsedPref] = useState(() => localStorage.getItem('optima_sidebar_collapsed') === 'true')
   useEffect(() => { localStorage.setItem('optima_sidebar_collapsed', String(collapsedPref)) }, [collapsedPref])
   const collapsed = collapsedPref && !mobileOpen
 
-  /* Al navegar (clic en un item o desde el command palette) se cierra el
-     drawer movil. En escritorio onMobileClose es un no-op inofensivo. */
+  // Cierra el drawer móvil al cambiar de ruta.
   useEffect(() => { onMobileClose?.() }, [location.pathname, onMobileClose])
 
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -42,12 +40,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
   const displayName = user?.fullName || user?.email || 'Usuario'
   const initials = displayName.trim()[0]?.toUpperCase() ?? 'U'
 
-  /* ---- Atajos de teclado ----
-     - 1..7 → ir a la página correspondiente
-     - Ctrl/Cmd + K → palette
-     - Ctrl/Cmd + B → colapsar/expandir
-     - ? → ayuda
-     Se ignoran si el foco está en un input/textarea/select. */
+  // Atajos: 1-7 navegan, Cmd/Ctrl+K palette, Cmd/Ctrl+B colapsa, ? ayuda; se ignoran dentro de campos.
   useEffect(() => {
     const handler = (e) => {
       const tag = (e.target?.tagName || '').toLowerCase()

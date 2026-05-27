@@ -17,12 +17,7 @@ const sizes = {
   icon: 'h-10 w-10 rounded-xl',
 }
 
-/**
- * Botón reutilizable de la aplicación. Centraliza variantes (primary,
- * navy, outline, ghost, danger, success…) y tamaños (sm, md, lg, icon)
- * para que el aspecto de los botones sea consistente en todas las
- * pantallas. La prop `loading` deshabilita el botón y muestra un spinner.
- */
+/** Botón con variantes de color y tamaños predefinidos. */
 export function Button({
   children,
   variant = 'primary',

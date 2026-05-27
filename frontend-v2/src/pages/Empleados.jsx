@@ -78,11 +78,7 @@ const todayDow = () => {
 
 const telHref = (phone) => 'tel:' + String(phone || '').replace(/\s/g, '')
 
-/**
- * Listado de empleados del negocio activo (memberships con rol
- * EMPLOYEE), con atajos al detalle del empleado, su horario semanal y
- * sus ausencias.
- */
+/** Listado de empleados con atajos a detalle, horario semanal y ausencias. */
 export default function Empleados() {
   const { user } = useAuth()
   const { roles, roleLabel } = useCatalog()
@@ -630,13 +626,10 @@ export default function Empleados() {
    EMPLOYEE CARD
    ============================================================ */
 
+/** Tarjeta de empleado con avatar coloreado, rol y CTA al detalle. */
 function EmployeeCard({ emp, onOpen, showReactivate, onReactivate }) {
   const isAdmin = emp.roleName === 'ADMIN'
-  // Color de identidad visual del empleado, coherente con el calendario:
-  // si el admin le asigno un color (memberships.color), se usa solido para
-  // el avatar y la barra superior; si no, se mantiene el gradient automatico
-  // decorativo. Asi un mismo empleado se reconoce en Empleados, Citas,
-  // DetailModal y Calendario por el mismo color.
+  // Si el admin asignó color, sólido; si no, gradient automático determinista por id.
   const dotBg = emp.color ? employeeDotClass(emp) : null
   const avatarClass = dotBg
     ? dotBg
@@ -707,6 +700,7 @@ function EmployeeCard({ emp, onOpen, showReactivate, onReactivate }) {
    EMPLOYEE DRAWER — carga horarios + ausencias + citas del mes
    ============================================================ */
 
+/** Drawer lateral con detalle del empleado, horario semanal y ausencias. */
 function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDeactivate, onReactivate, onAfterChange }) {
   const toast = useToast()
   const empUrl = `/api/businesses/${bId}/users/${emp.id}`
@@ -1245,6 +1239,7 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
    KPI TILE + SCHEDULE GRID
    ============================================================ */
 
+/** Tarjeta de KPI compacta del drawer. */
 function KpiTile({ label, value }) {
   return (
     <div className="rounded-xl border border-slate-100 px-3 py-3 text-center">
@@ -1254,6 +1249,7 @@ function KpiTile({ label, value }) {
   )
 }
 
+/** Rejilla de horario semanal por día con acciones de admin. */
 function ScheduleGrid({ schedules, loading, isAdmin, onEdit, onDelete, onAdd }) {
   // Rango visual adaptativo: mismo problema que la rejilla de horarios
   // del negocio (HoursTab). Con un tramo 2:00-22:00 la formula calcula

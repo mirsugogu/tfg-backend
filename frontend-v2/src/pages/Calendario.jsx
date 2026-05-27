@@ -32,18 +32,13 @@ import { MiniCalendarPopover } from '@/components/calendar/MiniCalendar'
    CALENDARIO
    ============================================================ */
 
-/** Abreviatura de cabina para las cabeceras de columna: "Cabina 3" → "C3";
- *  si el nombre no encaja, las 3 primeras letras en mayúsculas. Usa
- *  String.match en vez del estado global frágil `RegExp.$1`. */
+/** Abreviatura de cabina ("Cabina 3" → "C3"); fallback a 3 primeras letras. */
 const boothShort = (name) => {
   const m = (name || '').match(/^cabina\s*(\d+)$/i)
   return m ? `C${m[1]}` : (name || '').slice(0, 3).toUpperCase()
 }
 
-/**
- * Calendario semanal, mensual y diario del negocio activo: pinta citas,
- * ausencias y bloqueos, y permite reagendar citas con drag-and-drop.
- */
+/** Calendario Mes/Semana/Día con citas, ausencias, bloqueos y drag-and-drop para reagendar. */
 export default function Calendario() {
   const { user } = useAuth()
   const { statusLabel } = useCatalog()
@@ -54,22 +49,12 @@ export default function Calendario() {
   const [view, setView] = useState(() => localStorage.getItem('optima_cal_view') || 'Mes')
   useEffect(() => { localStorage.setItem('optima_cal_view', view) }, [view])
 
-  // [I] El selector de densidad se retiro: HOUR_PX es la base. La clave
-  // de localStorage `optima_cal_density` se deja morir; no se limpia
-  // explicitamente (es benigno, ocupa < 20 bytes y desaparece al reset).
-  //
-  // hourPx es adaptativo: con horarios extensos (8-22, 2-22...) la
-  // rejilla a 64 px/hora se vuelve enorme y rompe la sensacion de
-  // calendario. Reducimos la altura por hora segun el rango visible
-  // para que el conjunto quepa en una pantalla normal sin perder
-  // informacion. El minimo (40 px) sigue siendo legible.
+  // hourPx adaptativo: con horarios extensos se reduce para que la rejilla quepa en pantalla.
 
   const [colorBy, setColorBy] = useState(() => localStorage.getItem('optima_cal_colorby') || 'status')
   useEffect(() => { localStorage.setItem('optima_cal_colorby', colorBy) }, [colorBy])
 
-  // Filtros de CONTENIDO (qué citas se ven): NO se persisten. Si sobreviven al
-  // cierre de sesión, un filtro olvidado hace "desaparecer" citas reales — p. ej.
-  // una cita nueva (nace en PENDING) con el filtro pegado en otro estado.
+  // Filtros de contenido no persistidos para que no oculten citas nuevas tras reabrir.
   const [employeeFilter, setEmployeeFilter] = useState('')
   const [boothFilter, setBoothFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -93,23 +78,13 @@ export default function Calendario() {
   const [employees, setEmployees] = useState([])
   const [booths, setBooths] = useState([])
   const [businessHours, setBusinessHours] = useState([])
-  // schedule_blocks del negocio (festivos/vacaciones/mantenimiento). Se
-  // cargan completos (cardinalidad baja, ~decenas) y se filtran al rango
-  // visible en `blocksInRange`.
+  // Bloqueos completos del negocio; se filtran al rango visible en blocksInRange.
   const [scheduleBlocks, setScheduleBlocks] = useState([])
-  // Ausencias de empleados (vacaciones, bajas) que solapan con el rango
-  // visible. Se piden filtradas por rango al endpoint dedicado para no
-  // traer toda la historia del negocio.
+  // Ausencias filtradas por rango por el endpoint dedicado.
   const [absences, setAbsences] = useState([])
-  // appointmentInterval del negocio (15/30/45/60). Lo usa el drag para
-  // snapear la hora de drop al multiplo correcto.
+  // Intervalo del negocio (15/30/45/60) usado por el snap del drag.
   const [appointmentInterval, setAppointmentInterval] = useState(30)
-  // Horarios semanales por empleado (employee_schedules), indexados por
-  // membershipId. Se usan para pintar como gris las horas en las que el
-  // empleado no trabaja (descansos, turno partido) dentro del horario de
-  // apertura del negocio. Si un empleado no esta en el Map (porque su
-  // carga fallo), se hace fallback transparente al comportamiento previo
-  // (solo se considera el horario del negocio).
+  // Horarios semanales indexados por membershipId; falta → fallback al horario del negocio.
   const [schedulesByMembership, setSchedulesByMembership] = useState(() => new Map())
 
   useEffect(() => {
@@ -132,10 +107,7 @@ export default function Calendario() {
     })
   }, [bId, reloadFlag])
 
-  // Carga los horarios semanales de cada empleado en paralelo. Si un
-  // GET falla, ese empleado no aparece en el Map y la rejilla se
-  // comporta como antes (solo respeta el horario del negocio). Asi el
-  // calendario nunca se rompe por un fallo de este endpoint.
+  // Carga los horarios de cada empleado en paralelo; los fallos se ignoran sin romper la vista.
   useEffect(() => {
     if (!bId || employees.length === 0) {
       setSchedulesByMembership(new Map())
@@ -160,10 +132,7 @@ export default function Calendario() {
     return () => { cancelled = true }
   }, [bId, employees])
 
-  // Rango horario dinámico de la rejilla. Cubre el horario del negocio Y
-  // todas las citas cargadas: así ninguna cita queda fuera de la rejilla
-  // (p. ej. una cita que empieza después de la hora de cierre). Sin ningún
-  // dato, defaults 8-21.
+  // Rango horario dinámico: abarca business_hours y todas las citas; defaults 8-21.
   const { dayStart, dayEnd } = useMemo(() => {
     let minStart = 24, maxEnd = 0
     businessHours.forEach((h) => {
@@ -183,8 +152,7 @@ export default function Calendario() {
       if (e > maxEnd)   maxEnd   = e
     })
     if (minStart === 24 || maxEnd === 0) return { dayStart: DEFAULT_DAY_START, dayEnd: DEFAULT_DAY_END }
-    // Cap [0, 24] defensivo: si el negocio o una cita aportan un valor
-    // raro (negativo, mayor de 24) no rompemos la rejilla.
+    // Cap [0, 24] defensivo.
     return {
       dayStart: Math.max(0, Math.floor(minStart)),
       dayEnd: Math.min(24, Math.ceil(maxEnd)),
@@ -204,8 +172,7 @@ export default function Calendario() {
     let cancelled = false
     const { from, to } = rangeFor(view, cursor)
     setLoading(true)
-    // size 100: el backend cappea Pageable en 100 (spring.data.web.pageable
-    // .max-page-size). Un rango con mas de 100 citas se veria parcial.
+    // size 100 = tope de Pageable del backend; rangos con más citas se ven parciales.
     const params = { from, to, size: 100, sort: 'startDateTime,asc' }
     if (employeeFilter) params.membershipId = employeeFilter
     api.get(`/api/businesses/${bId}/appointments`, { params })
@@ -217,22 +184,17 @@ export default function Calendario() {
 
   const refetch = useCallback(() => setReloadFlag((v) => v + 1), [])
 
-  // Mapa membershipId -> color asignado al empleado (memberships.color).
-  // "Color por Empleado" pinta las citas con el color que el admin haya
-  // elegido; los empleados sin color caen al automatico.
+  // Mapas color por empleado y cabina; el color asignado tiene prioridad sobre el automático.
   const empColorMap = useMemo(
     () => new Map(employees.map((e) => [e.id, e.color])),
     [employees],
   )
-  // [L] Mapa boothId -> color asignado a la cabina (booths.color). Igual
-  // patron que empColorMap: simetria empleado/cabina en el calendario.
   const boothColorMap = useMemo(
     () => new Map(booths.map((b) => [b.id, b.color])),
     [booths],
   )
 
-  // Filtros client-side (estado + cabina). Ademas anexa employeeColor y
-  // boothColor a cada cita para que styleFor pueda usar el color asignado.
+  // Filtros client-side y anexado de employeeColor/boothColor para styleFor.
   const filtered = useMemo(() => appointments
     .filter((a) => {
       if (statusFilter && a.statusName !== statusFilter) return false
@@ -257,17 +219,13 @@ export default function Calendario() {
     return map
   }, [filtered])
 
-  // Subconjunto de blocks cuyas fechas intersectan el rango visible. Reduce
-  // el trabajo de las grids: en vez de filtrar todos los blocks por celda,
-  // solo iteramos sobre los que de verdad pueden aplicar a esta vista.
+  // Blocks que intersectan el rango visible; reduce el trabajo por celda.
   const blocksInRange = useMemo(() => {
     const r = rangeFor(view, cursor)
     return scheduleBlocks.filter((b) => b.endDate >= r.from && b.startDate <= r.to)
   }, [scheduleBlocks, view, cursor])
 
-  // Fetch de ausencias del negocio que solapan con el rango visible. El
-  // endpoint dedicado ya devuelve solo las que aplican, asi que no hace
-  // falta filtro extra en el cliente.
+  // Ausencias del rango visible; el endpoint ya filtra, no hace falta filtro client-side.
   useEffect(() => {
     if (!bId) return
     let cancelled = false
@@ -303,48 +261,34 @@ export default function Calendario() {
   }, [view])
   const goToday = useCallback(() => { const d = new Date(); setCursor(new Date(d.getFullYear(), d.getMonth(), d.getDate())) }, [])
 
-  /* ---- Modales ----
-     `wizard` cubre tanto "Nueva cita" (date/time precargados) como "Editar
-     cita" (appt presente => modo edición del AppointmentWizard). El detail
-     modal cede el flujo al wizard al pulsar "Editar cita". */
+  // Wizard cubre crear y editar; detalle delega al wizard en "Editar cita".
   const [wizard, setWizard] = useState({ open: false, date: null, time: null, appt: null })
   const [detailAppt, setDetailAppt] = useState(null)
-  // Drag-and-drop: cuando el usuario suelta una cita en otro slot/recurso,
-  // se guarda aqui la pre-vista del cambio y el modal pide confirmacion.
-  // Si confirma -> PUT al endpoint de edicion (P9). Si cancela -> nada.
+  // Drag-and-drop: pre-vista del cambio; el modal pide confirmación antes del PUT.
   const [pendingDrop, setPendingDrop] = useState(null)
   const [droppingSaving, setDroppingSaving] = useState(false)
   const openWizard = useCallback((date = null, time = null) => setWizard({ open: true, date, time, appt: null }), [])
   const closeWizard = useCallback(() => setWizard({ open: false, date: null, time: null, appt: null }), [])
 
-  // Bloqueo aplicable a la cita abierta en el detail modal (null si la cita
-  // no esta en un dia bloqueado). Sirve para el aviso visual del modal y
-  // para que openEditWizard lance un toast guia antes de abrir el wizard.
+  // Bloqueo y ausencia aplicables a la cita del detalle, para los avisos del modal.
   const detailApptBlock = useMemo(
     () => blockForAppointment(blocksInRange, detailAppt),
     [blocksInRange, detailAppt],
   )
-  // Ausencia del empleado aplicable a la cita abierta (null si no coincide
-  // con ninguna). Misma idea que detailApptBlock pero para ausencias.
   const detailApptAbsence = useMemo(
     () => absenceForAppointment(absences, detailAppt),
     [absences, detailAppt],
   )
 
-  // Drag-and-drop: arma el `pendingDrop` con la info que mostrará el modal
-  // de confirmacion. El handler decide si el drop cambio algo (mismo slot
-  // y mismo recurso = no hace nada).
+  // Arma pendingDrop con el cambio; si nada cambia (mismo slot y recurso) no se hace nada.
   const handleDropAppointment = useCallback(({ appt, newStartDateTime, newResourceType, newResourceId }) => {
     if (!appt) return
-    // Calcular nuevos membershipId / boothId segun el tipo de la celda destino.
     const newMembershipId = newResourceType === 'employee'
       ? (newResourceId ?? appt.membershipId)
       : appt.membershipId
     const newBoothId = newResourceType === 'booth'
       ? newResourceId
       : appt.boothId
-    // Si nada cambio (drop en el mismo slot y mismo recurso), salir sin
-    // pedir confirmacion ni hacer PUT.
     if (newStartDateTime === appt.startDateTime?.slice(0, 19)
         && newMembershipId === appt.membershipId
         && (newBoothId ?? null) === (appt.boothId ?? null)) {
@@ -457,15 +401,7 @@ export default function Calendario() {
   return (
     <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8 print:p-0 print:max-w-none">
 
-      {/* Estilos de impresion (K del audit):
-          - Oculta toolbars, sidebar y cualquier elemento marcado no-print.
-          - Resetea sombras y bordes del calendario; el papel ya delimita.
-          - Fuerza print-color-adjust: exact para que los chips de cita
-            mantengan su color identificativo (sin esto, muchos navegadores
-            sustituyen los backgrounds por blanco al imprimir).
-          - Reduce padding global y maximiza el ancho del calendario.
-          - El header propio de impresion lleva nombre del negocio,
-            rango impreso y fecha de impresion. */}
+      {/* Estilos de impresión: oculta UI no esencial, conserva colores de cita y aplana el sticky. */}
       <style>{`
         @media print {
           @page { margin: 12mm; }
@@ -480,8 +416,6 @@ export default function Calendario() {
             border: none !important;
             border-radius: 0 !important;
           }
-          /* las cabeceras sticky deshabilitan sticky al imprimir (cada pagina
-             tendria su propia capa) */
           .sticky { position: static !important; }
         }
       `}</style>
@@ -702,14 +636,7 @@ export default function Calendario() {
   )
 }
 
-/* ============================================================
-   MODAL DE CONFIRMACION DEL DRAG-AND-DROP
-   ============================================================
-   El usuario arrastra una cita y la suelta en otro slot/recurso. Antes
-   de hacer el PUT pedimos confirmacion porque mover una cita es una
-   accion destructiva (sobreescribe membershipId, boothId y la hora). El
-   componente formatea las diferencias en lenguaje natural ("X -> Y") y
-   solo muestra las filas que realmente cambian. */
+/** Modal de confirmación del drag-and-drop; lista solo los campos que cambian. */
 function ConfirmDropModal({ pending, employeeResources, boothResources, saving, onCancel, onConfirm }) {
   if (!pending) return null
   const { appt, newStartDateTime, newMembershipId, newBoothId } = pending
@@ -775,6 +702,7 @@ function ConfirmDropModal({ pending, employeeResources, boothResources, saving, 
    SUBCOMPONENTES DE VISTAS CRONOLÓGICAS
    ============================================================ */
 
+/** Tarjeta de KPI compacta para el strip superior del calendario. */
 function StatTile({ label, value, tone }) {
   const tones = { default: 'text-[#1e3a5f]', success: 'text-emerald-600', cyan: 'text-cyan-600', warning: 'text-orange-600' }
   return (
@@ -785,6 +713,7 @@ function StatTile({ label, value, tone }) {
   )
 }
 
+/** Rejilla mensual 7x6 con citas y bloqueos por día. */
 function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectEvent, onOpenDay, blocks = [] }) {
   const cells = buildMonthGrid(cursor.getFullYear(), cursor.getMonth())
   const month = cursor.getMonth()
@@ -889,6 +818,7 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
   )
 }
 
+/** Vista Semana cronológica (sin sub-columnas de recurso). */
 function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotClick, dayStart, dayEnd, hourPx, businessHours, now, blocks = [], onDropAppointment, appointmentInterval = 30 }) {
   const ws = startOfWeek(cursor)
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(ws); d.setDate(ws.getDate() + i); return d })
@@ -942,6 +872,7 @@ function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotCl
   )
 }
 
+/** Vista Día cronológica con barra lateral de agenda. */
 function DayGrid({ cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick, statusLabel, dayStart, dayEnd, hourPx, businessHours, now, blocks = [], onDropAppointment, appointmentInterval = 30 }) {
   const dayKey = keyOf(cursor)
   const dayEvents = eventsByDay.get(dayKey) || []
@@ -1037,6 +968,7 @@ const STATUS_FILTER_OPTIONS = [
   { key: 'NO_SHOW',     dot: 'bg-rose-500' },
 ]
 
+/** Barra de filtros del calendario con popovers de filtro, color y agrupado. */
 function FiltersBar({
   employees, booths,
   employeeFilter, setEmployeeFilter,

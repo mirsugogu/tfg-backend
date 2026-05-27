@@ -1,8 +1,4 @@
-/*
- * Helpers y constantes compartidos por el Calendario y sus sub-rejillas
- * (DayGrid, WeekGrid, MonthGrid, ResourceDayGrid, WeekResourceGrid).
- * Sin JSX — se importa desde varios archivos .jsx.
- */
+/* Helpers y constantes compartidos por el Calendario y sus rejillas. */
 
 export const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 export const DAYS_ES_SHORT = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
@@ -12,18 +8,10 @@ export const VIEW_MODES = ['Mes','Semana','Día']
 export const DEFAULT_DAY_START = 8
 export const DEFAULT_DAY_END   = 21
 
-// Pixeles por hora en las rejillas Dia/Semana/resource. Valor unico tras
-// retirar el modo compacto (audit I): la vista Mes no respetaba la
-// densidad y mantener dos modos sin coherencia entre vistas confundia.
+// Pixeles por hora en las rejillas Día/Semana/recurso.
 export const HOUR_PX = 64
 
-/*
- * Paleta determinista para "Color por" Empleado / Cabina. Backgrounds
- * a -100 con texto -800: lo bastante fuerte para diferenciar de un
- * vistazo, pero sin tapar el texto del cliente. ring a -400, hover a
- * -200, bar (barrita lateral) a -600. Coincide con la paleta extendida
- * de los chips de estado.
- */
+/** Paleta determinista para "Color por" Empleado / Cabina. */
 export const PALETTES = [
   { name: 'cyan',    bg: 'bg-cyan-100',    text: 'text-cyan-800',    bar: 'bg-cyan-600',    ring: 'ring-cyan-400',    hover: 'hover:bg-cyan-200',    dot: 'bg-cyan-500' },
   { name: 'amber',   bg: 'bg-amber-100',   text: 'text-amber-800',   bar: 'bg-amber-600',   ring: 'ring-amber-400',   hover: 'hover:bg-amber-200',   dot: 'bg-amber-500' },
@@ -35,12 +23,7 @@ export const PALETTES = [
   { name: 'teal',    bg: 'bg-teal-100',    text: 'text-teal-800',    bar: 'bg-teal-600',    ring: 'ring-teal-400',    hover: 'hover:bg-teal-200',    dot: 'bg-teal-500' },
 ]
 
-/*
- * Estados: fondos saturados (-200) + texto oscuro para máxima
- * legibilidad y para que los 6 estados se distingan sin recurrir al
- * texto. CANCELLED y NO_SHOW se mantienen más apagados a propósito
- * — son finales y no deben competir visualmente.
- */
+/** Paleta de los 6 estados de cita; CANCELLED y NO_SHOW van apagados. */
 export const STATUS_STYLES = {
   PENDING:     { bg:'bg-amber-200',   text:'text-amber-900',   bar:'bg-amber-600',   ring:'ring-amber-500',   hover:'hover:bg-amber-300',   dot:'bg-amber-500' },
   CONFIRMED:   { bg:'bg-blue-200',    text:'text-blue-900',    bar:'bg-blue-600',    ring:'ring-blue-500',    hover:'hover:bg-blue-300',    dot:'bg-blue-500' },
@@ -51,28 +34,19 @@ export const STATUS_STYLES = {
 }
 export const GRAY_PALETTE = { bg:'bg-slate-200', text:'text-slate-600', bar:'bg-slate-500', ring:'ring-slate-400', hover:'hover:bg-slate-300', dot:'bg-slate-500' }
 
-/* Paleta por nombre ('cyan', 'amber'…); null si el nombre no existe — el
- * llamador decide el fallback. */
+// Paleta por nombre ('cyan', 'amber'…); null si no existe.
 const PALETTE_BY_NAME = Object.fromEntries(PALETTES.map((p) => [p.name, p]))
+/** Devuelve la paleta asociada al nombre o null. */
 export const paletteByName = (name) => PALETTE_BY_NAME[name] || null
 
-/*
- * Devuelve los estilos del evento según el modo "Color por". Excepción:
- * las citas terminales (CANCELLED / NO_SHOW) ignoran el modo y van
- * siempre apagadas, para no camuflarse entre las activas. En modo
- * 'employee', si el empleado tiene color asignado a mano (appt.employeeColor,
- * de memberships.color) se usa ese; si no, cae al color automatico por id.
- */
+/** Devuelve los estilos del evento según el modo "Color por"; terminales siempre apagadas. */
 export const styleFor = (appt, colorBy) => {
-  // Terminales: apagadas siempre, sea cual sea "Color por".
   if (appt.statusName === 'CANCELLED' || appt.statusName === 'NO_SHOW')
     return STATUS_STYLES[appt.statusName]
   if (colorBy === 'status')   return STATUS_STYLES[appt.statusName] || STATUS_STYLES.PENDING
   if (colorBy === 'employee') return paletteByName(appt.employeeColor) || PALETTES[(appt.membershipId ?? 0) % PALETTES.length]
   if (colorBy === 'booth') {
     if (!appt.boothId) return GRAY_PALETTE
-    // [L] Si la cabina tiene color asignado, usamos esa paleta; si no, el
-    // automatico por id. Simetria con el modo 'employee'.
     return paletteByName(appt.boothColor) || PALETTES[appt.boothId % PALETTES.length]
   }
   return STATUS_STYLES[appt.statusName] || STATUS_STYLES.PENDING
@@ -111,11 +85,7 @@ export const apptHHMM = (iso) => iso.slice(11, 16)
 export const minutesOf = (iso) => { const [h, m] = iso.slice(11, 16).split(':'); return Number(h) * 60 + Number(m) }
 export const apptDuration = (a) => Math.max(15, minutesOf(a.endDateTime) - minutesOf(a.startDateTime))
 
-/*
- * Reparte eventos solapados en sub-columnas (algoritmo greedy clásico).
- * Devuelve cada evento con { a, col, cols } para que PositionedEvent
- * calcule left/width.
- */
+/** Reparte eventos solapados en sub-columnas (greedy); devuelve cada uno con { a, col, cols }. */
 export const layoutEvents = (events) => {
   const items = events
     .map((a) => { const startMin = minutesOf(a.startDateTime); return { a, startMin, endMin: startMin + apptDuration(a) } })
@@ -141,13 +111,7 @@ export const layoutEvents = (events) => {
   return out
 }
 
-/*
- * Devuelve los rangos abiertos del dia desde la lista business_hours.
- * Soporta turno partido (split-shift): si business_hours tiene varias
- * filas para el mismo dayOfWeek (p. ej. manana y tarde), las devuelve
- * todas. La rejilla del calendario pinta como "fuera de horario" solo
- * las horas que NO estan en ningun tramo abierto.
- */
+/** Rangos abiertos del día desde business_hours; soporta turno partido. */
 export const openRangesFor = (businessHours, date) => {
   const dow = date.getDay() === 0 ? 7 : date.getDay()
   return businessHours
@@ -159,17 +123,7 @@ export const openRangesFor = (businessHours, date) => {
     })
 }
 
-/*
- * Devuelve los rangos laborables de un empleado en una fecha concreta,
- * a partir de su horario semanal (employee_schedules). Sigue el mismo
- * formato y convencion de dia de la semana que openRangesFor, asi que
- * los dos arrays son combinables (interseccion = tramos donde tanto el
- * negocio como el empleado estan abiertos).
- *
- * Soporta turno partido: si el empleado tiene varias filas para el
- * mismo dayOfWeek (manana y tarde), las devuelve todas. Si no tiene
- * ninguna fila para ese dia, devuelve [] (no trabaja ese dia).
- */
+/** Rangos laborables del empleado en la fecha; soporta turno partido. */
 export const workingRangesFor = (employeeSchedules, date) => {
   const dow = date.getDay() === 0 ? 7 : date.getDay()
   return employeeSchedules
@@ -183,29 +137,13 @@ export const workingRangesFor = (employeeSchedules, date) => {
 
 /* ----- bloqueos de agenda (schedule_blocks) ----- */
 
-/**
- * Un block aplica a la fecha si esta cae dentro de [startDate, endDate]
- * (inclusive en ambos extremos). Las fechas vienen del backend como YYYY-MM-DD.
- */
+// True si la fecha cae en [startDate, endDate] del bloqueo (inclusive).
 const isDateInBlockRange = (date, block) => {
   const ymd = keyOf(date)
   return ymd >= block.startDate && ymd <= block.endDate
 }
 
-/**
- * Filtra los `blocks` quedándose solo con los que aplican a una "celda" del
- * calendario, identificada por (date, resourceType, resourceId):
- *
- *  - block GLOBAL  (membershipId=null y boothId=null): aplica a TODA celda
- *    en su rango de fechas, sea cual sea el recurso.
- *  - block POR EMPLEADO (membershipId set): solo aplica si la celda es del
- *    mismo empleado (resourceType='employee' y resourceId coincide).
- *  - block POR CABINA   (boothId set):       analogo con 'booth'.
- *
- * Si se llama con resourceType=null (vista cronologica sin sub-columnas),
- * solo se devuelven los blocks globales: los parciales no son representables
- * en una columna unica del dia y el caller los ignora.
- */
+/** Filtra los bloqueos aplicables a la celda (date, resourceType, resourceId); globales aplican siempre. */
 export const blocksForCell = (blocks, date, resourceType = null, resourceId = null) => {
   if (!blocks || blocks.length === 0) return []
   return blocks.filter((b) => {
@@ -218,10 +156,7 @@ export const blocksForCell = (blocks, date, resourceType = null, resourceId = nu
   })
 }
 
-/**
- * Etiqueta corta para mostrar en el overlay del bloqueo. Si el block trae
- * `reason`, lo usa; si no, cae a un texto generico segun el tipo.
- */
+/** Etiqueta corta del bloqueo: usa `reason` o un genérico por tipo. */
 export const labelForBlock = (b) => {
   if (b.reason && b.reason.trim()) return b.reason
   if (b.membershipId != null) return 'Empleado bloqueado'
@@ -229,12 +164,7 @@ export const labelForBlock = (b) => {
   return 'Día bloqueado'
 }
 
-/**
- * Devuelve el primer schedule_block que aplica a una cita concreta, o null.
- * Considera los 3 tipos (global, por empleado de la cita, por cabina de la
- * cita). Lo usan los detalles del calendario para avisar al admin de que
- * la cita ha quedado dentro de un bloqueo y debe reagendarse.
- */
+/** Primer bloqueo que aplica a la cita (global / por empleado / por cabina), o null. */
 export const blockForAppointment = (blocks, appt) => {
   if (!appt || !blocks || blocks.length === 0) return null
   const date = new Date(appt.startDateTime)
@@ -248,14 +178,7 @@ export const blockForAppointment = (blocks, appt) => {
   return null
 }
 
-/**
- * Devuelve la primera ausencia que aplica a una cita concreta (mismo
- * empleado, rangos solapados con la regla A<D AND C<B), o null. Analogo a
- * blockForAppointment pero para EmployeeAbsence: lo usa el calendario para
- * avisar al admin de que la cita coincide con una ausencia registrada y
- * deberia reagendarse a otra hora libre del mismo empleado o a otro
- * empleado.
- */
+/** Primera ausencia que solapa con la cita en el mismo empleado, o null. */
 export const absenceForAppointment = (absences, appt) => {
   if (!appt || !absences || absences.length === 0) return null
   const apptStart = new Date(appt.startDateTime).getTime()

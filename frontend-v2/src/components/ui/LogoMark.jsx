@@ -1,9 +1,4 @@
-/**
- * LogoMark — la marca de OPTIMA dibujada en línea (SVG inline), sin
- * depender de ningún archivo de imagen: un cuadrado con degradado
- * cian→azul y un anillo blanco. La usan el Login, el Registro y el panel
- * de marca.
- */
+/** Marca de OPTIMA dibujada inline en SVG. */
 export function LogoMark({ size = 44 }) {
   const inner = Math.round(size * 0.52)
   return (

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+/** Modal accesible centrado con backdrop, cierre por Esc y restauración de foco. */
 export function Modal({ open, onClose, title, children, size = 'md' }) {
   const titleId = useId()
   const panelRef = useRef(null)

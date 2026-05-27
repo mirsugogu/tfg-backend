@@ -14,12 +14,7 @@ const inputErr =
   'h-12 w-full rounded-2xl border border-amber-300 bg-white pl-11 pr-4 text-sm text-[#1f2c4a] placeholder:text-slate-400 ' +
   'transition-all focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100'
 
-/**
- * Solicitar el restablecimiento de la contraseña. El backend responde
- * siempre con el mismo mensaje neutro (haya o no usuario con ese email)
- * para no filtrar la existencia de cuentas; si el email existe, envía
- * un enlace con un token efímero.
- */
+/** Solicitud de reset de contraseña; el backend responde con mensaje neutro anti-enumeración. */
 export default function ForgotPassword() {
   const { user } = useAuth()
   const [email, setEmail] = useState(() => localStorage.getItem('optima_last_email') || '')

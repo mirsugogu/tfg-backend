@@ -6,33 +6,14 @@ import { useToast } from '@/components/ui/Toast'
 import { Input, INPUT_SANITIZE } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 
-/**
- * ClientPicker — selector de cliente con búsqueda server-side.
- *
- * Sustituye al <select> plano de clientes: en lugar de precargar los
- * primeros 100 clientes (y dejar fuera al resto), consulta
- * GET /clients?search=... con debounce, así escala sin límite.
- *
- * Incluye crear un cliente al vuelo sin salir del asistente (P5): el botón
- * "Nuevo cliente" despliega un mini-formulario en el propio desplegable.
- *
- * Controlado por `value` (id del cliente). Si llega un `value` sin que el
- * componente tenga el objeto (caso prefill), lo resuelve con GET /clients/{id}.
- *
- * @param bId       id del negocio (multi-tenant).
- * @param value     id del cliente seleccionado, o '' .
- * @param onChange  callback(cliente|null) al seleccionar, crear o limpiar.
- * @param label     etiqueta del campo.
- * @param error     mensaje de error opcional.
- */
+/** Selector de cliente con búsqueda server-side, debounce y alta al vuelo. */
 export function ClientPicker({ bId, value, onChange, label, error }) {
   const toast = useToast()
   const fieldId = useId()
   const boxRef = useRef(null)
-  // id del cliente ya resuelto: evita re-fetchear tras una selección propia.
+  // id del cliente ya resuelto; evita re-fetchear tras selección propia.
   const lastResolved = useRef(null)
-  // onChange vía ref: el efecto de resolución del prefill notifica al padre
-  // sin tener que re-suscribirse en cada render.
+  // onChange vía ref para que el efecto de prefill no se re-suscriba en cada render.
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
 

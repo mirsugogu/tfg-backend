@@ -105,6 +105,7 @@ const countdownLabel = (mins) => {
    SUBCOMPONENTES
    ============================================================ */
 
+/** Tarjeta de KPI con icono, valor grande y subtítulo. */
 function StatCard({ label, value, sub, icon: Icon, tint = 'cyan-blue', attention = false }) {
   const tints = {
     'cyan-blue':   'from-cyan-400 to-blue-500',
@@ -128,6 +129,7 @@ function StatCard({ label, value, sub, icon: Icon, tint = 'cyan-blue', attention
   )
 }
 
+/** Hero con la próxima cita: countdown, datos y CTA al detalle. */
 function NextAppointmentHero({ appt, mins, onOpen }) {
   return (
     <div className="relative overflow-hidden rounded-2xl p-5 text-white shadow-[0_20px_50px_-20px_rgba(14,165,233,0.45)]"
@@ -164,8 +166,8 @@ function NextAppointmentHero({ appt, mins, onOpen }) {
   )
 }
 
+/** Donut con la distribución de citas del mes por estado. */
 function StatusDonut({ buckets, total }) {
-  // Construye el conic-gradient en el orden de STATUS_LABELS
   const slices = []
   let deg = 0
   Object.keys(STATUS_LABELS).forEach((k) => {
@@ -205,9 +207,9 @@ function StatusDonut({ buckets, total }) {
   )
 }
 
+/** Timeline horizontal del día con las citas y la línea "ahora". */
 function TodayTimeline({ list, now, onSelect, dayStart = 9, dayEnd = 21 }) {
-  // El rango horario se deriva de business_hours (lo pasa el Dashboard);
-  // 9-21 es solo el fallback si el negocio no tiene horario configurado.
+  // Rango horario derivado de business_hours; 9-21 es el fallback.
   const DAY_START = dayStart, DAY_END = dayEnd
   const totalMin = (DAY_END - DAY_START) * 60
   const minutesFrom = (iso) => {
@@ -262,6 +264,7 @@ function TodayTimeline({ list, now, onSelect, dayStart = 9, dayEnd = 21 }) {
   )
 }
 
+/** Ranking compacto con barra de progreso para top servicios o empleados. */
 function TopList({ title, sub, items, renderMeta }) {
   const max = items[0]?.count ?? 1
   return (
@@ -296,11 +299,7 @@ function TopList({ title, sub, items, renderMeta }) {
   )
 }
 
-/**
- * Página principal tras iniciar sesión: indicadores del día, lista de
- * las próximas citas y atajos visuales al resto de módulos (clientes,
- * empleados, catálogo, calendario).
- */
+/** Dashboard principal con KPIs, agenda del día, distribución mensual y rankings. */
 export default function Dashboard() {
   const { user } = useAuth()
   const toast = useToast()
@@ -334,7 +333,7 @@ export default function Dashboard() {
     Promise.all([
       api.get(`/api/businesses/${bId}/clients?size=1`),
       api.get(`/api/businesses/${bId}/services?size=1`),
-      // size 100: el backend cappea Pageable en 100 (spring max-page-size).
+      // size 100 = tope de Pageable del backend.
       api.get(`/api/businesses/${bId}/appointments`, { params: { from: today, to: today, size: 100 } }),
       api.get(`/api/businesses/${bId}/appointments`, { params: { from: monthStart, to: monthEnd, size: 100 } }),
       api.get(`/api/businesses/${bId}/hours`),
@@ -360,16 +359,13 @@ export default function Dashboard() {
     () => activeToday.reduce((acc, a) => acc + parseFloat(totalBooked(a.bookedServices)), 0),
     [activeToday],
   )
-  // Citas PENDING cuyo inicio cae dentro de las próximas 24 h (a partir
-  // de ahora). Se filtra sobre monthList — no sobre todayList — para que
-  // por la noche también detecte las pendientes de mañana.
+  // PENDING en las próximas 24h; se filtra sobre monthList para cubrir las de mañana de noche.
   const pendingAttention = useMemo(() => {
     const limit = new Date(now.getTime() + 24 * 60 * 60 * 1000)
     return monthList.filter(a => a.statusName === 'PENDING' && new Date(a.startDateTime) <= limit).length
   }, [monthList, now])
 
-  // Rango horario del timeline de hoy: min apertura / max cierre de
-  // business_hours en toda la semana; 9-21 como fallback sin horario.
+  // Rango horario derivado de business_hours; 9-21 como fallback.
   const timelineRange = useMemo(() => {
     const open = hours.filter((h) => !h.isClosed && h.startTime && h.endTime)
     if (open.length === 0) return { start: 9, end: 21 }
@@ -414,8 +410,7 @@ export default function Dashboard() {
     return [...m.values()].sort((a, b) => b.count - a.count).slice(0, 4)
   }, [monthList])
 
-  // Top empleados (este mes, excluyendo canceladas y no presentado para
-  // que las cancelaciones no inflen el ranking de quien realmente trabajo).
+  // Top empleados del mes, excluyendo canceladas y no presentado.
   const topEmployees = useMemo(() => {
     const m = new Map()
     monthList

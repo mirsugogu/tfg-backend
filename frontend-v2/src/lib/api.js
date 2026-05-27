@@ -1,8 +1,6 @@
 import axios from 'axios'
 
-// Paginas que renderizan formularios anonimos: no debemos forzar un reload
-// a /login cuando una de ellas recibe un 401 (p. ej. credenciales invalidas
-// en el propio login), porque haria perder el estado del formulario.
+// Páginas anónimas: un 401 aquí no debe redirigir para no perder el estado del formulario.
 const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password']
 
 function clearSession() {
@@ -13,29 +11,19 @@ function clearSession() {
 }
 
 const api = axios.create({
-  // Se prefiere la variable de entorno (frontend-v2/.env). Si falta,
-  // caemos al backend local por defecto para no romper el dev sin .env.
+  // VITE_API_URL del .env; fallback al backend local para que dev funcione sin .env.
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Adjunta el JWT a cada peticion si esta en localStorage.
+// Adjunta el JWT de localStorage a cada petición.
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('optima_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
-// Interpretacion uniforme de los errores HTTP del backend Optima:
-//  - 401: sesion invalida o expirada -> limpiar storage y redirigir a
-//         /login, salvo que ya estemos en una pagina publica (login,
-//         forgot, reset).
-//  - 403: autenticado pero sin permiso -> NO se desloguea (el usuario
-//         es valido, el recurso no esta a su alcance). Se marca
-//         error.isForbidden para que la vista pueda diferenciarlo.
-//  - 429: rate limit -> se marca error.isRateLimited y se extrae
-//         retryAfter (segundos) del header Retry-After.
-// Cualquier otro estado se propaga sin modificar.
+// 401 redirige a /login salvo en páginas públicas; 403 marca isForbidden; 429 marca isRateLimited + retryAfter.
 api.interceptors.response.use(
   (res) => res,
   (error) => {
@@ -57,17 +45,7 @@ api.interceptors.response.use(
   }
 )
 
-/**
- * Devuelve un mensaje en castellano listo para mostrar al usuario a partir
- * de un error de axios. Parsea la forma estandar ErrorResponse del backend
- * ({ status, error, message, timestamp }) y cubre los casos especiales de
- * rate limit (429) y fallo de red.
- *
- * Politica: el backend ya da mensajes claros en castellano (auditoria
- * 02_RESULTADOS_AUTH_VALIDACION.md J.001-J.015), asi que respetar
- * `message` es lo normal; el fallback solo aplica si la respuesta no
- * sigue el contrato esperado.
- */
+/** Mensaje de error en castellano a partir de un error de axios; respeta el ErrorResponse del backend. */
 export function getErrorMessage(error, fallback = 'Error inesperado. Intentalo de nuevo.') {
   const data = error?.response?.data
   if (typeof data?.message === 'string' && data.message.trim()) {

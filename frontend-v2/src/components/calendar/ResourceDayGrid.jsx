@@ -1,9 +1,3 @@
-/*
- * ResourceDayGrid — vista Día por columnas de recurso (cabina o
- * empleado). Eje X = recursos, eje Y = tiempo. Las citas se colocan en
- * la columna de su cabina/empleado; si hay solapes dentro de la misma
- * columna, layoutEvents los reparte en sub-columnas.
- */
 import { useMemo } from 'react'
 import {
   PALETTES, GRAY_PALETTE, paletteByName,
@@ -12,6 +6,7 @@ import {
 } from './utils'
 import { HourColumn, HourSlots, NowLine, PositionedEvent, EventChip, BlockOverlay, AbsenceOverlay } from './cells'
 
+/** Vista Día con columnas de recurso (empleado o cabina) y rejilla horaria. */
 export function ResourceDayGrid({
   cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick,
   dayStart, dayEnd, hourPx, businessHours, now,
@@ -62,9 +57,7 @@ export function ResourceDayGrid({
                 const laidOut = layoutEvents(col.events)
                 return (
                   <div key={col.id} className="relative border-r-2 border-slate-300 last:border-r-0">
-                    {/* Cabecera sticky con el recurso. z-30 para que se quede
-                        por encima de las citas posicionadas (z-20) al hacer
-                        scroll vertical en pantallas estrechas. */}
+                    {/* Cabecera sticky del recurso; z-30 > eventos (z-20). */}
                     <div className="h-10 border-b-2 border-slate-300 px-2.5 flex items-center justify-between gap-2 sticky top-0 z-30 bg-slate-50">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className={`w-2 h-2 rounded-full shrink-0 ${palette.dot}`} />
@@ -95,10 +88,7 @@ export function ResourceDayGrid({
                         const cellAbsences = (resourceType === 'employee' && col.id !== '__none__')
                           ? absences.filter((ab) => ab.membershipId === col.id)
                           : []
-                        // Rangos laborables del empleado para este dia. Solo
-                        // se calculan en columnas de empleado con horario
-                        // cargado; en cabinas o cuando el fetch fallo, se
-                        // pasa null y HourSlots solo respeta openRanges.
+                        // Rangos laborables solo en columnas de empleado con horario cargado.
                         const cellWorkingRanges = (resourceType === 'employee' && col.id !== '__none__' && schedulesByMembership?.has(col.id))
                           ? workingRangesFor(schedulesByMembership.get(col.id), cursor)
                           : null

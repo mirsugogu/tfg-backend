@@ -10,9 +10,7 @@ import api, { getErrorMessage } from '@/lib/api'
 import { toHms, hhmm, formatDateLong } from '@/lib/format'
 import { ClientPicker } from './ClientPicker'
 
-// Fecha de hoy en 'YYYY-MM-DD' usando la hora LOCAL. Con
-// new Date().toISOString() se usaría UTC y la fecha podría saltar al día
-// anterior/siguiente según la zona horaria (en España, de 00:00 a ~02:00).
+// Fecha de hoy en 'YYYY-MM-DD' local; toISOString() usaría UTC y desplazaría el día.
 const todayStr = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -54,41 +52,7 @@ function Stepper({ step }) {
   )
 }
 
-/**
- * AppointmentWizard — asistente de 3 pasos para crear o editar una cita.
- * Reutilizable por Citas, Clientes y Calendario.
- *
- * Modos:
- *   - Crear (default): paso 1 elige cliente con ClientPicker; paso 3 POST.
- *   - Editar (P9): prop `appointmentToEdit` con la cita. Precarga todos los
- *     campos del form, el cliente queda bloqueado (panel informativo en
- *     lugar del ClientPicker) y el paso 3 hace PUT. El GET /availability
- *     se invoca con excludeAppointmentId para que la propia cita no tape
- *     su slot original.
- *
- * Props:
- *   open               abre / cierra el modal.
- *   onClose            cerrar sin guardar.
- *   onCreated          callback tras crear o editar con éxito (el padre
- *                      refresca su lista). Nombre conservado por
- *                      compatibilidad con los callers actuales.
- *   bId                businessId.
- *   prefillDate        'YYYY-MM-DD' opcional (p. ej. el día pulsado en el
- *                      calendario). Ignorado en modo editar.
- *   prefillTime        'HH:mm' opcional; si coincide con un hueco, se
- *                      preselecciona. En modo editar se calcula desde la
- *                      hora actual de la cita.
- *   prefillClientId    id de cliente opcional; preselecciona el cliente
- *                      (p. ej. al abrir desde la ficha de un cliente).
- *                      Ignorado en modo editar.
- *   appointmentToEdit  cita a editar (P9). null = modo crear.
- *
- * Pasos: 1) datos básicos → 2) GET /availability (huecos) → 3) confirmar
- * + POST/PUT. Consultar la disponibilidad ANTES de crear/editar mitiga la
- * race condition del backend (auditoría D.2): el usuario solo elige un
- * hueco recién calculado como libre, y el botón "Guardar" queda bloqueado
- * durante la petición.
- */
+/** Asistente de 3 pasos (datos → disponibilidad → confirmar) para crear o editar una cita. */
 export function AppointmentWizard({
   open, onClose, onCreated, bId,
   prefillDate, prefillTime, prefillClientId,
@@ -101,14 +65,13 @@ export function AppointmentWizard({
   const [form, setForm] = useState(emptyForm)
   const [slots, setSlots] = useState([])
   const [slotsLoading, setSlotsLoading] = useState(false)
-  // true si el empleado elegido no tiene horario semanal: permite dar un
-  // mensaje accionable en vez del genérico "no hay huecos".
+  // true si el empleado no tiene horario semanal: habilita un mensaje accionable.
   const [noSchedule, setNoSchedule] = useState(false)
   const [totalDuration, setTotalDuration] = useState(0)
   const [selectedSlot, setSelectedSlot] = useState(null)
   const [saving, setSaving] = useState(false)
 
-  // Datos para los selectores (una sola vez). size=100: el backend cappea ahí.
+  // Datos para los selectores (una sola vez); size=100 = tope del backend.
   useEffect(() => {
     if (!bId) return
     Promise.allSettled([
@@ -128,15 +91,8 @@ export function AppointmentWizard({
     })
   }, [bId, toast])
 
-  // Al abrir el asistente se reinicia al paso 1.
-  // En modo editar (P9) precarga todos los campos desde la cita; en modo
-  // crear aplica los prefill opcionales del padre (fecha del calendario,
-  // cliente desde su ficha).
-  //
-  // Importante: la dependencia es `appointmentToEdit?.id`, no el objeto en
-  // si. Asi un rerender del padre que reasigne la prop con un objeto nuevo
-  // (mismo id, distinta referencia) NO reescribe el form mientras el
-  // usuario lo esta editando.
+  // Reinicia al paso 1 al abrir; en modo editar precarga la cita, en modo crear aplica prefills.
+  // Dependencia por id (no por objeto) para no pisar el form si el padre rerenderiza.
   const editingId = appointmentToEdit?.id ?? null
   useEffect(() => {
     if (!open) return
@@ -161,8 +117,7 @@ export function AppointmentWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, prefillDate, prefillClientId, editingId])
 
-  // En modo editar, el prefillTime efectivo es la hora actual de la cita,
-  // así el paso 2 preselecciona el slot original tras consultar disponibilidad.
+  // En editar, el prefillTime es la hora de la cita para preseleccionar el slot original.
   const isEdit = Boolean(appointmentToEdit)
   const effectivePrefillTime = useMemo(
     () => isEdit ? appointmentToEdit.startDateTime.slice(11, 16) : prefillTime,
@@ -195,34 +150,29 @@ export function AppointmentWizard({
     setNoSchedule(false)
     setStep(2)
     try {
-      // serviceIds como parámetros REPETIDOS (serviceIds=1&serviceIds=2),
-      // nunca CSV: la auditoría F.005 documenta que un serviceIds
-      // malformado revienta el backend con un 500.
+      // serviceIds como parámetros repetidos (serviceIds=1&serviceIds=2), nunca CSV.
       const qs = new URLSearchParams()
       qs.set('date', date)
       serviceIds.forEach((id) => qs.append('serviceIds', id))
       qs.set('membershipId', membershipId)
       if (form.boothId) qs.set('boothId', form.boothId)
-      // En modo editar: el propio slot de la cita NO debe figurar como
-      // ocupado. El backend filtra la cita por id antes de calcular slots.
+      // En editar, el slot actual de la cita no debe contar como ocupado.
       if (isEdit) qs.set('excludeAppointmentId', appointmentToEdit.id)
 
       const { data } = await api.get(`/api/businesses/${bId}/availability?${qs.toString()}`)
 
-      // Si la fecha es hoy, descarta los huecos cuya hora ya ha pasado.
+      // Si la fecha es hoy, descarta huecos cuya hora ya ha pasado.
       const now = Date.now()
       const fresh = (data.slots ?? []).filter(
         (s) => new Date(`${date}T${toHms(s.startTime)}`).getTime() >= now,
       )
       setSlots(fresh)
       setTotalDuration(data.totalDurationMinutes ?? 0)
-      // Preselecciona el slot indicado (en edit, el slot actual de la cita;
-      // en create, el hueco pulsado en el calendario si vino prefillTime).
+      // Preselecciona el slot indicado por prefill (hora actual en editar, hueco clicado en crear).
       if (effectivePrefillTime) {
         setSelectedSlot(fresh.find((s) => hhmm(s.startTime) === effectivePrefillTime) ?? null)
       }
-      // Sin huecos: distinguimos "empleado sin horario semanal" del resto de
-      // causas (agenda llena, ausencias…) para dar un mensaje accionable.
+      // Sin huecos: distingue "empleado sin horario" del resto para dar un mensaje accionable.
       if (fresh.length === 0) {
         try {
           const { data: sch } = await api.get(`/api/businesses/${bId}/users/${membershipId}/schedules`)
@@ -245,11 +195,8 @@ export function AppointmentWizard({
     }
     setSaving(true)
     try {
-      // membershipId y boothId se toman del SLOT (fuente de verdad de lo
-      // que el backend calculó como libre). startDateTime SIN sufijo 'Z'
-      // (auditoría H.005: el backend lo ignora y guarda como local).
-      // En modo editar el clientId NO viaja: la decisión de diseño (P9)
-      // es que la cita pertenece al cliente original.
+      // membershipId/boothId desde el SLOT (verdad de huecos libres); startDateTime sin 'Z' (local).
+      // En editar, el clientId no viaja: la cita pertenece al cliente original.
       const body = {
         membershipId:  selectedSlot.membershipId,
         boothId:       selectedSlot.boothId ?? null,
@@ -286,9 +233,7 @@ export function AppointmentWizard({
         <div className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
             {isEdit ? (
-              // En edit el cliente queda fijo (decisión P9: la cita pertenece
-              // al cliente original; si hay que cambiar de cliente, se cancela
-              // esta y se crea otra). Panel informativo en lugar del picker.
+              // En editar, el cliente queda fijo; se muestra como panel en lugar del picker.
               <div>
                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block mb-2">
                   Cliente

@@ -42,10 +42,7 @@ const ROLE_PALETTE = {
   EMPLOYEE: 'from-emerald-400 to-teal-500',
 }
 
-/**
- * Perfil del usuario autenticado: editar datos personales (nombre,
- * email, teléfono) y cambiar la contraseña.
- */
+/** Perfil del usuario autenticado: edición de datos personales y cambio de contraseña. */
 export default function Perfil() {
   const { user, applyProfile, switchBusiness } = useAuth()
   const toast = useToast()
@@ -440,6 +437,7 @@ export default function Perfil() {
 /* ============================================================
    Campo de contraseña con toggle "mostrar / ocultar"
    ============================================================ */
+/** Campo de contraseña con toggle de visibilidad. */
 function PasswordField({ label, value, onChange, show, onToggle, placeholder, autoComplete }) {
   return (
     <div>

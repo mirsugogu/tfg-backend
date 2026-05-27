@@ -1,13 +1,3 @@
-/*
- * WeekResourceGrid — vista Semana con sub-columnas por recurso (cabina
- * o empleado) DENTRO de cada día. 7 días × N recursos. Pensado para
- * cabinas (3-4); con muchos empleados puede crecer mucho y aparece
- * scroll horizontal.
- *
- * Cabecera en dos filas:
- *   Fila 1 — día de la semana + número
- *   Fila 2 — sub-columnas de recurso (C1, C2, ..., Sin)
- */
 import { useMemo } from 'react'
 import {
   PALETTES, GRAY_PALETTE, DAYS_ES_SHORT, paletteByName,
@@ -16,6 +6,7 @@ import {
 } from './utils'
 import { HourColumn, HourSlots, NowLine, PositionedEvent, BlockOverlay, AbsenceOverlay } from './cells'
 
+/** Vista Semana con sub-columnas de recurso (empleado o cabina) dentro de cada día. */
 export function WeekResourceGrid({
   cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotClick,
   dayStart, dayEnd, hourPx, businessHours, now,
@@ -32,10 +23,7 @@ export function WeekResourceGrid({
   const ws = startOfWeek(cursor)
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(ws); d.setDate(ws.getDate() + i); return d })
 
-  // ¿Hay alguna cita SIN recurso asignado en la semana visible? Si no la
-  // hay, no se añade la columna "Sin asignar" para evitar ruido visual
-  // (caso reportado al probar: salía siempre aunque todas las citas
-  // tuvieran cabina o empleado).
+  // ¿Hay alguna cita sin recurso esta semana? Si no, se omite la columna "Sin asignar".
   const hasUnassigned = useMemo(() => {
     for (const d of days) {
       const dayEvents = eventsByDay.get(keyOf(d)) || []
@@ -46,9 +34,7 @@ export function WeekResourceGrid({
     return false
   }, [days, eventsByDay, resourceFor])
 
-  // Sub-columnas finales. "Sin asignar" aparece solo si hay citas
-  // huerfanas o si no hay ningun recurso configurado (en cuyo caso es la
-  // unica columna posible y al menos permite ver lo que hay).
+  // "Sin asignar" aparece solo si hay citas huérfanas o si no hay recursos configurados.
   const cols = [
     ...resources,
     ...((hasUnassigned || resources.length === 0)
@@ -97,16 +83,13 @@ export function WeekResourceGrid({
 
             return (
               <div key={i} className="relative border-r-2 border-slate-400 last:border-r-0">
-                {/* Cabecera de día (fila 1). z-30 para que se quede por
-                    encima de las citas posicionadas (z-20) al scrollear. */}
+                {/* Cabecera fila 1 sticky; z-30 > eventos (z-20). */}
                 <div className={`h-10 border-b-2 border-slate-300 flex items-center justify-center gap-2 sticky top-0 z-30 ${isToday ? 'bg-blue-100' : 'bg-white'}`}>
                   <span className={`text-[10px] uppercase tracking-wider font-semibold ${i >= 5 ? 'text-blue-600' : 'text-slate-500'}`}>{DAYS_ES_SHORT[i]}</span>
                   <span className={`inline-flex items-center justify-center min-w-[22px] h-6 px-1.5 rounded-full text-xs font-bold ${isToday ? 'bg-gradient-to-br from-cyan-500 to-blue-500 text-white' : 'text-[#1e3a5f]'}`}>{d.getDate()}</span>
                 </div>
 
-                {/* Cabecera de sub-columnas (fila 2). z-30 igual que la
-                    fila 1; no se solapan en eje Y porque esta vive en
-                    top:40 (debajo de la fila 1 sticky en top:0). */}
+                {/* Cabecera fila 2 anclada en top:40, debajo de la fila 1. */}
                 <div
                   className={`h-7 border-b-2 border-slate-300 grid sticky z-30 ${isToday ? 'bg-blue-50' : 'bg-slate-100'}`}
                   style={{ top: 40, gridTemplateColumns: `repeat(${nCols}, minmax(0, 1fr))` }}
@@ -135,9 +118,7 @@ export function WeekResourceGrid({
                 >
                   {cols.map((c) => {
                     const laidOut = layoutEvents(buckets.get(c.id) || [])
-                    // Para la sub-columna "Sin asignar" solo aplican los
-                    // bloqueos globales (resourceId=null). Para las demas,
-                    // los globales + los dirigidos a ese recurso concreto.
+                    // "Sin asignar": solo bloqueos globales. Resto: globales + dirigidos al recurso.
                     const cellBlocks = c.id === '__none__'
                       ? blocksForCell(blocks, d)
                       : blocksForCell(blocks, d, resourceType, c.id)
@@ -147,9 +128,7 @@ export function WeekResourceGrid({
                     const cellAbsences = (resourceType === 'employee' && c.id !== '__none__')
                       ? absences.filter((ab) => ab.membershipId === c.id)
                       : []
-                    // Rangos laborables del empleado para este dia (mismo
-                    // criterio que en ResourceDayGrid: solo aplica a las
-                    // sub-columnas de empleado con horario cargado).
+                    // Rangos laborables solo en sub-columnas de empleado con horario cargado.
                     const cellWorkingRanges = (resourceType === 'employee' && c.id !== '__none__' && schedulesByMembership?.has(c.id))
                       ? workingRangesFor(schedulesByMembership.get(c.id), d)
                       : null

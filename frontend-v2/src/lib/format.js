@@ -1,13 +1,6 @@
-/**
- * Helpers de formato compartidos por las pantallas y modales de citas
- * (Citas, Calendario, AppointmentWizard, AppointmentDetailModal).
- */
+/* Helpers de formato compartidos por las pantallas y modales de citas. */
 
-/**
- * El backend serializa LocalTime como "HH:mm" (cuando los segundos son 0)
- * o "HH:mm:ss". Normaliza siempre a "HH:mm:ss" para poder construir un
- * startDateTime válido.
- */
+/** Normaliza un LocalTime ("HH:mm" o "HH:mm:ss") a "HH:mm:ss". */
 export const toHms = (t) => {
   const parts = String(t ?? '').split(':')
   while (parts.length < 3) parts.push('00')

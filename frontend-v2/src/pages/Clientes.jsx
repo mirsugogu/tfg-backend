@@ -54,10 +54,7 @@ const fmtSinceLong = (iso) => {
 
 const telHref = (phone) => 'tel:' + String(phone || '').replace(/\s/g, '')
 
-/**
- * Listado y CRUD de clientes del negocio activo, con buscador
- * server-side, paginación y soft delete con reactivación.
- */
+/** Listado y CRUD de clientes con buscador server-side, paginación y soft delete. */
 export default function Clientes() {
   const { user } = useAuth()
   const toast = useToast()

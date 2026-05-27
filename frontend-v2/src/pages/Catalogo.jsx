@@ -53,11 +53,7 @@ const priceWithVat = (service, taxes) => {
   return pct == null ? null : Number(service.price) * (1 + pct / 100)
 }
 
-/**
- * Catálogo de servicios del negocio activo: categorías, servicios y los
- * impuestos aplicables, con vista de tarjetas, vista de tabla y soft
- * delete con reactivación.
- */
+/** Catálogo de servicios, categorías e impuestos con vistas en tarjetas y tabla. */
 export default function Catalogo() {
   const { user } = useAuth()
   const toast = useToast()
@@ -877,6 +873,7 @@ export default function Catalogo() {
    SUBCOMPONENTES
    ============================================================ */
 
+/** Tarjeta de KPI del strip superior. */
 function StatTile({ label, value }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-4">
@@ -886,6 +883,7 @@ function StatTile({ label, value }) {
   )
 }
 
+/** Chip de categoría seleccionable. */
 function CatChip({ active, onClick, children }) {
   return (
     <button
@@ -902,6 +900,7 @@ function CatChip({ active, onClick, children }) {
   )
 }
 
+/** Tarjeta de servicio con duración, precio e impuesto. */
 function ServiceCard({ service, taxes, isAdmin, archived, onOpen, onEdit, onArchive, onReactivate }) {
   const color = catColor(service.categoryId)
   const taxPct = taxPercentage(taxes, service.taxId)
@@ -976,6 +975,7 @@ function ServiceCard({ service, taxes, isAdmin, archived, onOpen, onEdit, onArch
   )
 }
 
+/** Rejilla plana de ServiceCard sin agrupar por categoría. */
 function FlatGrid({ list, taxes, isAdmin, archived, onOpen, onEdit, onArchive, onReactivate }) {
   return (
     <div className="card-grid">
@@ -996,6 +996,7 @@ function FlatGrid({ list, taxes, isAdmin, archived, onOpen, onEdit, onArchive, o
   )
 }
 
+/** Vista de servicios agrupados por categoría con cabeceras. */
 function GroupedView({ list, categories, taxes, isAdmin, archived, onOpen, onEdit, onArchive, onReactivate }) {
   const byCat = useMemo(() => {
     const m = new Map()
@@ -1054,6 +1055,7 @@ function GroupedView({ list, categories, taxes, isAdmin, archived, onOpen, onEdi
   )
 }
 
+/** Tabla densa de servicios con columnas ordenables y acciones por fila. */
 function ServicesTable({ list, taxes, isAdmin, archived, onOpen, onEdit, onArchive, onReactivate }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
@@ -1136,6 +1138,7 @@ function ServicesTable({ list, taxes, isAdmin, archived, onOpen, onEdit, onArchi
   )
 }
 
+/** Drawer lateral con el detalle de un servicio. */
 function ServiceDrawer({ service, taxes, isAdmin, archived, onClose, onEdit, onArchive, onReactivate }) {
   const color = catColor(service.categoryId)
   const tax = taxes.find((t) => t.id === service.taxId)

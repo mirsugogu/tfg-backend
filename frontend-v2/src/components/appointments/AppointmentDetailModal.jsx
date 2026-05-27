@@ -9,23 +9,10 @@ import api, { getErrorMessage } from '@/lib/api'
 import { formatDateTime, totalBooked } from '@/lib/format'
 import { dotClassFromColorAndId } from '@/lib/employeeColor'
 
-/**
- * Estados en los que NO aparece el botón "Editar cita".
- * Espejo del Set NON_EDITABLE_STATUSES de AppointmentService.java (P9):
- * solo COMPLETED es no-editable, una cita realizada no se reagenda.
- * CANCELLED y NO_SHOW SI son editables: el caso de uso real es "el cliente
- * del 21 no se presentó, hoy es 24, lo reagendo al 28". Al guardar, el
- * backend reseteará automáticamente la cita a PENDING.
- */
+// Estados que bloquean la edición de la cita; debe coincidir con el backend.
 const NON_EDITABLE_STATUSES = new Set(['COMPLETED'])
 
-/**
- * Máquina de estados de las citas. Copia EXACTA de
- * AppointmentValidator.VALID_TRANSITIONS del backend (auditoría
- * docs/audit/00_MAPA_REAL.md sección 5). COMPLETED, CANCELLED y NO_SHOW
- * son finales. El modal solo ofrece estas transiciones, así que es
- * imposible elegir una inválida desde la UI.
- */
+// Transiciones válidas espejo de AppointmentValidator.VALID_TRANSITIONS del backend.
 const VALID_TRANSITIONS = {
   PENDING:     ['CONFIRMED', 'CANCELLED'],
   CONFIRMED:   ['IN_PROGRESS', 'CANCELLED', 'NO_SHOW'],
@@ -35,34 +22,7 @@ const VALID_TRANSITIONS = {
   NO_SHOW:     [],
 }
 
-/**
- * AppointmentDetailModal — detalle de una cita, con cambio de estado
- * (en línea), marcado de pago y acceso al modo edición (P9). Reutilizable
- * por Citas y Calendario.
- *
- * Props:
- *   appointment   la cita a mostrar; null = modal cerrado.
- *   bId           businessId.
- *   onClose       cerrar el modal.
- *   onChanged     callback tras cambiar estado o pago (el padre refresca).
- *   onEdit        opcional; si viene, muestra el botón "Editar cita" para
- *                 las citas no terminales. Recibe la cita actual y es el
- *                 padre quien decide qué hacer (típicamente: cerrar este
- *                 modal y abrir el AppointmentWizard en modo edición).
- *   appliedBlock   opcional; schedule_block aplicable a esta cita (global,
- *                  por empleado o por cabina) calculado por el padre con
- *                  blockForAppointment(). Si viene, se muestra un aviso
- *                  destacado y se sugiere reagendar. Citas.jsx no lo pasa
- *                  (no carga bloqueos); Calendario.jsx sí.
- *   appliedAbsence opcional; EmployeeAbsence que solapa con esta cita y
- *                  apunta al mismo empleado. Mismo banner que appliedBlock
- *                  pero motivo "ausencia del empleado". Solo lo pasa
- *                  Calendario.jsx (Citas no carga ausencias).
- *   employeeColor  opcional; nombre de la paleta del empleado (cyan,
- *                  amber...). Lo pasa el padre desde su empColorMap. Si
- *                  viene, se pinta un punto del color al lado del campo
- *                  "Empleado", para coherencia con el calendario.
- */
+/** Detalle de una cita con cambio de estado, marcado de pago y entrada al modo edición. */
 export function AppointmentDetailModal({
   appointment, bId, onClose, onChanged, onEdit,
   appliedBlock, appliedAbsence, employeeColor,
@@ -70,10 +30,7 @@ export function AppointmentDetailModal({
   const toast = useToast()
   const { statusLabel } = useCatalog()
 
-  // Copia local de la cita. Se sincroniza de forma síncrona cuando el
-  // padre selecciona otra cita distinta (sin parpadeo); tras un PATCH NO
-  // se resincroniza, porque el id no cambia y 'current' ya tiene la
-  // versión actualizada que devolvió el backend.
+  // Copia local de la cita; se resincroniza solo si el padre selecciona otra distinta.
   const [current, setCurrent] = useState(appointment)
   const [trackedId, setTrackedId] = useState(appointment?.id ?? null)
   const [saving, setSaving] = useState(false)
@@ -119,8 +76,7 @@ export function AppointmentDetailModal({
 
   const transitions = current ? (VALID_TRANSITIONS[current.statusName] ?? []) : []
 
-  // El motivo del bloqueo se calcula en el padre (Calendario): aquí solo se
-  // muestra. Si llega sin reason, se etiqueta segun el tipo del bloqueo.
+  // Etiqueta del motivo del bloqueo; si falta reason, deduce el tipo (global/empleado/cabina).
   const blockLabel = appliedBlock
     ? (appliedBlock.reason && appliedBlock.reason.trim()
         ? appliedBlock.reason

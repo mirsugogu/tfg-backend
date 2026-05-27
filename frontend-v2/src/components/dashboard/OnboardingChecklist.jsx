@@ -3,25 +3,9 @@ import { Link } from 'react-router-dom'
 import { CheckCircle2, Circle, ArrowRight, Sparkles } from 'lucide-react'
 import api from '@/lib/api'
 
-/**
- * Tarjeta de configuración inicial para usuarios recién registrados.
- * Detecta automáticamente qué pasos faltan para que el negocio pueda
- * empezar a operar (horario de apertura, empleados, servicios) y los
- * enlaza a la pantalla correspondiente. Cuando los tres pasos están
- * listos, el componente devuelve null y deja de mostrarse.
- *
- * Si alguno de los fetches falla, ese paso se asume completo (fallback
- * permisivo): se prefiere no mostrar el checklist a mostrarlo con datos
- * incorrectos. Así nunca bloquea el Dashboard ni introduce un toast de
- * error visible al usuario.
- */
+/** Checklist de onboarding (horario, empleados, servicios); se oculta al completar los tres. */
 export function OnboardingChecklist({ businessId }) {
-  // Cada flag tiene 3 valores:
-  //   null  -> aún cargando o el fetch falló (estado neutro: no se
-  //            considera ni hecho ni pendiente, no aparece como pendiente
-  //            para no mostrar un checklist con datos sospechosos).
-  //   true  -> paso completado.
-  //   false -> paso pendiente (se muestra como tarea por hacer).
+  // Estado por paso: null = cargando/fallo (se trata como hecho para no engañar), true/false directos.
   const [state, setState] = useState({
     hasOpenHours: null,
     hasEmployees: null,
@@ -44,9 +28,7 @@ export function OnboardingChecklist({ businessId }) {
         hasOpenHours: hoursData == null
           ? null
           : hoursData.some((x) => !x.isClosed && x.startTime && x.endTime),
-        // El admin recién registrado ya cuenta como 1 membership; se
-        // considera que ha "añadido empleados" cuando hay al menos uno
-        // más además del propio administrador.
+        // El propio admin cuenta como 1 membership; se considera "con empleados" a partir de 2.
         hasEmployees: emp.status === 'fulfilled' ? emp.value.data.totalElements > 1 : null,
         hasServices:  srv.status === 'fulfilled' ? srv.value.data.totalElements > 0 : null,
       })
@@ -54,9 +36,7 @@ export function OnboardingChecklist({ businessId }) {
     return () => { cancelled = true }
   }, [businessId])
 
-  // Un paso con flag null (cargando o fallido) se considera "hecho"
-  // para no mostrarlo como pendiente: preferimos esconder el checklist
-  // a enseñarlo con información incorrecta.
+  // null se trata como hecho para no enseñar el checklist con datos sospechosos.
   const hasOpenHours = state.hasOpenHours !== false
   const hasEmployees = state.hasEmployees !== false
   const hasServices  = state.hasServices  !== false

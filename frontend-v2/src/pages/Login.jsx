@@ -39,12 +39,7 @@ const inputBase =
 const inputOk = `${inputBase} border-slate-200 focus:border-blue-400 focus:ring-blue-100`
 const inputErr = `${inputBase} border-amber-300 bg-white focus:border-amber-400 focus:ring-amber-100`
 
-/**
- * Pantalla de inicio de sesión. Soporta el login en dos pasos: si el
- * usuario tiene una sola membership activa entra directo; si tiene
- * varias, se presenta el selector de negocio antes de emitir el tenant
- * token.
- */
+/** Pantalla de inicio de sesión con login en dos pasos y selector de negocio. */
 export default function Login() {
   const { user, login, selectBusiness, loading, pendingBusinesses } = useAuth()
   const navigate = useNavigate()

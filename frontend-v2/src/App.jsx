@@ -16,6 +16,7 @@ import Calendario from '@/pages/Calendario'
 import Configuracion from '@/pages/Configuracion'
 import Perfil from '@/pages/Perfil'
 
+/** Raíz de la aplicación: providers globales y router con rutas públicas y protegidas. */
 export default function App() {
   return (
     <BrowserRouter>

@@ -1,11 +1,7 @@
 import { useId } from 'react'
 import { cn } from '@/lib/utils'
 
-/**
- * Campo de texto multilínea con etiqueta y mensaje de error opcionales,
- * alineado visualmente con `Input` y `Select`. `resize-none` mantiene el
- * tamaño fijo para que el formulario no salte al teclear.
- */
+/** Campo de texto multilínea con etiqueta y mensaje de error opcionales. */
 export function Textarea({ label, error, className, id, ...props }) {
   // useId asocia la <label> con el <textarea> (htmlFor/id) para accesibilidad.
   const autoId = useId()
