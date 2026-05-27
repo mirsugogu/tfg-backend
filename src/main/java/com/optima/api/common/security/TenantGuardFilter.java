@@ -30,8 +30,7 @@ import java.util.regex.Pattern;
 public class TenantGuardFilter extends OncePerRequestFilter {
 
     /** Detecta rutas que pertenecen a un negocio concreto. */
-    private static final Pattern BUSINESS_PATH =
-            Pattern.compile("^/api/businesses/([^/]+)(/.*)?$");
+    private static final Pattern BUSINESS_PATH = Pattern.compile("^/api/businesses/([^/]+)(/.*)?$");
 
     private final ObjectMapper objectMapper;
     private final MembershipRepository membershipRepository;
@@ -56,13 +55,11 @@ public class TenantGuardFilter extends OncePerRequestFilter {
                 }
                 // Si el token no tiene negocio, primero debe seleccionarse uno.
                 if (principal.businessId() == null) {
-                    writeForbidden(response,
-                            "Debes seleccionar un negocio antes de acceder a este recurso");
+                    writeForbidden(response, "Debes seleccionar un negocio antes de acceder a este recurso");
                     return;
                 }
                 if (pathBusinessId != principal.businessId()) {
-                    writeForbidden(response,
-                            "No tienes permiso para acceder a recursos de otro negocio");
+                    writeForbidden(response, "No tienes permiso para acceder a recursos de otro negocio");
                     return;
                 }
 
@@ -77,8 +74,7 @@ public class TenantGuardFilter extends OncePerRequestFilter {
                 }
                 String currentRole = membershipOpt.get().getRole().getName();
                 if (!Objects.equals(currentRole, principal.role())) {
-                    writeUnauthorized(response,
-                            "Tu sesión está obsoleta porque tu rol ha cambiado. Vuelve a iniciar sesión.");
+                    writeUnauthorized(response, "Tu sesión está obsoleta porque tu rol ha cambiado. Vuelve a iniciar sesión.");
                     return;
                 }
             }
