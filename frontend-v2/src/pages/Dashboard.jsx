@@ -360,21 +360,13 @@ export default function Dashboard() {
     () => activeToday.reduce((acc, a) => acc + parseFloat(totalBooked(a.bookedServices)), 0),
     [activeToday],
   )
+  // Citas PENDING cuyo inicio cae dentro de las próximas 24 h (a partir
+  // de ahora). Se filtra sobre monthList — no sobre todayList — para que
+  // por la noche también detecte las pendientes de mañana.
   const pendingAttention = useMemo(() => {
     const limit = new Date(now.getTime() + 24 * 60 * 60 * 1000)
-    return todayList.filter(a => a.statusName === 'PENDING' && new Date(a.startDateTime) <= limit).length
-  }, [todayList, now])
-
-  // Ocupación
-  const dow = (now.getDay() === 0 ? 7 : now.getDay())
-  const todayHours = hours.find(h => h.dayOfWeek === dow)
-  const openMinutes = useMemo(() => {
-    if (!todayHours || todayHours.isClosed || !todayHours.startTime || !todayHours.endTime) return 0
-    return (new Date(`1970-01-01T${todayHours.endTime}`) - new Date(`1970-01-01T${todayHours.startTime}`)) / 60000
-  }, [todayHours])
-  const bookedMinutes = activeToday.reduce((acc, a) => acc + minutesBetween(a.startDateTime, a.endDateTime), 0)
-  const occupancy = openMinutes > 0 ? Math.round((bookedMinutes / openMinutes) * 100) : 0
-  const slotsTotal = openMinutes > 0 ? Math.round(openMinutes / 60) : null   // slots de 1 h aprox
+    return monthList.filter(a => a.statusName === 'PENDING' && new Date(a.startDateTime) <= limit).length
+  }, [monthList, now])
 
   // Rango horario del timeline de hoy: min apertura / max cierre de
   // business_hours en toda la semana; 9-21 como fallback sin horario.
@@ -422,14 +414,17 @@ export default function Dashboard() {
     return [...m.values()].sort((a, b) => b.count - a.count).slice(0, 4)
   }, [monthList])
 
-  // Top empleados (este mes, todas las citas)
+  // Top empleados (este mes, excluyendo canceladas y no presentado para
+  // que las cancelaciones no inflen el ranking de quien realmente trabajo).
   const topEmployees = useMemo(() => {
     const m = new Map()
-    monthList.forEach(a => {
-      const cur = m.get(a.userFullName) ?? { name: a.userFullName, count: 0 }
-      cur.count += 1
-      m.set(a.userFullName, cur)
-    })
+    monthList
+      .filter(a => a.statusName !== 'CANCELLED' && a.statusName !== 'NO_SHOW')
+      .forEach(a => {
+        const cur = m.get(a.userFullName) ?? { name: a.userFullName, count: 0 }
+        cur.count += 1
+        m.set(a.userFullName, cur)
+      })
     return [...m.values()].sort((a, b) => b.count - a.count).slice(0, 3)
   }, [monthList])
 
@@ -485,25 +480,21 @@ export default function Dashboard() {
           icon={CalendarCheck}
           tint="cyan-blue"
           value={loading ? '…' : todayList.length}
-          sub={
-            slotsTotal
-              ? <span><strong className="text-emerald-600">{occupancy}% ocupación</strong> · {Math.max(0, slotsTotal - activeToday.length)} huecos libres</span>
-              : <span>{activeToday.length} activas</span>
-          }
+          sub={<span>{activeToday.length} activa{activeToday.length === 1 ? '' : 's'}</span>}
         />
         <StatCard
           label="Ingresos previstos"
           icon={Banknote}
           tint="blue-indigo"
           value={loading ? '…' : fmtEur(todayRevenue)}
-          sub="Suma de citas activas de hoy"
+          sub="Solo citas pendientes, confirmadas o en curso"
         />
         <StatCard
           label="Clientes activos"
           icon={Users}
           tint="teal-cyan"
           value={loading ? '…' : counts.clients}
-          sub={`${counts.services} servicios en catálogo`}
+          sub="Sin contar archivados"
         />
         <StatCard
           label="Necesita tu atención"
@@ -654,7 +645,7 @@ export default function Dashboard() {
           <StatusDonut buckets={monthBuckets} total={monthList.length} />
 
           <TopList
-            title="Servicios más vendidos"
+            title="Servicios más solicitados"
             sub="Este mes"
             items={topServices}
             renderMeta={(it) => `${it.count} citas · ${fmtEur(it.revenue)}`}

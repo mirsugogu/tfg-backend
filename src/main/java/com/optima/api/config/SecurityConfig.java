@@ -95,8 +95,7 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             // Orden de seguridad: limite de peticiones, JWT y validacion de tenant.
-            .addFilterBefore(rateLimitFilter,
-                             UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(jwtAuthenticationFilter, RateLimitFilter.class)
             .addFilterAfter(tenantGuardFilter, JwtAuthenticationFilter.class);
         return http.build();

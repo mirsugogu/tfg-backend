@@ -18,7 +18,7 @@ import {
   DEFAULT_DAY_START, DEFAULT_DAY_END, HOUR_PX,
   PALETTES, GRAY_PALETTE, STATUS_STYLES,
   pad2, keyOf, isSameDay, startOfWeek, buildMonthGrid, rangeFor,
-  apptDate, minutesOf, apptDuration, layoutEvents, openRangesFor,
+  apptDate, minutesOf, layoutEvents, openRangesFor,
   blocksForCell, labelForBlock, blockForAppointment, absenceForAppointment,
 } from '@/components/calendar/utils'
 import {
@@ -282,25 +282,13 @@ export default function Calendario() {
   const rangeStats = useMemo(() => {
     const considered = filtered.filter((a) => a.statusName !== 'CANCELLED' && a.statusName !== 'NO_SHOW')
     const revenue = considered.reduce((acc, a) => acc + parseFloat(totalBooked(a.bookedServices)), 0)
-    const minutesBusy = considered.reduce((acc, a) => acc + apptDuration(a), 0)
-    const r = rangeFor(view, cursor)
-    const start = new Date(`${r.from}T00:00:00`)
-    const end   = new Date(`${r.to}T23:59:59`)
-    let openMinutes = 0
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const dow = d.getDay() === 0 ? 7 : d.getDay()
-      const h = businessHours.find((x) => x.dayOfWeek === dow)
-      if (h && !h.isClosed && h.startTime && h.endTime) {
-        openMinutes += (new Date(`1970-01-01T${h.endTime}`) - new Date(`1970-01-01T${h.startTime}`)) / 60000
-      }
-    }
-    const occupancy = openMinutes > 0 ? Math.round((minutesBusy / openMinutes) * 100) : null
+    const pendingCount = filtered.filter((a) => a.statusName === 'PENDING').length
     const inProgressCount = filtered.filter((a) =>
       a.statusName === 'IN_PROGRESS' &&
       new Date(a.startDateTime) <= now && now <= new Date(a.endDateTime),
     ).length
-    return { count: filtered.length, revenue, occupancy, inProgressCount }
-  }, [filtered, view, cursor, businessHours, now])
+    return { count: filtered.length, revenue, pendingCount, inProgressCount }
+  }, [filtered, now])
 
   /* ---- Navegación ---- */
   const goPrev  = useCallback(() => {
@@ -545,7 +533,7 @@ export default function Calendario() {
       <div className="mb-5 grid grid-cols-2 md:grid-cols-4 gap-3 no-print">
         <StatTile label={`Citas (${view.toLowerCase()})`} value={rangeStats.count} />
         <StatTile label="€ previstos" value={`${rangeStats.revenue.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €`} />
-        <StatTile label="Ocupación" value={rangeStats.occupancy != null ? `${rangeStats.occupancy}%` : '—'} tone="success" />
+        <StatTile label="Pendientes de confirmar" value={rangeStats.pendingCount} tone="warning" />
         <StatTile label="En curso ahora" value={rangeStats.inProgressCount} tone="cyan" />
       </div>
 
@@ -788,7 +776,7 @@ function ConfirmDropModal({ pending, employeeResources, boothResources, saving, 
    ============================================================ */
 
 function StatTile({ label, value, tone }) {
-  const tones = { default: 'text-[#1e3a5f]', success: 'text-emerald-600', cyan: 'text-cyan-600' }
+  const tones = { default: 'text-[#1e3a5f]', success: 'text-emerald-600', cyan: 'text-cyan-600', warning: 'text-orange-600' }
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-4">
       <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{label}</div>
