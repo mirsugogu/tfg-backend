@@ -30,7 +30,7 @@ public class User {
     @Column(name = "email", nullable = false, length = 150, unique = true)
     private String email;
 
-    /** Hash BCrypt de la contrasena. */
+    /** Hash BCrypt de la contraseña. */
     @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 

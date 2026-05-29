@@ -15,7 +15,6 @@ import com.optima.api.modules.business.service.BusinessService;
 import com.optima.api.modules.user.model.User;
 import com.optima.api.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,7 +26,6 @@ import java.util.Optional;
 
 /** Gestiona login, seleccion de negocio y registro inicial. */
 @Service
-@Slf4j
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class AuthService {
@@ -35,8 +33,7 @@ public class AuthService {
     /**
      * Hash falso usado para igualar tiempos cuando el email no existe.
      */
-    private static final String DUMMY_BCRYPT_HASH =
-            "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+    private static final String DUMMY_BCRYPT_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
@@ -55,9 +52,9 @@ public class AuthService {
 
         Optional<User> userOpt = userRepository.findByEmailIgnoreCase(email);
         if (userOpt.isEmpty()) {
-            // Se ejecuta BCrypt aunque no exista el usuario para no filtrar emails por tiempo.
+            // Se ejecuta BCrypt aunque no exista el usuario para no filtrar emails por tiempo, no toquen esta parte
+            // es seguridad
             passwordEncoder.matches(request.password(), DUMMY_BCRYPT_HASH);
-            log.warn("Login fallido: usuario inexistente (email='{}')", email);
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
         }
@@ -66,15 +63,11 @@ public class AuthService {
         if (!user.getIsActive()) {
             // Se mantiene el mismo comportamiento que en una contrasena incorrecta.
             passwordEncoder.matches(request.password(), DUMMY_BCRYPT_HASH);
-            log.warn("Login fallido: usuario inactivo (userId={}, email='{}')",
-                    user.getId(), user.getEmail());
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
         }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            log.warn("Login fallido: password incorrecto (userId={}, email='{}')",
-                    user.getId(), user.getEmail());
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
         }
@@ -87,8 +80,6 @@ public class AuthService {
                 .toList();
 
         if (activeMemberships.isEmpty()) {
-            log.warn("Login fallido: usuario sin memberships activas en negocios activos (userId={}, email='{}')",
-                    user.getId(), user.getEmail());
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
         }
@@ -101,9 +92,6 @@ public class AuthService {
                     only.getBusiness().getId(),
                     only.getRole().getName()
             );
-            log.info("Login OK tenant (userId={}, email='{}', businessId={}, role={})",
-                    user.getId(), user.getEmail(),
-                    only.getBusiness().getId(), only.getRole().getName());
             return TokenResponse.tenant(token);
         }
 
@@ -111,8 +99,6 @@ public class AuthService {
         List<MembershipSummaryResponse> summaries = activeMemberships.stream()
                 .map(MembershipSummaryResponse::from)
                 .toList();
-        log.info("Login OK identity (userId={}, email='{}', memberships={})",
-                user.getId(), user.getEmail(), summaries.size());
         return TokenResponse.identity(token, summaries);
     }
 
@@ -125,30 +111,21 @@ public class AuthService {
                         HttpStatus.UNAUTHORIZED, "Token invalido"));
 
         if (!user.getIsActive()) {
-            log.warn("Select-business fallido: usuario inactivo (userId={})", userId);
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
         }
 
         Membership membership = membershipRepository.findByUserIdAndBusinessId(userId, businessId)
-                .orElseThrow(() -> {
-                    log.warn("Select-business denegado: sin membership (userId={}, businessId={})",
-                            userId, businessId);
-                    return new ResponseStatusException(
-                            HttpStatus.FORBIDDEN, "No tienes acceso a ese negocio");
-                });
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.FORBIDDEN, "No tienes acceso a ese negocio"));
 
         if (!membership.getIsActive()) {
-            log.warn("Select-business denegado: membership inactiva (userId={}, businessId={})",
-                    userId, businessId);
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN, "No tienes acceso a ese negocio");
         }
 
         // Un negocio desactivado no debe permitir el acceso aunque la membership exista.
         if (!Boolean.TRUE.equals(membership.getBusiness().getIsActive())) {
-            log.warn("Select-business denegado: negocio desactivado (userId={}, businessId={})",
-                    userId, businessId);
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN, "No tienes acceso a ese negocio");
         }
@@ -159,8 +136,6 @@ public class AuthService {
                 membership.getBusiness().getId(),
                 membership.getRole().getName()
         );
-        log.info("Select-business OK (userId={}, businessId={}, role={})",
-                userId, businessId, membership.getRole().getName());
         return TokenResponse.tenant(token);
     }
 
@@ -172,7 +147,6 @@ public class AuthService {
         String adminEmail = request.admin().email().trim().toLowerCase();
 
         if (userRepository.existsByEmailIgnoreCase(adminEmail)) {
-            log.warn("Register fallido: email ya registrado (email='{}')", adminEmail);
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Ya existe un usuario con ese email");
         }
@@ -180,8 +154,7 @@ public class AuthService {
         Role adminRole = roleRepository.findByName("ADMIN")
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Error de configuración: no se encontró el rol ADMIN "
-                                + "en la base de datos. Ejecutar los INSERT del schema."));
+                        "Error de configuración: no se encontró el rol ADMIN en la base de datos."));
 
         Business business = businessService.createEntity(request.business());
 
@@ -206,8 +179,6 @@ public class AuthService {
                 business.getId(),
                 adminRole.getName()
         );
-        log.info("Register OK (userId={}, email='{}', businessId={}, slug='{}')",
-                user.getId(), user.getEmail(), business.getId(), business.getSlug());
 
         mailService.sendSimpleEmail(
                 user.getEmail(),

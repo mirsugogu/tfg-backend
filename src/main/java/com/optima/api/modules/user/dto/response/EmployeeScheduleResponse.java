@@ -11,7 +11,6 @@ public record EmployeeScheduleResponse(
         Long id,
         Long businessId,
 
-        // Se devuelve la membership y el nombre visible del empleado.
         Long membershipId,
         String userFullName,
 

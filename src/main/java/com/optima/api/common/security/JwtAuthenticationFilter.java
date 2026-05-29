@@ -8,7 +8,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -21,7 +20,6 @@ import java.util.List;
 
 /** Valida el JWT y carga el usuario en el contexto de seguridad. */
 @Component
-@Slf4j
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -52,8 +50,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Long userId = userIdRaw instanceof Number n ? n.longValue() : null;
 
             if (email == null || email.isBlank() || userId == null) {
-                log.warn("JWT con claims requeridos ausentes: sub='{}', userId={}",
-                        email, userId);
                 throw new JwtException("Claims requeridos ausentes en el JWT");
             }
 
@@ -72,7 +68,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             UsernamePasswordAuthenticationToken auth =
                     new UsernamePasswordAuthenticationToken(principal, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(auth);
-        } catch (JwtException | ClassCastException | NullPointerException ex) {
+        } catch (JwtException | ClassCastException | NullPointerException ignored) {
             // Si el token no es valido, la request queda sin autenticar.
             SecurityContextHolder.clearContext();
         }

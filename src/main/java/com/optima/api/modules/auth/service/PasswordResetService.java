@@ -8,7 +8,6 @@ import com.optima.api.modules.auth.repository.PasswordResetRepository;
 import com.optima.api.modules.user.model.User;
 import com.optima.api.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,7 +28,6 @@ import java.util.Optional;
 @Service
 @Transactional
 @RequiredArgsConstructor
-@Slf4j
 public class PasswordResetService {
 
     /** Tiempo maximo de validez del token de reset. */
@@ -59,7 +57,6 @@ public class PasswordResetService {
 
         if (userOpt.isEmpty()) {
             // La respuesta externa es igual que si el email existiera.
-            log.info("forgot-password: email '{}' no registrado; respuesta neutra", email);
             return;
         }
 
@@ -73,9 +70,7 @@ public class PasswordResetService {
         reset.setExpiresAt(LocalDateTime.now().plus(TOKEN_TTL));
         resetRepository.save(reset);
 
-        // Se evita una doble barra si la URL configurada termina en "/".
-        String resetLink = frontendUrl.replaceAll("/+$", "")
-                + "/reset-password?token=" + rawToken;
+        String resetLink = frontendUrl.replaceAll("/+$", "") + "/reset-password?token=" + rawToken;
 
         String subject = "Optima - restablece tu contraseña";
         String body = """
@@ -99,7 +94,6 @@ public class PasswordResetService {
                 """.formatted(user.getFullName(), resetLink, rawToken);
 
         mailService.sendSimpleEmail(user.getEmail(), subject, body);
-        log.info("forgot-password: token emitido para userId={}", user.getId());
     }
 
     /**
@@ -124,8 +118,6 @@ public class PasswordResetService {
 
         reset.setUsedAt(LocalDateTime.now());
         resetRepository.save(reset);
-
-        log.info("reset-password: password actualizado para userId={}", user.getId());
     }
 
     /**

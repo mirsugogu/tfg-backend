@@ -3,7 +3,6 @@ package com.optima.api.common.exception;
 import com.optima.api.common.json.StrictLocalDateTimeDeserializer.TimezoneNotAllowedException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.convert.ConversionFailedException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.mapping.PropertyReferenceException;
@@ -25,13 +24,11 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.time.Instant;
 import java.util.stream.Collectors;
 
-/** Centraliza las excepciones y las convierte en respuestas JSON. */
-@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     /**
-     * Devuelve los errores de validacion de los DTOs recibidos en el body.
+     * Devuelve los errores de validacion de los DTOs recibidos en el body
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -44,7 +41,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Convierte argumentos invalidos en una respuesta 400.
+     * Convierte argumentos invalidos en una respuesta 400
      */
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -98,7 +95,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(PropertyReferenceException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handlePropertyReference(PropertyReferenceException ex) {
-        log.warn("Campo de ordenacion invalido: {}", ex.getPropertyName());
         return new ErrorResponse(400, HttpStatus.BAD_REQUEST.getReasonPhrase(),
             "El campo de ordenación '" + ex.getPropertyName() + "' no es válido",
             Instant.now().toString());
@@ -109,8 +105,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler({NumberFormatException.class, ConversionFailedException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ErrorResponse handleConversion(Exception ex) {
-        log.warn("Conversion de parametro fallida: {}", ex.getMessage());
+    public ErrorResponse handleConversion() {
         return new ErrorResponse(400, HttpStatus.BAD_REQUEST.getReasonPhrase(),
             "Uno o más parámetros tienen un formato incorrecto",
             Instant.now().toString());
@@ -199,7 +194,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
-    public ErrorResponse handleAccessDenied(AccessDeniedException ex) {
+    public ErrorResponse handleAccessDenied() {
         return new ErrorResponse(403, HttpStatus.FORBIDDEN.getReasonPhrase(),
             "No tienes permisos suficientes para esta operacion",
             Instant.now().toString());
@@ -210,8 +205,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
-    public ErrorResponse handleDataIntegrity(DataIntegrityViolationException ex) {
-        log.warn("DataIntegrityViolation: {}", ex.getMostSpecificCause().getMessage());
+    public ErrorResponse handleDataIntegrity() {
         return new ErrorResponse(409, HttpStatus.CONFLICT.getReasonPhrase(),
             "Conflicto de integridad: el recurso ya existe o viola una restricción de la base de datos",
             Instant.now().toString());
@@ -222,8 +216,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ErrorResponse handleGeneric(Exception ex) {
-        log.error("Error no controlado", ex);
+    public ErrorResponse handleGeneric() {
         return new ErrorResponse(500, HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
             "Error interno del servidor", Instant.now().toString());
     }

@@ -1,7 +1,6 @@
 package com.optima.api.common.mail;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
@@ -10,7 +9,6 @@ import org.springframework.stereotype.Service;
 
 /** Envia correos simples sin romper la operacion principal si SMTP falla. */
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class MailService {
 
@@ -20,8 +18,7 @@ public class MailService {
     private String from;
 
     /**
-     * Envia un correo simple. Los errores de SMTP se registran, pero no se
-     * propagan al servicio que lo llamo.
+     * Envia un correo simple. Los errores de SMTP no se propagan al servicio que lo llamo.
      */
     public void sendSimpleEmail(String to, String subject, String body) {
         SimpleMailMessage message = new SimpleMailMessage();
@@ -32,10 +29,7 @@ public class MailService {
 
         try {
             mailSender.send(message);
-            log.info("Email enviado a {} con asunto '{}'", to, subject);
-        } catch (MailException ex) {
-            log.warn("Fallo al enviar email a {} con asunto '{}': {}",
-                    to, subject, ex.getMessage());
+        } catch (MailException ignored) {
         }
     }
 }

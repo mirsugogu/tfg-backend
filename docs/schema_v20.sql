@@ -1,579 +1,289 @@
--- ============================================================
--- Optima SaaS - Database Schema v20
--- Multi-tenant (Shared DB, Shared Schema)
--- No superadmins | Taxes per business | English naming
---
--- Diferencias respecto a v13:
---   [v14 cabinas] Tabla nueva `booths` (espacio fisico tenant-scoped).
---   [v14 cabinas] Columna `appointments.id_booth` (nullable, FK -> booths).
---   [v14 cabinas] Seed: 2 cabinas demo para business 1 ("Sala 1", "Sala 2").
---
--- Diferencias respecto a v14:
---   [v15 bloqueos] Tabla nueva `schedule_blocks` (dias completos en los
---                  que NO se permite agendar citas: festivos globales,
---                  vacaciones por empleado, mantenimiento por cabina).
---                  Convive con `employee_absences` (ese sigue cubriendo
---                  el caso de bloqueos parciales por horas).
---   [v15 bloqueos] Seed: 1 bloqueo global de prueba para business 1
---                  ("San Isidro" del 2027-05-15).
---
--- Diferencias respecto a v15 (REFACTOR ARQUITECTONICO):
---   [v16 membership] users desacoplado del negocio:
---                    - Quitadas las columnas id_business + id_role de users.
---                    - Cambiado el UNIQUE(id_business, email) por UNIQUE(email)
---                      global. Un email = una sola identidad.
---   [v16 membership] Tabla nueva `memberships` (id_user, id_business, id_role,
---                    is_active). Modela que un usuario puede pertenecer a N
---                    negocios con N roles. UNIQUE(id_user, id_business).
---   [v16 membership] FKs reapuntadas a memberships:
---                    - employee_schedules.id_user    -> id_membership
---                    - employee_absences.id_employee -> id_membership
---                    - appointments.id_employee      -> id_membership
---                    Asi los horarios, ausencias y citas son por relacion
---                    (usuario en negocio) y NO por identidad global.
---   [v16 membership] Seed migrado: por cada user existente se crea 1
---                    membership con su (id_business, id_role) anteriores.
---
--- Diferencias respecto a v16:
---   [v17 reset]      Tabla nueva `password_resets` (tokens efimeros de 1h
---                    para que un usuario que olvido password fije uno nuevo
---                    sin login previo).
---
--- Diferencias respecto a v17:
---   [v18 tax-audit]  Columna `taxes.created_at` (NOT NULL, DEFAULT
---                    CURRENT_TIMESTAMP) para alinear Tax con las demas
---                    entidades de soft delete (regla 7 del patron canonico
---                    de entidad: @PrePersist para createdAt). Antes Tax
---                    tenia deactivated_at pero NO created_at, asimetria
---                    que rompia la consistencia con businesses, users,
---                    clients, etc.
---
--- Diferencias respecto a v18:
---   [v19 audit+block] Columna `appointments.updated_at` (NULLABLE, sin
---                    DEFAULT). Se rellena cuando la cita muta (cambio de
---                    estado, marca de pago, edicion de notas) via
---                    @PreUpdate de la entidad. Permite responder
---                    "cuando se confirmo / pago / cancelo esta cita".
---                    Patron canonico: createdAt con @PrePersist y
---                    updatedAt con @PreUpdate cuando la entidad muta.
---   [v19 audit+block] CHECK `chk_block_target` en `schedule_blocks` que
---                    impone la exclusividad de tipo: un bloqueo es global
---                    (ambos NULL), por empleado (solo id_membership) o
---                    por cabina (solo id_booth). Antes era posible
---                    insertar una fila con id_membership Y id_booth
---                    rellenos -> "tipo 4" no contemplado, semantica
---                    indefinida en findApplicableBlocks.
---
--- Diferencias respecto a v19:
---   [v20 catalog-audit] Columnas `service_categories.created_at` y
---                    `services.created_at` (ambas NOT NULL DEFAULT
---                    CURRENT_TIMESTAMP) para alinear las entidades del
---                    catalog con la regla 7 del patron canonico de
---                    entidad (@PrePersist para createdAt). Paralelo a
---                    v18 con taxes: ambas tablas son soft delete pero
---                    no exponian la marca de creacion. Tras v20 todas
---                    las entidades soft-delete del proyecto cumplen
---                    isActive + createdAt + deactivatedAt.
--- ============================================================
-
 DROP DATABASE IF EXISTS optima_db;
 CREATE DATABASE optima_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE optima_db;
 
 
--- ------------------------------------------------------------
 -- 1. BUSINESSES (tenants of the SaaS platform)
--- ------------------------------------------------------------
 CREATE TABLE businesses (
-                            id_business          BIGINT AUTO_INCREMENT PRIMARY KEY,
-                            name                 VARCHAR(150)  NOT NULL,
-                            slug                 VARCHAR(150)  NOT NULL UNIQUE,
-                            email                VARCHAR(150)  NOT NULL UNIQUE,
-                            phone                VARCHAR(20),
-
-    -- Campos de dirección desglosados y geolocalización
-                            address              VARCHAR(255),
-                            city                 VARCHAR(100),
-                            state                VARCHAR(100),
-                            country              VARCHAR(100),
-                            postal_code          VARCHAR(20),
-                            latitude             DECIMAL(10, 8),
-                            longitude            DECIMAL(11, 8),
-
-    -- Configuración operativa
-                            appointment_interval INT           NOT NULL DEFAULT 30,
-                            is_active            BOOLEAN       NOT NULL DEFAULT TRUE,
-                            created_at           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                            deactivated_at       DATETIME      NULL,
-
-                            CONSTRAINT chk_appointment_interval
-                                CHECK (appointment_interval IN (15, 30, 45, 60))
+id_business BIGINT AUTO_INCREMENT PRIMARY KEY,
+	name VARCHAR(150) NOT NULL,
+	slug VARCHAR(150) NOT NULL UNIQUE,
+	email VARCHAR(150)  NOT NULL UNIQUE,
+	phone VARCHAR(20),
+	address VARCHAR(255),
+	city VARCHAR(100),
+	state VARCHAR(100),
+	country VARCHAR(100),
+	postal_code VARCHAR(20),
+	latitude DECIMAL(10, 8),
+	longitude DECIMAL(11, 8),
+	appointment_interval INT NOT NULL DEFAULT 30,
+	is_active BOOLEAN NOT NULL DEFAULT TRUE,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deactivated_at DATETIME NULL,
+	CONSTRAINT chk_appointment_interval CHECK (appointment_interval IN (15, 30, 45, 60))
 ) ENGINE=InnoDB;
 
--- ------------------------------------------------------------
 -- 2. ROLES (global catalog: ADMIN, EMPLOYEE)
--- ------------------------------------------------------------
 CREATE TABLE roles (
-                       id_role BIGINT AUTO_INCREMENT PRIMARY KEY,
-                       name    VARCHAR(30) NOT NULL UNIQUE
+	id_role BIGINT AUTO_INCREMENT PRIMARY KEY,
+	name VARCHAR(30) NOT NULL UNIQUE
 ) ENGINE=InnoDB;
 
-INSERT INTO roles (name) VALUES
-                             ('ADMIN'),
-                             ('EMPLOYEE');
+INSERT INTO roles (name) VALUES ('ADMIN'), ('EMPLOYEE');
 
--- ------------------------------------------------------------
 -- 3. USERS (identidad global; pertenece a N negocios via memberships)
--- [v16 membership] users deja de ser por-tenant. Quitadas id_business
--- y id_role; el email es ahora unique GLOBAL (una persona = una identidad,
--- aunque trabaje en varios negocios). La relacion (usuario, negocio, rol)
--- vive en la tabla `memberships`.
--- ------------------------------------------------------------
 CREATE TABLE users (
-                       id_user        BIGINT       AUTO_INCREMENT PRIMARY KEY,
-                       full_name      VARCHAR(150) NOT NULL,
-                       email          VARCHAR(150) NOT NULL UNIQUE,
-                       password_hash  VARCHAR(255) NOT NULL,
-                       phone          VARCHAR(20),
-                       is_active      BOOLEAN      NOT NULL DEFAULT TRUE,
-                       created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                       deactivated_at DATETIME     NULL
+	id_user BIGINT AUTO_INCREMENT PRIMARY KEY,
+	full_name VARCHAR(150) NOT NULL,
+	email VARCHAR(150) NOT NULL UNIQUE,
+	password_hash VARCHAR(255) NOT NULL,
+	phone VARCHAR(20),
+	is_active BOOLEAN NOT NULL DEFAULT TRUE,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deactivated_at DATETIME NULL
 ) ENGINE=InnoDB;
 
--- ------------------------------------------------------------
--- [v16 membership] 3.5. MEMBERSHIPS (relacion usuario <-> negocio + rol)
--- Una membership representa "el usuario X es ROLE en el negocio Y".
--- Un mismo usuario puede tener varias memberships (empleado en
--- peluqueria A + admin en clinica B). El login devuelve identity token,
--- y el endpoint /api/auth/select-business/{id} intercambia esa identity
--- por un tenant token con (businessId, role) embebidos.
--- ------------------------------------------------------------
+
+
 CREATE TABLE memberships (
-                            id_membership BIGINT   AUTO_INCREMENT PRIMARY KEY,
-                            id_user       BIGINT   NOT NULL,
-                            id_business   BIGINT   NOT NULL,
-                            id_role       BIGINT   NOT NULL,
-                            is_active     BOOLEAN  NOT NULL DEFAULT TRUE,
-                            created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                            -- [v21] color del empleado en el calendario (nombre de la paleta fija); NULL = automatico
-                            color         VARCHAR(20) NULL,
-                            CONSTRAINT fk_membership_user
-                                FOREIGN KEY (id_user) REFERENCES users(id_user),
-                            CONSTRAINT fk_membership_business
-                                FOREIGN KEY (id_business) REFERENCES businesses(id_business),
-                            CONSTRAINT fk_membership_role
-                                FOREIGN KEY (id_role) REFERENCES roles(id_role),
-                            CONSTRAINT uq_membership_user_business
-                                UNIQUE (id_user, id_business)
+	id_membership BIGINT AUTO_INCREMENT PRIMARY KEY,
+	id_user BIGINT NOT NULL,
+	id_business BIGINT NOT NULL,
+	id_role BIGINT NOT NULL,
+	is_active BOOLEAN  NOT NULL DEFAULT TRUE,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	color VARCHAR(20) NULL,
+	CONSTRAINT fk_membership_user FOREIGN KEY (id_user) REFERENCES users(id_user),
+	CONSTRAINT fk_membership_business FOREIGN KEY (id_business) REFERENCES businesses(id_business),
+	CONSTRAINT fk_membership_role FOREIGN KEY (id_role) REFERENCES roles(id_role),
+	CONSTRAINT uq_membership_user_business UNIQUE (id_user, id_business)
 ) ENGINE=InnoDB;
 
--- ------------------------------------------------------------
--- 4. EMPLOYEE SCHEDULES (weekly working hours)
--- day_of_week: 1=Monday, 2=Tuesday, ..., 7=Sunday
--- [v16 membership] id_user -> id_membership. El horario laboral pertenece
--- a la relacion (usuario, negocio): si el mismo usuario trabaja en dos
--- negocios distintos, tendra dos sets de horarios independientes.
--- ------------------------------------------------------------
+
 CREATE TABLE employee_schedules (
-                                    id_schedule   BIGINT  AUTO_INCREMENT PRIMARY KEY,
-                                    id_membership BIGINT  NOT NULL,
-                                    day_of_week   INT     NOT NULL,
-                                    start_time    TIME    NOT NULL,
-                                    end_time      TIME    NOT NULL,
-                                    CONSTRAINT fk_schedule_membership
-                                        FOREIGN KEY (id_membership) REFERENCES memberships(id_membership),
-                                    CONSTRAINT chk_day_of_week
-                                        CHECK (day_of_week BETWEEN 1 AND 7),
-                                    CONSTRAINT chk_schedule_times
-                                        CHECK (start_time < end_time)
+	id_schedule BIGINT AUTO_INCREMENT PRIMARY KEY,
+	id_membership BIGINT NOT NULL,
+	day_of_week INT NOT NULL,
+	start_time TIME NOT NULL,
+	end_time TIME NOT NULL,
+	CONSTRAINT fk_schedule_membership FOREIGN KEY (id_membership) REFERENCES memberships(id_membership),
+	CONSTRAINT chk_day_of_week CHECK (day_of_week BETWEEN 1 AND 7),
+	CONSTRAINT chk_schedule_times CHECK (start_time < end_time)
 ) ENGINE=InnoDB;
 
--- ------------------------------------------------------------
--- 5. TAXES (each business defines its own taxes)
--- ------------------------------------------------------------
+
 CREATE TABLE taxes (
-                       id_tax         BIGINT        AUTO_INCREMENT PRIMARY KEY,
-                       id_business    BIGINT        NOT NULL,
-                       name           VARCHAR(50)   NOT NULL,
-                       percentage     DECIMAL(5,2)  NOT NULL,
-                       is_active      BOOLEAN       NOT NULL DEFAULT TRUE,
-                       created_at     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                       deactivated_at DATETIME      NULL,
-                       CONSTRAINT fk_tax_business
-                           FOREIGN KEY (id_business) REFERENCES businesses(id_business),
-                       CONSTRAINT uq_tax_business_name
-                           UNIQUE (id_business, name),
-                       CONSTRAINT chk_tax_percentage
-                           CHECK (percentage >= 0 AND percentage <= 100)
+	id_tax BIGINT AUTO_INCREMENT PRIMARY KEY,
+	id_business BIGINT NOT NULL,
+	name VARCHAR(50) NOT NULL,
+	percentage DECIMAL(5,2) NOT NULL,
+	is_active BOOLEAN NOT NULL DEFAULT TRUE,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deactivated_at DATETIME NULL,
+	CONSTRAINT fk_tax_business FOREIGN KEY (id_business) REFERENCES businesses(id_business),
+	CONSTRAINT uq_tax_business_name UNIQUE (id_business, name),
+	CONSTRAINT chk_tax_percentage CHECK (percentage >= 0 AND percentage <= 100)
 ) ENGINE=InnoDB;
 
--- ------------------------------------------------------------
--- 6. CLIENTS (customers of each business)
--- ------------------------------------------------------------
+
 CREATE TABLE clients (
-                         id_client      BIGINT       AUTO_INCREMENT PRIMARY KEY,
-                         id_business    BIGINT       NOT NULL,
-                         full_name      VARCHAR(150) NOT NULL,
-                         email          VARCHAR(150),
-                         phone          VARCHAR(20),
-                         notes          TEXT,
-                         is_active      BOOLEAN      NOT NULL DEFAULT TRUE,
-                         created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                         deactivated_at DATETIME     NULL,
-                         CONSTRAINT fk_client_business
-                             FOREIGN KEY (id_business) REFERENCES businesses(id_business)
+	id_client BIGINT AUTO_INCREMENT PRIMARY KEY,
+	id_business BIGINT NOT NULL,
+	full_name VARCHAR(150) NOT NULL,
+	email VARCHAR(150),
+	phone VARCHAR(20),
+	notes TEXT,
+	is_active BOOLEAN NOT NULL DEFAULT TRUE,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deactivated_at DATETIME NULL,
+	CONSTRAINT fk_client_business FOREIGN KEY (id_business) REFERENCES businesses(id_business)
 ) ENGINE=InnoDB;
 
--- ------------------------------------------------------------
--- 7. SERVICE CATEGORIES (grouping of services per business)
--- ------------------------------------------------------------
+
 CREATE TABLE service_categories (
-                                    id_category    BIGINT       AUTO_INCREMENT PRIMARY KEY,
-                                    id_business    BIGINT       NOT NULL,
-                                    name           VARCHAR(100) NOT NULL,
-                                    is_active      BOOLEAN      NOT NULL DEFAULT TRUE,
-                                    created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,   -- [v20 catalog-audit]
-                                    deactivated_at DATETIME     NULL,
-                                    CONSTRAINT fk_category_business
-                                        FOREIGN KEY (id_business) REFERENCES businesses(id_business),
-                                    CONSTRAINT uq_category_business_name
-                                        UNIQUE (id_business, name)
+	id_category BIGINT AUTO_INCREMENT PRIMARY KEY,
+	id_business BIGINT NOT NULL,
+	name VARCHAR(100) NOT NULL,
+	is_active BOOLEAN NOT NULL DEFAULT TRUE,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deactivated_at DATETIME NULL,
+	CONSTRAINT fk_category_business FOREIGN KEY (id_business) REFERENCES businesses(id_business),
+	CONSTRAINT uq_category_business_name UNIQUE (id_business, name)
 ) ENGINE=InnoDB;
 
--- ------------------------------------------------------------
--- 8. SERVICES (offered by each business)
--- ------------------------------------------------------------
+
 CREATE TABLE services (
-                          id_service       BIGINT        AUTO_INCREMENT PRIMARY KEY,
-                          id_business      BIGINT        NOT NULL,
-                          id_category      BIGINT        NOT NULL,
-                          id_tax           BIGINT        NOT NULL,
-                          name             VARCHAR(150)  NOT NULL,
-                          description      TEXT,
-                          price            DECIMAL(10,2) NOT NULL,
-                          duration_minutes INT           NOT NULL,
-                          is_active        BOOLEAN       NOT NULL DEFAULT TRUE,
-                          created_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,   -- [v20 catalog-audit]
-                          deactivated_at   DATETIME      NULL,
-                          CONSTRAINT fk_service_business
-                              FOREIGN KEY (id_business) REFERENCES businesses(id_business),
-                          CONSTRAINT fk_service_category
-                              FOREIGN KEY (id_category) REFERENCES service_categories(id_category),
-                          CONSTRAINT fk_service_tax
-                              FOREIGN KEY (id_tax) REFERENCES taxes(id_tax),
-                          CONSTRAINT uq_service_business_name              -- [post-auditoria 2026-05-20]
-                              UNIQUE (id_business, name),
-                          CONSTRAINT chk_service_price
-                              CHECK (price >= 0),
-                          CONSTRAINT chk_service_duration
-                              CHECK (duration_minutes > 0)
+	id_service BIGINT AUTO_INCREMENT PRIMARY KEY,
+	id_business BIGINT NOT NULL,
+	id_category BIGINT NOT NULL,
+	id_tax BIGINT NOT NULL,
+	name VARCHAR(150) NOT NULL,
+	description TEXT,
+	price DECIMAL(10,2) NOT NULL,
+	duration_minutes INT NOT NULL,
+	is_active BOOLEAN NOT NULL DEFAULT TRUE,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	deactivated_at DATETIME NULL,
+	CONSTRAINT fk_service_business FOREIGN KEY (id_business) REFERENCES businesses(id_business),
+	CONSTRAINT fk_service_category FOREIGN KEY (id_category) REFERENCES service_categories(id_category),
+	CONSTRAINT fk_service_tax FOREIGN KEY (id_tax) REFERENCES taxes(id_tax),
+	CONSTRAINT uq_service_business_name UNIQUE (id_business, name),
+	CONSTRAINT chk_service_price CHECK (price >= 0),
+	CONSTRAINT chk_service_duration CHECK (duration_minutes > 0)
 ) ENGINE=InnoDB;
 
--- ------------------------------------------------------------
--- [v14 cabinas] 8.5. BOOTHS (espacios fisicos tenant-scoped)
--- Una "cabina" es un espacio donde se realiza la cita (sala, silla, bahia,
--- box). Es una restriccion fisica independiente del empleado: dos
--- empleados libres no sirven si solo hay una cabina libre.
--- ------------------------------------------------------------
+
 CREATE TABLE booths (
-                        id_booth       BIGINT       AUTO_INCREMENT PRIMARY KEY,
-                        id_business    BIGINT       NOT NULL,
-                        name           VARCHAR(80)  NOT NULL,
-                        -- [L] color de la cabina en el calendario (nombre de la paleta fija); NULL = automatico.
-                        -- Simetria con memberships.color.
-                        color          VARCHAR(20)  NULL,
-                        is_active      BOOLEAN      NOT NULL DEFAULT TRUE,
-                        deactivated_at DATETIME     NULL,
-                        created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        CONSTRAINT fk_booth_business
-                            FOREIGN KEY (id_business) REFERENCES businesses(id_business),
-                        CONSTRAINT uq_booth_business_name
-                            UNIQUE (id_business, name)
+	id_booth BIGINT AUTO_INCREMENT PRIMARY KEY,
+	id_business BIGINT NOT NULL,
+	name VARCHAR(80) NOT NULL,
+	color VARCHAR(20) NULL,
+	is_active BOOLEAN NOT NULL DEFAULT TRUE,
+	deactivated_at DATETIME NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT fk_booth_business FOREIGN KEY (id_business) REFERENCES businesses(id_business),
+	CONSTRAINT uq_booth_business_name UNIQUE (id_business, name)
 ) ENGINE=InnoDB;
 
--- ------------------------------------------------------------
--- 9. APPOINTMENT STATUSES (global catalog)
--- State flow: PENDING -> CONFIRMED -> IN_PROGRESS -> COMPLETED
--- Alternative ends: CANCELLED, NO_SHOW
--- ------------------------------------------------------------
+
 CREATE TABLE appointment_statuses (
-                                      id_status BIGINT AUTO_INCREMENT PRIMARY KEY,
-                                      name      VARCHAR(30) NOT NULL UNIQUE
+	id_status BIGINT AUTO_INCREMENT PRIMARY KEY,
+	name VARCHAR(30) NOT NULL UNIQUE
 ) ENGINE=InnoDB;
 
-INSERT INTO appointment_statuses (name) VALUES
-                                            ('PENDING'),
-                                            ('CONFIRMED'),
-                                            ('IN_PROGRESS'),
-                                            ('COMPLETED'),
-                                            ('CANCELLED'),
-                                            ('NO_SHOW');
+INSERT INTO appointment_statuses (name) VALUES ('PENDING'), ('CONFIRMED'), ('IN_PROGRESS'), ('COMPLETED'), ('CANCELLED'), ('NO_SHOW');
 
 
--- ------------------------------------------------------------
--- 10. APPOINTMENTS
--- id_employee: the user (role EMPLOYEE or ADMIN) who attends the appointment
--- [v14 cabinas] id_booth: cabina fisica donde se realiza la cita (NULLABLE).
---                          Si la cita no usa cabina (negocio sin cabinas o
---                          servicio que no la requiere) queda NULL.
--- ------------------------------------------------------------
--- [v16 membership] id_employee -> id_membership. La cita la atiende una
--- membership concreta (un usuario en su rol dentro de este negocio), no
--- la identidad global. Asi un mismo usuario que trabaje en dos negocios
--- jamas mezclara las citas de ambos.
 CREATE TABLE appointments (
-                              id_appointment BIGINT   AUTO_INCREMENT PRIMARY KEY,
-                              id_business    BIGINT   NOT NULL,
-                              id_client      BIGINT   NOT NULL,
-                              id_membership  BIGINT   NOT NULL,                 -- [v16 membership]
-                              id_booth       BIGINT   NULL,                     -- [v14 cabinas]
-                              id_status      BIGINT   NOT NULL,
+	id_appointment BIGINT AUTO_INCREMENT PRIMARY KEY,
+	id_business BIGINT NOT NULL,
+	id_client BIGINT NOT NULL,
+	id_membership BIGINT NOT NULL,
+	id_booth BIGINT NULL,
+	id_status BIGINT NOT NULL,
+	is_paid BOOLEAN NOT NULL DEFAULT FALSE,
+	start_datetime DATETIME NOT NULL,
+	end_datetime DATETIME NOT NULL,
+	notes TEXT,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NULL,
 
-    -- NUEVO CAMPO: Control de pagos para los filtros del calendario
-                              is_paid        BOOLEAN  NOT NULL DEFAULT FALSE,
-
-                              start_datetime DATETIME NOT NULL,
-                              end_datetime   DATETIME NOT NULL,
-                              notes          TEXT,
-                              created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                              updated_at     DATETIME NULL,                          -- [v19 audit]
-    -- [audit/race-condition] Columnas virtuales que materializan el "slot activo"
-    -- de la cita. Si la cita esta en estado activo (1=PENDING, 2=CONFIRMED,
-    -- 3=IN_PROGRESS) el slot vale (membership + start) y (booth + start);
-    -- si esta en cualquier otro estado (CANCELLED, NO_SHOW, COMPLETED) o no
-    -- usa cabina, vale NULL. El indice UNIQUE permite multiples NULLs, asi
-    -- que las citas no activas o sin cabina conviven sin restriccion.
-    -- Esto bloquea a NIVEL BD que dos transacciones concurrentes inserten
-    -- dos citas activas con el mismo (empleado, slot) o (cabina, slot),
-    -- complementando los locks pesimistas (que solo protegen las filas de
-    -- membership/booth, no el predicado temporal).
-                              active_slot_key       VARCHAR(50) GENERATED ALWAYS AS (
-                                  CASE WHEN id_status IN (1, 2, 3)
-                                       THEN CONCAT(id_membership, '_', start_datetime)
-                                       ELSE NULL END
-                              ) VIRTUAL,
-                              active_booth_slot_key VARCHAR(50) GENERATED ALWAYS AS (
-                                  CASE WHEN id_booth IS NOT NULL AND id_status IN (1, 2, 3)
-                                       THEN CONCAT(id_booth, '_', start_datetime)
-                                       ELSE NULL END
-                              ) VIRTUAL,
-                              CONSTRAINT fk_appointment_business
-                                  FOREIGN KEY (id_business) REFERENCES businesses(id_business),
-                              CONSTRAINT fk_appointment_client
-                                  FOREIGN KEY (id_client) REFERENCES clients(id_client),
-                              CONSTRAINT fk_appointment_membership              -- [v16 membership]
-                                  FOREIGN KEY (id_membership) REFERENCES memberships(id_membership),
-                              CONSTRAINT fk_appointment_booth                   -- [v14 cabinas]
-                                  FOREIGN KEY (id_booth) REFERENCES booths(id_booth),
-                              CONSTRAINT fk_appointment_status
-                                  FOREIGN KEY (id_status) REFERENCES appointment_statuses(id_status),
-                              CONSTRAINT chk_appointment_times
-                                  CHECK (start_datetime < end_datetime),
-                              CONSTRAINT uq_appointment_active_slot
-                                  UNIQUE (active_slot_key),
-                              CONSTRAINT uq_appointment_active_booth_slot
-                                  UNIQUE (active_booth_slot_key)
+	active_slot_key VARCHAR(50) GENERATED ALWAYS AS (
+		CASE WHEN id_status IN (1, 2, 3)
+			THEN CONCAT(id_membership, '_', start_datetime)
+			ELSE NULL END
+		) VIRTUAL,
+	active_booth_slot_key VARCHAR(50) GENERATED ALWAYS AS (
+		CASE WHEN id_booth IS NOT NULL AND id_status IN (1, 2, 3)
+			THEN CONCAT(id_booth, '_', start_datetime)
+			ELSE NULL END
+		) VIRTUAL,
+	CONSTRAINT fk_appointment_business FOREIGN KEY (id_business) REFERENCES businesses(id_business),
+	CONSTRAINT fk_appointment_client FOREIGN KEY (id_client) REFERENCES clients(id_client),
+	CONSTRAINT fk_appointment_membership FOREIGN KEY (id_membership) REFERENCES memberships(id_membership),
+	CONSTRAINT fk_appointment_booth FOREIGN KEY (id_booth) REFERENCES booths(id_booth),
+	CONSTRAINT fk_appointment_status FOREIGN KEY (id_status) REFERENCES appointment_statuses(id_status),
+	CONSTRAINT chk_appointment_times CHECK (start_datetime < end_datetime),
+	CONSTRAINT uq_appointment_active_slot UNIQUE (active_slot_key),
+	CONSTRAINT uq_appointment_active_booth_slot UNIQUE (active_booth_slot_key)
 ) ENGINE=InnoDB;
 
--- ------------------------------------------------------------
--- 11. APPOINTMENT SERVICES (services booked in each appointment)
--- applied_price and applied_tax_percentage are frozen at booking time
--- so future changes to service.price or tax.percentage don't affect history
--- ------------------------------------------------------------
+
 CREATE TABLE appointment_services (
-                                      id_appointment_service BIGINT        AUTO_INCREMENT PRIMARY KEY,
-                                      id_appointment         BIGINT        NOT NULL,
-                                      id_service             BIGINT        NOT NULL,
-                                      applied_price          DECIMAL(10,2) NOT NULL,
-                                      applied_tax_percentage DECIMAL(5,2)  NOT NULL,
-                                      CONSTRAINT fk_appsvc_appointment
-                                          FOREIGN KEY (id_appointment) REFERENCES appointments(id_appointment)
-                                              ON DELETE CASCADE,
-                                      CONSTRAINT fk_appsvc_service
-                                          FOREIGN KEY (id_service) REFERENCES services(id_service),
-                                      CONSTRAINT chk_appsvc_applied_price
-                                          CHECK (applied_price >= 0),
-                                      CONSTRAINT chk_appsvc_applied_tax
-                                          CHECK (applied_tax_percentage >= 0 AND applied_tax_percentage <= 100)
+	id_appointment_service BIGINT        AUTO_INCREMENT PRIMARY KEY,
+	id_appointment         BIGINT        NOT NULL,
+	id_service             BIGINT        NOT NULL,
+	applied_price          DECIMAL(10,2) NOT NULL,
+	applied_tax_percentage DECIMAL(5,2)  NOT NULL,
+	CONSTRAINT fk_appsvc_appointment FOREIGN KEY (id_appointment) REFERENCES appointments(id_appointment) ON DELETE CASCADE,
+	CONSTRAINT fk_appsvc_service FOREIGN KEY (id_service) REFERENCES services(id_service),
+	CONSTRAINT chk_appsvc_applied_price CHECK (applied_price >= 0),
+	CONSTRAINT chk_appsvc_applied_tax CHECK (applied_tax_percentage >= 0 AND applied_tax_percentage <= 100)
 ) ENGINE=InnoDB;
 
--- ------------------------------------------------------------
--- 12. BUSINESS HOURS (Global operating hours for the business)
--- ------------------------------------------------------------
+
 CREATE TABLE business_hours (
-                                id_business_hour BIGINT AUTO_INCREMENT PRIMARY KEY,
-                                id_business      BIGINT  NOT NULL,
-                                day_of_week      INT     NOT NULL, -- 1=Lunes, 2=Martes, ..., 7=Domingo
-                                start_time       TIME    NULL,     -- Puede ser nulo si el local está cerrado
-                                end_time         TIME    NULL,     -- Puede ser nulo si el local está cerrado
-                                is_closed        BOOLEAN NOT NULL DEFAULT FALSE,
-
-                                CONSTRAINT fk_business_hours_business
-                                    FOREIGN KEY (id_business) REFERENCES businesses(id_business)
-                                        ON DELETE CASCADE,
-
-                                CONSTRAINT chk_bh_day_of_week
-                                    CHECK (day_of_week BETWEEN 1 AND 7),
-
-                                CONSTRAINT chk_bh_times_logic
-                                    -- Si está cerrado, las horas no importan. Si está abierto, debe haber horas válidas.
-                                    CHECK (
-                                        is_closed = TRUE
-                                            OR (start_time IS NOT NULL AND end_time IS NOT NULL AND start_time < end_time)
-                                        )
-
-                                -- Nota: NO hay UNIQUE (id_business, day_of_week). Un negocio puede
-                                -- tener turno partido (p.ej. lunes 10-14 + 16-20). La no-superposición
-                                -- entre tramos del mismo día se valida en BusinessHourService con el
-                                -- patrón A<D AND C<B, igual que EmployeeScheduleService.
+	id_business_hour BIGINT AUTO_INCREMENT PRIMARY KEY,
+	id_business BIGINT NOT NULL,
+	day_of_week INT NOT NULL,
+	start_time TIME NULL,
+	end_time TIME NULL,
+	is_closed BOOLEAN NOT NULL DEFAULT FALSE,
+	CONSTRAINT fk_business_hours_business FOREIGN KEY (id_business) REFERENCES businesses(id_business) ON DELETE CASCADE,
+	CONSTRAINT chk_bh_day_of_week CHECK (day_of_week BETWEEN 1 AND 7),
+	CONSTRAINT chk_bh_times_logic CHECK ( is_closed = TRUE OR (start_time IS NOT NULL AND end_time IS NOT NULL AND start_time < end_time))
 ) ENGINE=InnoDB;
 
 
--- ------------------------------------------------------------
--- 13. EMPLOYEE ABSENCES (Bloqueos puntuales o vacaciones)
--- Sobrescribe la disponibilidad de employee_schedules
--- [v16 membership] id_employee -> id_membership. Misma logica que con
--- employee_schedules: la ausencia es de "usuario en este negocio".
--- ------------------------------------------------------------
 CREATE TABLE employee_absences (
-                                   id_absence     BIGINT       AUTO_INCREMENT PRIMARY KEY,
-                                   id_membership  BIGINT       NOT NULL,
-                                   start_datetime DATETIME     NOT NULL,
-                                   end_datetime   DATETIME     NOT NULL,
-                                   reason         VARCHAR(255) NULL, -- Ej: "Cita médica", "Vacaciones"
-                                   created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-                                   CONSTRAINT fk_absence_membership
-                                       FOREIGN KEY (id_membership) REFERENCES memberships(id_membership)
-                                           ON DELETE CASCADE,
-
-                                   CONSTRAINT chk_absence_times
-                                       CHECK (start_datetime < end_datetime)
+	id_absence BIGINT AUTO_INCREMENT PRIMARY KEY,
+	id_membership BIGINT NOT NULL,
+	start_datetime DATETIME NOT NULL,
+	end_datetime DATETIME NOT NULL,
+	reason VARCHAR(255) NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT fk_absence_membership FOREIGN KEY (id_membership) REFERENCES memberships(id_membership) ON DELETE CASCADE,
+	CONSTRAINT chk_absence_times CHECK (start_datetime < end_datetime)
 ) ENGINE=InnoDB;
 
 
--- ------------------------------------------------------------
--- 14. SCHEDULE BLOCKS [v15 bloqueos] (bloqueos de agenda por dia completo)
--- Tres tipos segun FKs:
---   - Global (festivo del negocio):   id_employee=NULL, id_booth=NULL.
---   - Por empleado (vacaciones):      id_employee=X,    id_booth=NULL.
---   - Por cabina (mantenimiento):     id_employee=NULL, id_booth=Y.
--- Convive con employee_absences: ese cubre rangos por horas (parciales);
--- schedule_blocks cubre dias completos.
--- ------------------------------------------------------------
--- [v16 membership] id_employee -> id_membership. Asi "vacaciones de Ana"
--- en la peluqueria A no bloquean la agenda de Ana en su otro negocio.
 CREATE TABLE schedule_blocks (
-                                 id_block       BIGINT       AUTO_INCREMENT PRIMARY KEY,
-                                 id_business    BIGINT       NOT NULL,
-                                 id_membership  BIGINT       NULL,
-                                 id_booth       BIGINT       NULL,
-                                 start_date     DATE         NOT NULL,
-                                 end_date       DATE         NOT NULL,
-                                 reason         VARCHAR(255) NULL,
-                                 created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-                                 CONSTRAINT fk_block_business
-                                     FOREIGN KEY (id_business) REFERENCES businesses(id_business),
-                                 CONSTRAINT fk_block_membership
-                                     FOREIGN KEY (id_membership) REFERENCES memberships(id_membership),
-                                 CONSTRAINT fk_block_booth
-                                     FOREIGN KEY (id_booth) REFERENCES booths(id_booth),
-                                 CONSTRAINT chk_block_dates
-                                     CHECK (start_date <= end_date),
-                                 CONSTRAINT chk_block_target                         -- [v19 audit+block]
-                                     CHECK (id_membership IS NULL OR id_booth IS NULL)
+	id_block BIGINT AUTO_INCREMENT PRIMARY KEY,
+	id_business BIGINT NOT NULL,
+	id_membership BIGINT NULL,
+	id_booth BIGINT NULL,
+	start_date DATE NOT NULL,
+	end_date DATE NOT NULL,
+	reason VARCHAR(255) NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT fk_block_business FOREIGN KEY (id_business) REFERENCES businesses(id_business),
+	CONSTRAINT fk_block_membership
+	FOREIGN KEY (id_membership) REFERENCES memberships(id_membership),
+	CONSTRAINT fk_block_booth FOREIGN KEY (id_booth) REFERENCES booths(id_booth),
+	CONSTRAINT chk_block_dates CHECK (start_date <= end_date),
+	CONSTRAINT chk_block_target CHECK (id_membership IS NULL OR id_booth IS NULL)
 ) ENGINE=InnoDB;
 
 
--- ------------------------------------------------------------
--- 15. PASSWORD RESETS [v17 reset]
--- Tokens efimeros (1 hora) para que un usuario que olvido su password
--- pueda fijar uno nuevo sin login previo.
---
--- Diseno:
---   - id_user: el password es de la identidad GLOBAL (users), no de
---     una membership. Un reset cambia la password en todos los
---     negocios donde la persona es miembro.
---   - token_hash: guardamos SHA-256(rawToken) en lugar del token plano.
---     Si robasen la BD no podrian usar los tokens. UNIQUE para impedir
---     colisiones.
---   - expires_at: el caller pone now()+1h.
---   - used_at: NULL hasta consumirse. Un token solo se usa una vez
---     (anti-replay).
---   - ON DELETE CASCADE: si se borra el usuario, sus resets se van.
--- ------------------------------------------------------------
 CREATE TABLE password_resets (
-                                 id_reset    BIGINT       AUTO_INCREMENT PRIMARY KEY,
-                                 id_user     BIGINT       NOT NULL,
-                                 token_hash  VARCHAR(255) NOT NULL UNIQUE,
-                                 expires_at  DATETIME     NOT NULL,
-                                 used_at     DATETIME     NULL,
-                                 created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-                                 CONSTRAINT fk_reset_user
-                                     FOREIGN KEY (id_user) REFERENCES users(id_user)
-                                         ON DELETE CASCADE
+	id_reset BIGINT AUTO_INCREMENT PRIMARY KEY,
+	id_user BIGINT NOT NULL,
+	token_hash VARCHAR(255) NOT NULL UNIQUE,
+	expires_at DATETIME NOT NULL,
+	used_at DATETIME NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT fk_reset_user FOREIGN KEY (id_user) REFERENCES users(id_user) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 
--- ------------------------------------------------------------
--- INDICES DE OPTIMIZACION  [post-auditoria 2026-05-20]
--- InnoDB ya indexa automaticamente cada PK, cada UNIQUE y cada
--- columna FK. Estos indices COMPUESTOS adicionales cubren las
--- consultas mas calientes (camino critico de crear cita y de
--- calcular disponibilidad), donde un indice de una sola columna
--- obligaria a filtrar el rango de fechas en memoria.
---
--- A proposito NO se indexan employee_absences ni schedule_blocks:
--- son tablas que se mantienen pequenas y ahi un indice solo
--- anadiria coste de escritura sin ganancia real de lectura.
--- business_hours: sin indice anyadido; el filtro por (id_business, day_of_week)
--- usa la FK por id_business y el patron de lectura es de pocas filas por dia.
--- ------------------------------------------------------------
 
 -- Solapamiento de citas por empleado: AppointmentRepository
 -- .existsOverlappingAppointment, se ejecuta en cada POST /appointments.
-CREATE INDEX idx_appt_membership_start
-    ON appointments (id_membership, start_datetime);
+CREATE INDEX idx_appt_membership_start ON appointments (id_membership, start_datetime);
 
 -- Citas activas del dia por negocio: AppointmentRepository
 -- .findActiveByBusinessAndDay (GET /availability) y la busqueda
 -- paginada searchAppointments (GET /appointments).
-CREATE INDEX idx_appt_business_start
-    ON appointments (id_business, start_datetime);
+CREATE INDEX idx_appt_business_start ON appointments (id_business, start_datetime);
 
 -- Solapamiento de citas por cabina: AppointmentRepository
 -- .existsOverlappingBoothAppointment, en POST /appointments con cabina.
-CREATE INDEX idx_appt_booth_start
-    ON appointments (id_booth, start_datetime);
+CREATE INDEX idx_appt_booth_start ON appointments (id_booth, start_datetime);
 
 -- Horario semanal del empleado: EmployeeScheduleRepository
 -- .findAllByMembershipIdAndDayOfWeek, en cada validacion de cita y
 -- en el algoritmo de disponibilidad.
-CREATE INDEX idx_schedule_membership_day
-    ON employee_schedules (id_membership, day_of_week);
+CREATE INDEX idx_schedule_membership_day ON employee_schedules (id_membership, day_of_week);
 
 
--- ------------------------------------------------------------
--- SEED: dos negocios completos. El negocio 1 ("Demo", peluqueria) y el
--- negocio 2 ("Centro de Estetica Aura"). admin@optima.com es ADMIN del
--- negocio 1 y EMPLEADO del negocio 2 (doble membership): al hacer login
--- recibe identity token + selector de negocio. El bloque que llena el
--- negocio 2 esta al final del archivo (ver "SEED ENRIQUECIDO 2").
--- Credenciales del demo:
---   email:        admin@optima.com   (UNIQUE global desde v16)
---   password:     12345678
--- (hash BCrypt cost 10 generado offline; Spring acepta $2b$ y $2a$
--- indistintamente en BCryptPasswordEncoder.matches)
---
--- [v16 membership] Cada user del seed genera UNA membership con su
--- (id_business, id_role) anteriores. Por la secuencia INSERT, los
--- AUTO_INCREMENT de users y memberships coinciden 1:1 (u1<->m1, u2<->m2,
--- u3<->m3, u4<->m4). Eso permite que los INSERTs de employee_schedules,
--- employee_absences y appointments mantengan los mismos numeros despues
--- del rename id_user -> id_membership.
--- ------------------------------------------------------------
+
+
+
+
+
+
+
 INSERT INTO businesses (name, slug, email, phone,
                         address, city, state, country, postal_code,
                         appointment_interval)

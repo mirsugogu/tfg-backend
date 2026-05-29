@@ -16,7 +16,6 @@ import com.optima.api.modules.user.dto.response.UserResponse;
 import com.optima.api.modules.user.model.User;
 import com.optima.api.modules.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -30,7 +29,6 @@ import java.util.List;
 
 /** Servicio para empleados y perfil del usuario autenticado. */
 @Service
-@Slf4j
 @Transactional
 @RequiredArgsConstructor
 public class UserService {
@@ -213,7 +211,6 @@ public class UserService {
         }
 
         if (!passwordEncoder.matches(currentPassword, u.getPasswordHash())) {
-            log.warn("Cambio de password fallido: actual incorrecto (userId={})", userId);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "La contraseña actual no es correcta");
         }
@@ -225,7 +222,6 @@ public class UserService {
 
         u.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(u);
-        log.info("Password cambiado correctamente (userId={})", userId);
     }
 
     /**

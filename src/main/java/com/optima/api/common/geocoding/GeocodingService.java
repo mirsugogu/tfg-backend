@@ -1,7 +1,6 @@
 package com.optima.api.common.geocoding;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -13,7 +12,6 @@ import java.time.Duration;
 import java.util.Optional;
 
 /** Convierte direcciones en coordenadas sin bloquear si la API externa falla. */
-@Slf4j
 @Service
 public class GeocodingService {
 
@@ -65,7 +63,6 @@ public class GeocodingService {
                     .body(JsonNode.class);
 
             if (body == null || !body.isArray() || body.isEmpty()) {
-                log.warn("Geocoding sin resultados para query='{}'", query);
                 return Optional.empty();
             }
 
@@ -74,15 +71,13 @@ public class GeocodingService {
             String lonStr = first.path("lon").asText(null);
 
             if (latStr == null || lonStr == null) {
-                log.warn("Geocoding respuesta sin lat/lon para query='{}'", query);
                 return Optional.empty();
             }
 
             return Optional.of(new Coordinates(
                     new BigDecimal(latStr),
                     new BigDecimal(lonStr)));
-        } catch (Exception ex) {
-            log.warn("Geocoding fallido para query='{}': {}", query, ex.getMessage());
+        } catch (Exception ignored) {
             return Optional.empty();
         }
     }
