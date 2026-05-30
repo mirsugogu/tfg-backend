@@ -51,7 +51,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 400 cuando fallan validaciones en parametros de ruta o query.
+     * Devuelve 400 cuando fallan validaciones en parametros de ruta o query
      */
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -64,7 +64,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 400 cuando falta un parametro obligatorio.
+     * Devuelve 400 cuando falta un parametro obligatorio
      */
     @ExceptionHandler(MissingServletRequestParameterException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -75,7 +75,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 400 cuando un parametro no tiene el tipo esperado.
+     * Devuelve 400 cuando un parametro no tiene el tipo esperado
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -90,7 +90,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 400 cuando se intenta ordenar por un campo inexistente.
+     * Devuelve 400 cuando se intenta ordenar por un campo inexistente
      */
     @ExceptionHandler(PropertyReferenceException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -101,7 +101,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 400 cuando Spring no puede convertir un parametro.
+     * Devuelve 400 cuando Spring no puede convertir un parametro
      */
     @ExceptionHandler({NumberFormatException.class, ConversionFailedException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -112,7 +112,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 400 cuando el cuerpo JSON no se puede leer correctamente.
+     * Devuelve 400 cuando el cuerpo JSON no se puede leer correctamente
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -129,7 +129,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 405 cuando la ruta existe, pero no admite ese metodo HTTP.
+     * Devuelve 405 cuando la ruta existe, pero no admite ese metodo HTTP
      */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
@@ -143,7 +143,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 404 cuando la URL no corresponde a ningun recurso.
+     * Devuelve 404 cuando la URL no corresponde a ningun recurso
      */
     @ExceptionHandler(NoResourceFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
@@ -154,7 +154,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 415 cuando el tipo de contenido no es compatible.
+     * Devuelve 415 cuando el tipo de contenido no es compatible
      */
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
@@ -166,7 +166,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Respeta el codigo HTTP definido por los servicios.
+     * Respeta el codigo HTTP definido por los servicios
      */
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex) {
@@ -180,7 +180,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 404 si JPA no encuentra una entidad esperada.
+     * Devuelve 404 si JPA no encuentra una entidad esperada
      */
     @ExceptionHandler(EntityNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
@@ -190,7 +190,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 403 cuando Spring Security bloquea una operacion.
+     * Devuelve 403 cuando Spring Security bloquea una operacion
      */
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
@@ -201,7 +201,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 409 cuando la base de datos rechaza una restriccion.
+     * Devuelve 409 cuando la base de datos rechaza una restriccion
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
@@ -212,7 +212,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Respuesta generica para errores no controlados.
+     * Respuesta generica para errores no controlados
      */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

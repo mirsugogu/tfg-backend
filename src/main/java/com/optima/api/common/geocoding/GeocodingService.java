@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Optional;
 
-/** Convierte direcciones en coordenadas sin bloquear si la API externa falla. */
+/** Convierte direcciones en coordenadas sin bloquear si la API externa falla */
 @Service
 public class GeocodingService {
 
@@ -38,8 +38,7 @@ public class GeocodingService {
     /**
      * Intenta resolver una direccion si hay datos minimos suficientes.
      */
-    public Optional<Coordinates> geocode(String addressLine, String city,
-                                          String postalCode, String country) {
+    public Optional<Coordinates> geocode(String addressLine, String city, String postalCode, String country) {
         if (country == null || country.isBlank()) {
             return Optional.empty();
         }

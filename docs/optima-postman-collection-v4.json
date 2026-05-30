@@ -47,6 +47,7 @@
     { "key": "adminUserId", "value": "", "type": "string" },
     { "key": "employeeUserId", "value": "", "type": "string" },
     { "key": "userToDeleteId", "value": "", "type": "string" },
+    { "key": "myMembershipId", "value": "", "type": "string" },
     { "key": "scheduleId", "value": "", "type": "string" },
     { "key": "scheduleToDeleteId", "value": "", "type": "string" },
     { "key": "absenceId", "value": "", "type": "string" },
@@ -128,7 +129,7 @@
         },
         {
           "name": "GET /api/me/businesses - memberships activas",
-          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","const list=pm.response.json();","pm.test('es array',()=>pm.expect(list).to.be.an('array'));","pm.test('al menos 1 membership',()=>pm.expect(list.length).to.be.greaterThan(0));","pm.test('campos esperados',()=>{const m=list[0];pm.expect(m).to.have.all.keys('membershipId','businessId','businessName','role');});"]}}],
+          "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));","const list=pm.response.json();","pm.test('es array',()=>pm.expect(list).to.be.an('array'));","pm.test('al menos 1 membership',()=>pm.expect(list.length).to.be.greaterThan(0));","pm.test('campos esperados',()=>{const m=list[0];pm.expect(m).to.have.all.keys('membershipId','businessId','businessName','role');});","const mine=list.find(m=>m.businessId===Number(pm.collectionVariables.get('businessId')));","if(mine)pm.collectionVariables.set('myMembershipId',mine.membershipId);"]}}],
           "request": {"method":"GET","url":{"raw":"{{baseUrl}}/api/me/businesses","host":["{{baseUrl}}"],"path":["api","me","businesses"]}}
         },
         {
@@ -341,7 +342,7 @@
         {
           "name": "PUT update",
           "event": [{"listen":"test","script":{"exec":["pm.test('200',()=>pm.response.to.have.status(200));"]}}],
-          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/hours/{{hourId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","hours","{{hourId}}"]},"body":{"mode":"raw","raw":"{\"dayOfWeek\":1,\"startTime\":\"08:00\",\"endTime\":\"20:00\",\"isClosed\":false}"}}
+          "request": {"method":"PUT","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/hours/{{hourId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","hours","{{hourId}}"]},"body":{"mode":"raw","raw":"{\"dayOfWeek\":1,\"startTime\":\"08:00\",\"endTime\":\"18:00\",\"isClosed\":false}"}}
         }
       ]
     },
@@ -462,6 +463,11 @@
           "name": "POST userToDelete",
           "event": [{"listen":"test","script":{"exec":["pm.test('201',()=>pm.response.to.have.status(201));","pm.collectionVariables.set('userToDeleteId',pm.response.json().id);"]}}],
           "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/users","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","users"]},"body":{"mode":"raw","raw":"{\"roleId\":2,\"fullName\":\"User To Delete\",\"email\":\"todel{{uniqSuffix}}@salon.com\",\"password\":\"password1\"}"}}
+        },
+        {
+          "name": "DELETE admin a si mismo (auto-desactivacion) -> 409",
+          "event": [{"listen":"test","script":{"exec":["pm.test('409',()=>pm.response.to.have.status(409));","pm.test('msg auto-desactivacion',()=>pm.expect(pm.response.json().message).to.include('propia'));"]}}],
+          "request": {"method":"DELETE","url":{"raw":"{{baseUrl}}/api/businesses/{{businessId}}/users/{{myMembershipId}}","host":["{{baseUrl}}"],"path":["api","businesses","{{businessId}}","users","{{myMembershipId}}"]}}
         },
         {
           "name": "DELETE user (soft)",

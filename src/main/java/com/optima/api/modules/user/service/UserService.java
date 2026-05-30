@@ -120,9 +120,16 @@ public class UserService {
         return UserResponse.from(membershipRepository.save(m));
     }
 
-    /** Archiva la membership del empleado si no tiene citas activas futuras. */
-    public void deactivate(Long businessId, Long id) {
+    /**
+     * Archiva la membership del empleado si no tiene citas activas futuras.
+     * Un administrador no puede desactivar su propia membresía.
+     */
+    public void deactivate(Long businessId, Long id, Long callerUserId) {
         Membership m = findOrThrow(businessId, id);
+        if (m.getUser().getId().equals(callerUserId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "No puedes desactivar tu propia membresía");
+        }
         if (!m.getIsActive()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "El empleado ya está desactivado");

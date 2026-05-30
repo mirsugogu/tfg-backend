@@ -1,5 +1,6 @@
 package com.optima.api.modules.user.controller;
 
+import com.optima.api.common.security.AuthPrincipal;
 import com.optima.api.modules.user.dto.request.CreateUserRequest;
 import com.optima.api.modules.user.dto.request.UpdateUserRequest;
 import com.optima.api.modules.user.dto.response.UserResponse;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -69,8 +71,10 @@ public class UserController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
-    public void deactivate(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
-        userService.deactivate(businessId, id);
+    public void deactivate(@AuthenticationPrincipal AuthPrincipal principal,
+                           @PathVariable @Positive Long businessId,
+                           @PathVariable @Positive Long id) {
+        userService.deactivate(businessId, id, principal.userId());
     }
 
     /**
