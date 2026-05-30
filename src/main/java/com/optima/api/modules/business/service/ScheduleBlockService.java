@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-/** Gestiona bloqueos de agenda globales, por empleado o por cabina. */
+/** logica de bloqueos de agenda del negocio */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -29,7 +29,7 @@ public class ScheduleBlockService {
     private final MembershipRepository membershipRepository;
     private final BoothRepository boothRepository;
 
-    /** Crea un bloqueo de agenda y valida sus referencias del negocio. */
+    /** crea un bloqueo de agenda y valida sus referencias */
     public ScheduleBlockResponse create(Long businessId, CreateScheduleBlockRequest request) {
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
@@ -40,7 +40,7 @@ public class ScheduleBlockService {
                     "La fecha de inicio no puede ser posterior a la de fin");
         }
 
-        // El bloqueo solo puede apuntar a un tipo de recurso.
+        // un bloqueo solo puede ir contra un recurso a la vez
         if (request.membershipId() != null && request.boothId() != null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Un bloqueo no puede dirigirse simultaneamente a un empleado "
@@ -75,22 +75,20 @@ public class ScheduleBlockService {
         return ScheduleBlockResponse.from(blockRepository.save(b));
     }
 
-    /**
-     * Listado paginado de bloqueos del negocio (orden cronologico ASC).
-     */
+    /** lista los bloqueos del negocio por orden cronologico */
     @Transactional(readOnly = true)
     public Page<ScheduleBlockResponse> listByBusiness(Long businessId, Pageable pageable) {
         return blockRepository.findByBusinessIdOrderByStartDateAsc(businessId, pageable)
                 .map(ScheduleBlockResponse::from);
     }
 
-    /** Devuelve un bloqueo del negocio. */
+    /** devuelve un bloqueo concreto del negocio */
     @Transactional(readOnly = true)
     public ScheduleBlockResponse getById(Long businessId, Long id) {
         return ScheduleBlockResponse.from(findOrThrow(businessId, id));
     }
 
-    /** Borra el bloqueo de la base de datos. */
+    /** elimina un bloqueo de agenda */
     public void delete(Long businessId, Long id) {
         ScheduleBlock b = findOrThrow(businessId, id);
         blockRepository.delete(b);

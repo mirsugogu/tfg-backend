@@ -1,8 +1,8 @@
 package com.optima.api.common.security;
 
 /**
- * Datos del usuario que sacamos del token JWT cuando llega una peticion
- * Este record lo usamos en los controllers para saber quien esta haciendo la peticion
+ * datos del usuario sacados del token
+ * se usan para identificar la peticion
  */
 public record AuthPrincipal(
         Long userId,      // id del usuario en la base de datos

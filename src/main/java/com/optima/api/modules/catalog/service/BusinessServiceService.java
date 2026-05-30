@@ -21,7 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
-/** Logica de servicios comerciales. */
+/** aqui va lo de los servicios del catalogo */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -32,7 +32,7 @@ public class BusinessServiceService {
     private final ServiceCategoryRepository categoryRepository;
     private final TaxRepository taxRepository;
 
-    /** Crea un nuevo servicio en el catalogo del negocio. */
+    /** crea un servicio nuevo dentro del negocio */
     public BusinessServiceResponse createService(Long businessId, CreateServiceRequest request) {
 
         String name = request.name().trim();
@@ -51,7 +51,7 @@ public class BusinessServiceService {
                         "No se encontró el negocio con ID: " + businessId
                 ));
 
-        // La categoria debe pertenecer al negocio y estar activa.
+        // la categoria tiene que ser de este negocio y seguir activa
         ServiceCategory category = categoryRepository
                 .findByIdAndBusinessId(request.categoryId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -64,7 +64,7 @@ public class BusinessServiceService {
                     "La categoría con ID: " + request.categoryId() + " está desactivada");
         }
 
-        // El impuesto debe pertenecer al negocio y estar activo.
+        // con el impuesto hacemos lo mismo para no mezclar datos
         Tax tax = taxRepository
                 .findByIdAndBusinessId(request.taxId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -89,7 +89,7 @@ public class BusinessServiceService {
         return BusinessServiceResponse.from(serviceRepository.save(newService));
     }
 
-    /** Lista servicios activos o archivados de un negocio. */
+    /** lista los servicios segun queramos activos o archivados */
     @Transactional(readOnly = true)
     public Page<BusinessServiceResponse> getActiveServicesByBusiness(Long businessId, boolean active, Pageable pageable) {
         Page<BusinessService> page = active
@@ -98,17 +98,17 @@ public class BusinessServiceService {
         return page.map(BusinessServiceResponse::from);
     }
 
-    /** Obtiene un servicio del negocio. */
+    /** devuelve un servicio concreto */
     @Transactional(readOnly = true)
     public BusinessServiceResponse getServiceById(Long businessId, Long id) {
         return BusinessServiceResponse.from(findOrThrow(businessId, id));
     }
 
-    /** Actualiza los campos editables de un servicio. */
+    /** aqui cambiamos los datos que si se pueden tocar */
     public BusinessServiceResponse updateService(Long businessId, Long id, UpdateServiceRequest request) {
         BusinessService service = findOrThrow(businessId, id);
 
-        // Validar unicidad del nombre solo si ha cambiado
+        // solo miramos duplicados si de verdad cambia el nombre
         String newName = request.name().trim();
         if (!service.getName().equalsIgnoreCase(newName) &&
                 serviceRepository.existsByBusinessIdAndNameIgnoreCase(businessId, newName)) {
@@ -116,7 +116,7 @@ public class BusinessServiceService {
                     "Ya existe un servicio con ese nombre en este negocio (revisa también los archivados)");
         }
 
-        // Si cambia la categoria, la nueva debe estar activa.
+        // si le cambian la categoria la nueva tambien tiene que valer
         ServiceCategory category = categoryRepository
                 .findByIdAndBusinessId(request.categoryId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -129,7 +129,7 @@ public class BusinessServiceService {
                     "La categoría con ID: " + request.categoryId() + " está desactivada");
         }
 
-        // Si cambia el impuesto, el nuevo debe estar activo.
+        // con el impuesto igual
         Tax tax = taxRepository
                 .findByIdAndBusinessId(request.taxId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -152,7 +152,7 @@ public class BusinessServiceService {
         return BusinessServiceResponse.from(serviceRepository.save(service));
     }
 
-    /** Desactiva un servicio sin borrar su historico. */
+    /** esto lo archiva pero no lo pierde */
     public void deactivateService(Long businessId, Long id) {
         BusinessService service = findOrThrow(businessId, id);
         if (!service.getIsActive()) {
@@ -164,7 +164,7 @@ public class BusinessServiceService {
         serviceRepository.save(service);
     }
 
-    /** Reactiva un servicio archivado: pone isActive=true y deactivatedAt=null. */
+    /** reactiva un servicio archivado si su categoria e impuesto siguen bien */
     public BusinessServiceResponse reactivateService(Long businessId, Long id) {
         BusinessService service = findOrThrow(businessId, id);
         if (service.getIsActive()) {
@@ -190,7 +190,7 @@ public class BusinessServiceService {
         return BusinessServiceResponse.from(serviceRepository.save(service));
     }
 
-    /** Busca un servicio dentro de un negocio. */
+    /** busca el servicio dentro del negocio y si no lanza error */
     private BusinessService findOrThrow(Long businessId, Long id) {
         return serviceRepository.findByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new ResponseStatusException(

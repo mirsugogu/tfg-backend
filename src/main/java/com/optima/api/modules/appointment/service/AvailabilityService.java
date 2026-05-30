@@ -37,7 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Calcula los huecos libres del negocio para una fecha y unos servicios elegidos. */
+/** calcula los huecos libres para una fecha y unos servicios */
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -53,7 +53,7 @@ public class AvailabilityService {
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final AppointmentRepository appointmentRepository;
 
-    /** Calcula slots libres aplicando negocio, empleado, cabina y bloqueos. */
+    /** calcula la disponibilidad teniendo en cuenta horarios y bloqueos */
     public AvailabilityResponse getAvailability(Long businessId,
                                                 LocalDate date,
                                                 List<Long> serviceIds,
@@ -67,7 +67,7 @@ public class AvailabilityService {
 
         int totalDuration = resolveServicesAndSumDuration(businessId, serviceIds);
 
-        // Puede haber varios tramos abiertos en el mismo dia, por ejemplo turno partido.
+        // un mismo dia puede tener varios tramos abiertos
         int dayOfWeek = date.getDayOfWeek().getValue(); // 1=Lunes..7=Domingo
         List<BusinessHour> openHours = businessHourRepository
                 .findAllByBusinessIdAndDayOfWeekOrderByStartTimeAsc(businessId, dayOfWeek)
@@ -78,7 +78,7 @@ public class AvailabilityService {
             return new AvailabilityResponse(date, businessId, totalDuration, List.of());
         }
 
-        // Un bloqueo global deja el dia sin huecos disponibles.
+        // un bloqueo general deja el dia completo sin huecos
         List<ScheduleBlock> blocksOfDay =
                 scheduleBlockRepository.findAllForDay(businessId, date);
         boolean hasGlobalBlock = blocksOfDay.stream()
@@ -99,7 +99,7 @@ public class AvailabilityService {
 
         List<Booth> candidateBooths = resolveBoothCandidates(businessId, boothId);
 
-        // Al editar, la cita actual no debe ocupar su propio slot.
+        // al editar, la propia cita no debe contar como ocupada
         LocalDateTime dayWindowStart = date.atStartOfDay();
         LocalDateTime dayWindowEnd = date.plusDays(1).atStartOfDay();
         List<Appointment> activeAppointments =
@@ -110,7 +110,7 @@ public class AvailabilityService {
                                 || !excludeAppointmentId.equals(a.getId()))
                         .toList();
 
-        // Se precargan horarios y ausencias para no consultar dentro del bucle.
+        // se cargan horarios y ausencias antes de recorrer los huecos
         int interval = business.getAppointmentInterval();
         List<AvailabilitySlotResponse> slots = new ArrayList<>();
 
@@ -147,7 +147,7 @@ public class AvailabilityService {
                     .toList();
 
             for (EmployeeSchedule range : ranges) {
-                // Asi se respetan descansos del negocio aunque el empleado tenga horario continuo.
+                // asi tambien se respetan los cortes del horario del negocio
                 for (BusinessHour bh : openHours) {
                     LocalDateTime dayStart = date.atTime(bh.getStartTime());
                     LocalDateTime dayEnd = date.atTime(bh.getEndTime());
@@ -173,7 +173,7 @@ public class AvailabilityService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Debe indicar al menos un servicio");
         }
-        // Se quitan repetidos para no sumar dos veces el mismo servicio.
+        // se eliminan repetidos para no sumar duracion dos veces
         Set<Long> uniqueIds = new HashSet<>(serviceIds);
         List<BusinessService> services =
                 serviceRepository.findAllByIdInAndBusinessId(uniqueIds, businessId);
@@ -251,7 +251,7 @@ public class AvailabilityService {
         LocalDateTime rangeStart = max(date.atTime(range.getStartTime()), dayStart);
         LocalDateTime rangeEnd   = min(date.atTime(range.getEndTime()),   dayEnd);
 
-        // Se redondea hacia arriba al intervalo configurado por el negocio.
+        // se ajusta el inicio al siguiente corte valido del intervalo
         LocalDateTime cursor = alignUpToInterval(rangeStart, interval);
 
         while (!cursor.plusMinutes(totalDuration).isAfter(rangeEnd)) {
@@ -263,7 +263,7 @@ public class AvailabilityService {
                         slotStart, slotEnd,
                         candidateBooths, blockedBoothIds, allActiveAppointments);
 
-                // Sin cabinas configuradas, el slot es valido con booth=null.
+                // si el negocio no trabaja con cabinas, el hueco sigue siendo valido
                 boolean boothConstraintSatisfied =
                         candidateBooths.isEmpty() || booth != null;
 
@@ -294,7 +294,7 @@ public class AvailabilityService {
         return false;
     }
 
-    /** Devuelve la primera cabina libre del rango, o null si no hay ninguna. */
+    /** devuelve la primera cabina libre del rango o null si no hay */
     private Booth pickFreeBooth(LocalDateTime start, LocalDateTime end,
                                 List<Booth> candidates,
                                 List<Long> blockedBoothIds,

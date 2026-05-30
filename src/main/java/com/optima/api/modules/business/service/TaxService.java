@@ -16,7 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
-/** Logica de impuestos del negocio. */
+/** logica de impuestos del negocio */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -26,8 +26,8 @@ public class TaxService {
     private final BusinessRepository businessRepository;
 
     /**
-     * Crea un impuesto en el negocio. Falla si ya existe otro impuesto
-     * con el mismo nombre en este negocio (409).
+     * crea un impuesto nuevo del negocio
+     * si ya existe otro con el mismo nombre devuelve conflicto
      */
     public TaxResponse create(Long businessId, CreateTaxRequest request) {
         var business = businessRepository.findById(businessId)
@@ -48,7 +48,7 @@ public class TaxService {
         return TaxResponse.from(taxRepository.save(t));
     }
 
-    /** Lista impuestos activos o archivados del negocio. */
+    /** lista impuestos activos o archivados del negocio */
     @Transactional(readOnly = true)
     public Page<TaxResponse> listActive(Long businessId, boolean active, Pageable pageable) {
         Page<Tax> page = active
@@ -57,13 +57,13 @@ public class TaxService {
         return page.map(TaxResponse::from);
     }
 
-    /** Devuelve un impuesto del negocio. */
+    /** devuelve un impuesto del negocio */
     @Transactional(readOnly = true)
     public TaxResponse getById(Long businessId, Long id) {
         return TaxResponse.from(findOrThrow(businessId, id));
     }
 
-    /** Actualiza un impuesto activo y evita nombres duplicados. */
+    /** actualiza un impuesto activo del negocio */
     public TaxResponse update(Long businessId, Long id, UpdateTaxRequest request) {
         Tax t = findOrThrow(businessId, id);
 
@@ -84,7 +84,7 @@ public class TaxService {
         return TaxResponse.from(taxRepository.save(t));
     }
 
-    /** Archiva el impuesto sin borrarlo. */
+    /** archiva el impuesto sin borrarlo fisicamente */
     public void deactivate(Long businessId, Long id) {
         Tax t = findOrThrow(businessId, id);
         if (!t.getIsActive()) {
@@ -96,7 +96,7 @@ public class TaxService {
         taxRepository.save(t);
     }
 
-    /** Reactiva un impuesto archivado. */
+    /** reactiva un impuesto archivado */
     public TaxResponse reactivate(Long businessId, Long id) {
         Tax t = findOrThrow(businessId, id);
         if (t.getIsActive()) {
@@ -108,6 +108,7 @@ public class TaxService {
         return TaxResponse.from(taxRepository.save(t));
     }
 
+    /** busca un impuesto dentro del negocio o lanza error */
     private Tax findOrThrow(Long businessId, Long id) {
         return taxRepository.findByIdAndBusinessId(id, businessId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,

@@ -25,19 +25,17 @@ import java.time.Instant;
 import java.util.stream.Collectors;
 
 /**
- * Clase que captura todas las excepciones de la API y devuelve respuestas con formato comun
- * Asi el frontend siempre recibe el mismo JSON de error, sin importar que haya fallado
+ * unifica el formato de errores de la api
+ * asi el front recibe siempre la misma estructura
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /**
-     * Cuando un DTO llega con datos invalidos, juntamos todos los errores y los devolvemos
-     */
+    /** junta los errores de validacion del dto */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleValidation(MethodArgumentNotValidException ex) {
-        // recorremos todos los campos que fallaron y armamos un string con los mensajes
+        // aqui se juntan todos los mensajes en un solo texto
         String errors = ex.getBindingResult().getFieldErrors().stream()
             .map(e -> e.getField() + ": " + e.getDefaultMessage())
             .collect(Collectors.joining(", "));
@@ -45,9 +43,7 @@ public class GlobalExceptionHandler {
             Instant.now().toString());
     }
 
-    /**
-     * Para cuando algun servicio lanza IllegalArgumentException con un mensaje custom
-     */
+    /** devuelve illegalargument como bad request */
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleIllegalArgument(IllegalArgumentException ex) {
@@ -55,9 +51,7 @@ public class GlobalExceptionHandler {
             Instant.now().toString());
     }
 
-    /**
-     * Cuando fallan las validaciones de los parametros de la URL, tipo @Min o @NotNull en el path
-     */
+    /** maneja validaciones de parametros */
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleConstraintViolation(ConstraintViolationException ex) {
@@ -68,9 +62,7 @@ public class GlobalExceptionHandler {
             Instant.now().toString());
     }
 
-    /**
-     * Si falta un parametro obligatorio en la peticion, le avisamos cual es
-     */
+    /** avisa cuando falta un parametro obligatorio */
     @ExceptionHandler(MissingServletRequestParameterException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleMissingParam(MissingServletRequestParameterException ex) {
@@ -79,9 +71,7 @@ public class GlobalExceptionHandler {
             Instant.now().toString());
     }
 
-    /**
-     * Se lanza cuando mandan un tipo incorrecto, por ejemplo un texto donde va un numero
-     */
+    /** maneja tipos incorrectos en parametros */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
@@ -94,9 +84,7 @@ public class GlobalExceptionHandler {
             Instant.now().toString());
     }
 
-    /**
-     * Si intentan ordenar por un campo que no existe en la entidad, devolvemos 400
-     */
+    /** controla ordenaciones por campos no validos */
     @ExceptionHandler(PropertyReferenceException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handlePropertyReference(PropertyReferenceException ex) {
@@ -105,9 +93,7 @@ public class GlobalExceptionHandler {
             Instant.now().toString());
     }
 
-    /**
-     * Cuando Spring no puede convertir un parametro al tipo que necesita
-     */
+    /** controla conversiones invalidas de parametros */
     @ExceptionHandler({NumberFormatException.class, ConversionFailedException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleConversion() {
@@ -116,14 +102,12 @@ public class GlobalExceptionHandler {
             Instant.now().toString());
     }
 
-    /**
-     * El JSON del body esta mal escrito o viene vacio, devolvemos 400
-     */
+    /** controla json mal formado o vacio */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleUnreadableBody(HttpMessageNotReadableException ex) {
         Throwable cause = ex.getCause();
-        // si el error viene de nuestra validacion de timezone, usamos ese mensaje especifico
+        // si viene por la validacion de timezone se usa ese mensaje
         if (cause instanceof TimezoneNotAllowedException tz) {
             return new ErrorResponse(400, HttpStatus.BAD_REQUEST.getReasonPhrase(),
                 tz.getOriginalMessage(),
@@ -134,9 +118,7 @@ public class GlobalExceptionHandler {
             Instant.now().toString());
     }
 
-    /**
-     * La ruta existe pero usaron el metodo HTTP equivocado, tipo POST en vez de GET
-     */
+    /** controla metodos http no permitidos */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
     public ErrorResponse handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex) {
@@ -148,9 +130,7 @@ public class GlobalExceptionHandler {
             Instant.now().toString());
     }
 
-    /**
-     * La URL que pidieron no existe en nuestra API
-     */
+    /** controla rutas que no existen */
     @ExceptionHandler(NoResourceFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleNoResource(NoResourceFoundException ex) {
@@ -159,9 +139,7 @@ public class GlobalExceptionHandler {
             Instant.now().toString());
     }
 
-    /**
-     * El Content-Type no es application/json, que es lo unico que aceptamos
-     */
+    /** controla content type no soportado */
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
     public ErrorResponse handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex) {
@@ -172,8 +150,8 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Este es el handler generico que respeta el codigo HTTP que le ponga el servicio
-     * Lo usamos con ResponseStatusException para devolver 404, 409, etc desde los services
+     * maneja errores lanzados desde los services
+     * respeta el codigo indicado en la excepcion
      */
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex) {
@@ -186,9 +164,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ex.getStatusCode()).body(body);
     }
 
-    /**
-     * Si JPA no encuentra una entidad por ID, devolvemos 404
-     */
+    /** devuelve not found cuando jpa no encuentra una entidad */
     @ExceptionHandler(EntityNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleEntityNotFound(EntityNotFoundException ex) {
@@ -196,9 +172,7 @@ public class GlobalExceptionHandler {
             Instant.now().toString());
     }
 
-    /**
-     * Cuando Spring Security bloquea el acceso porque el usuario no tiene permisos
-     */
+    /** controla accesos sin permisos */
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ErrorResponse handleAccessDenied() {
@@ -207,9 +181,7 @@ public class GlobalExceptionHandler {
             Instant.now().toString());
     }
 
-    /**
-     * La base de datos rechazo la operacion, normalmente por un dato duplicado o una FK rota
-     */
+    /** controla errores de integridad en base de datos */
     @ExceptionHandler(DataIntegrityViolationException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleDataIntegrity() {
@@ -219,8 +191,8 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Si llega cualquier error que no controlamos arriba, devolvemos 500 generico
-     * Chicos  esto es el ultimo recurso, si cae aqui es que algo no estamos capturando
+     * handler generico para errores no controlados
+     * se usa como ultimo recurso
      */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

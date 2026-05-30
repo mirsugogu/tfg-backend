@@ -24,16 +24,16 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Optional;
 
-/** Gestiona el reset de contrasena sin revelar si el email existe. */
+/** logica para solicitar y consumir tokens de recuperacion de contrasena */
 @Service
 @Transactional
 @RequiredArgsConstructor
 public class PasswordResetService {
 
-    /** Tiempo maximo de validez del token de reset. */
+    /** tiempo maximo de validez del token de reset */
     private static final Duration TOKEN_TTL = Duration.ofHours(1);
 
-    /** Longitud del token aleatorio antes de codificarlo. */
+    /** longitud del token aleatorio antes de codificarlo */
     private static final int TOKEN_LENGTH_BYTES = 32;
 
     private final UserRepository userRepository;
@@ -42,21 +42,20 @@ public class PasswordResetService {
     private final MailService mailService;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    /**
-     * URL base usada para construir el enlace enviado por correo.
-     */
+    /** url base del frontend usada para construir el enlace */
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
 
     /**
-     * Inicia el reset sin indicar si el email existe o no.
+     * inicia el proceso de reset sin indicar si el email existe
+     * la respuesta externa siempre es la misma por seguridad
      */
     public void requestReset(ForgotPasswordRequest request) {
         String email = request.email().trim().toLowerCase();
         Optional<User> userOpt = userRepository.findByEmailIgnoreCase(email);
 
         if (userOpt.isEmpty()) {
-            // La respuesta externa es igual que si el email existiera.
+            // se responde igual aunque el email no exista
             return;
         }
 
@@ -96,9 +95,7 @@ public class PasswordResetService {
         mailService.sendSimpleEmail(user.getEmail(), subject, body);
     }
 
-    /**
-     * Valida el token y guarda la nueva contrasena.
-     */
+    /** valida el token y guarda la nueva contrasena */
     public void consumeReset(ResetPasswordRequest request) {
         String tokenHash = sha256Hex(request.token());
 
@@ -120,22 +117,20 @@ public class PasswordResetService {
         resetRepository.save(reset);
     }
 
-    /**
-     * Devuelve siempre el mismo mensaje para tokens invalidos.
-     */
+    /** devuelve siempre el mismo error para tokens invalidos */
     private ResponseStatusException badToken() {
         return new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "El token de reset no es valido o ha caducado");
     }
 
-    /** Genera un token aleatorio para enviar por correo. */
+    /** genera el token aleatorio que se envia por correo */
     private String generateRawToken() {
         byte[] bytes = new byte[TOKEN_LENGTH_BYTES];
         secureRandom.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    /** Calcula el hash SHA-256 del token recibido. */
+    /** calcula el hash del token para guardarlo en base de datos */
     private String sha256Hex(String input) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
@@ -146,7 +141,7 @@ public class PasswordResetService {
             }
             return hex.toString();
         } catch (NoSuchAlgorithmException e) {
-            // SHA-256 debe existir en una JVM moderna.
+            // sha-256 deberia estar disponible en cualquier jvm actual
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Error de configuración: SHA-256 no disponible en la JVM", e);
         }

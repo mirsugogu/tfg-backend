@@ -1,8 +1,8 @@
 package com.optima.api.common.exception;
 
 /**
- * Este record es el formato que usamos para devolver errores desde la API
- * Siempre que algo falla, el frontend recibe un JSON con estos 4 campos
+ * formato comun para los errores de la api
+ * el front siempre recibe estos campos
  */
 public record ErrorResponse(
     int status,       // el codigo HTTP, por ejemplo 404 o 500

@@ -20,9 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Clase dedicada a las validaciones complejas de citas.
- */
+/** validaciones de negocio para crear y editar citas */
 @Component
 @RequiredArgsConstructor
 public class AppointmentValidator {
@@ -33,17 +31,14 @@ public class AppointmentValidator {
     private final ScheduleBlockRepository scheduleBlockRepository;
     private final BusinessHourRepository businessHourRepository;
 
-    /** Transiciones de estado permitidas para una cita. */
+    /** transiciones de estado permitidas para una cita */
     private static final Map<String, Set<String>> VALID_TRANSITIONS = Map.of(
             "PENDING", Set.of("CONFIRMED", "CANCELLED"),
             "CONFIRMED", Set.of("IN_PROGRESS", "CANCELLED", "NO_SHOW"),
             "IN_PROGRESS", Set.of("COMPLETED", "CANCELLED")
     );
 
-    /**
-     * Comprobar que no hay otra cita que se solape con el mismo empleado en
-     * el rango de tiempo dado.
-     */
+    /** comprueba si el empleado ya tiene otra cita en ese rango */
     public void validateNoOverlap(Long membershipId,
                                   LocalDateTime startDateTime,
                                   LocalDateTime endDateTime,
@@ -63,7 +58,7 @@ public class AppointmentValidator {
         }
     }
 
-    /** Comprueba que el empleado no tenga ausencias en el rango indicado. */
+    /** comprueba que el empleado no tenga una ausencia en ese tramo */
     public void validateNoEmployeeAbsence(Long membershipId,
                                           LocalDateTime startDateTime,
                                           LocalDateTime endDateTime) {
@@ -80,7 +75,7 @@ public class AppointmentValidator {
         }
     }
 
-    /** Comprueba que una cabina no tenga otra cita activa en el mismo rango. */
+    /** comprueba que la cabina no tenga otra cita en ese rango */
     public void validateNoBoothOverlap(Long boothId,
                                        LocalDateTime startDateTime,
                                        LocalDateTime endDateTime,
@@ -100,7 +95,7 @@ public class AppointmentValidator {
         }
     }
 
-    /** Comprueba que la cita no caiga en un bloqueo de agenda. */
+    /** comprueba que la fecha no caiga en un bloqueo de agenda */
     public void validateNoScheduleBlock(Long businessId,
                                         Long membershipId,
                                         Long boothId,
@@ -122,7 +117,7 @@ public class AppointmentValidator {
         }
     }
 
-    /** Comprueba que la cita encaje en el horario del empleado. */
+    /** comprueba que la cita encaje en el horario del empleado */
     public void validateEmployeeSchedule(Long membershipId,
                                          LocalDateTime startDateTime,
                                          LocalDateTime endDateTime) {
@@ -165,7 +160,7 @@ public class AppointmentValidator {
         }
     }
 
-    /** Comprueba que la cita respete el intervalo configurado. */
+    /** comprueba que la hora respete el intervalo del negocio */
     public void validateAppointmentInterval(LocalDateTime startDateTime,
                                             Integer interval) {
         if (interval == null || interval <= 0) {
@@ -187,7 +182,7 @@ public class AppointmentValidator {
         }
     }
 
-    /** Comprueba que la cita encaje en el horario de apertura del negocio. */
+    /** comprueba que la cita encaje en el horario del negocio */
     public void validateBusinessHours(Long businessId,
                                       LocalDateTime startDateTime,
                                       LocalDateTime endDateTime) {
@@ -212,7 +207,7 @@ public class AppointmentValidator {
         }
     }
 
-    /** Comprueba que la transicion de estado sea valida. */
+    /** comprueba que el cambio de estado sea valido */
     public void validateStatusTransition(String currentStatus, String newStatus) {
 
         Set<String> allowedTargets = VALID_TRANSITIONS.get(currentStatus);

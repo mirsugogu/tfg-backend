@@ -27,7 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Servicio para empleados y perfil del usuario autenticado. */
+/** aqui esta lo de empleados y perfil propio */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -40,9 +40,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final AppointmentRepository appointmentRepository;
 
-    /**
-     * Da de alta un empleado en un negocio.
-     */
+    /** crea un empleado dentro del negocio */
     public UserResponse create(Long businessId, CreateUserRequest request) {
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -56,6 +54,7 @@ public class UserService {
 
         String email = request.email().trim().toLowerCase();
 
+        // si el usuario ya existe reutilizamos su cuenta y solo le metemos la membership
         User user = userRepository.findByEmailIgnoreCase(email).orElseGet(() -> {
             User u = new User();
             u.setFullName(request.fullName().trim());
@@ -80,9 +79,7 @@ public class UserService {
         return UserResponse.from(membershipRepository.save(m));
     }
 
-    /**
-     * Lista empleados activos o archivados del negocio.
-     */
+    /** lista empleados activos o archivados */
     @Transactional(readOnly = true)
     public Page<UserResponse> listByBusiness(Long businessId, boolean active, Pageable pageable) {
         Page<Membership> page = active
@@ -91,17 +88,13 @@ public class UserService {
         return page.map(UserResponse::from);
     }
 
-    /**
-     * Obtiene un empleado del negocio por su membership.
-     */
+    /** devuelve un empleado concreto */
     @Transactional(readOnly = true)
     public UserResponse getById(Long businessId, Long id) {
         return UserResponse.from(findOrThrow(businessId, id));
     }
 
-    /**
-     * Actualiza el rol y el color del empleado dentro de este negocio.
-     */
+    /** aqui cambiamos rol y color dentro de este negocio */
     public UserResponse update(Long businessId, Long id, UpdateUserRequest request) {
         Membership m = findOrThrow(businessId, id);
 
@@ -121,8 +114,8 @@ public class UserService {
     }
 
     /**
-     * Archiva la membership del empleado si no tiene citas activas futuras.
-     * Un administrador no puede desactivar su propia membresía.
+     * archiva al empleado si no tiene citas futuras
+     * y tampoco dejamos que uno se quite a si mismo
      */
     public void deactivate(Long businessId, Long id, Long callerUserId) {
         Membership m = findOrThrow(businessId, id);
@@ -145,9 +138,7 @@ public class UserService {
         membershipRepository.save(m);
     }
 
-    /**
-     * Reactiva una membership archivada.
-     */
+    /** reactiva una membership archivada */
     public UserResponse reactivate(Long businessId, Long id) {
         Membership m = findOrThrow(businessId, id);
         if (m.getIsActive()) {
@@ -158,9 +149,7 @@ public class UserService {
         return UserResponse.from(membershipRepository.save(m));
     }
 
-    /**
-     * Devuelve el perfil de la identidad autenticada.
-     */
+    /** esto saca los datos del propio usuario */
     @Transactional(readOnly = true)
     public MeResponse getMyProfile(Long userId) {
         User u = userRepository.findById(userId)
@@ -170,9 +159,7 @@ public class UserService {
         return MeResponse.from(u);
     }
 
-    /**
-     * Actualiza los datos globales del propio usuario autenticado.
-     */
+    /** actualiza los datos del propio usuario */
     public MeResponse updateMyProfile(Long userId, UpdateMeRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -192,9 +179,7 @@ public class UserService {
         return MeResponse.from(userRepository.save(user));
     }
 
-    /**
-     * Lista los negocios activos del usuario autenticado.
-     */
+    /** lista los negocios activos del usuario */
     @Transactional(readOnly = true)
     public List<MembershipSummaryResponse> listMyBusinesses(Long userId) {
         return membershipRepository.findAllByUserId(userId).stream()
@@ -203,9 +188,7 @@ public class UserService {
                 .toList();
     }
 
-    /**
-     * Cambia la contrasena de la identidad autenticada.
-     */
+    /** cambia la contrasena del propio usuario */
     public void changePassword(Long userId, String currentPassword, String newPassword) {
         User u = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -231,9 +214,7 @@ public class UserService {
         userRepository.save(u);
     }
 
-    /**
-     * Busca una membership asegurando que pertenece al negocio.
-     */
+    /** busca la membership dentro del negocio */
     private Membership findOrThrow(Long businessId, Long id) {
         return membershipRepository.findByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new ResponseStatusException(

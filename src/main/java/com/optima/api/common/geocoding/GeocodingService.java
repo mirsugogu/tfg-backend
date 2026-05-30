@@ -12,27 +12,25 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * Servicio que convierte una direccion de texto en coordenadas GPS
- * Usa la API gratuita de OpenStreetMap se llama Nominatim, si falla no pasa nada, simplemente no guarda coordenadas
+ * intenta obtener coordenadas a partir de una direccion
+ * si falla devuelve vacio y sigue el flujo
  */
 @Service
 public class GeocodingService {
 
-    // url base de la API de Nominatim, que es gratis y no necesita API key
+    // se usa nominatim como servicio de geocoding
     private static final String NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
 
     private final RestClient restClient;
     private final String userAgent;
 
-    /**
-     * Configuramos el cliente HTTP con tiempo de espera para que no se quede colgado si Nominatim tarda mucho
-     */
+    /** crea el cliente con tiempo de espera */
     public GeocodingService(
             @Value("${app.geocoding.user-agent}") String userAgent,
             @Value("${app.geocoding.timeout-ms:5000}") long timeoutMs) {
         this.userAgent = userAgent;
 
-        // configuramos los timeouts de conexion y lectura
+        // se fijan tiempos de conexion y lectura
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofMillis(timeoutMs));
         factory.setReadTimeout(Duration.ofMillis(timeoutMs));
@@ -43,15 +41,13 @@ public class GeocodingService {
                 .build();
     }
 
-    /**
-     * Intenta convertir una direccion en coordenadas, si no puede devuelve vacio
-     */
+    /** intenta obtener coordenadas y si no puede devuelve vacio */
     public Optional<Coordinates> geocode(String addressLine, String city, String postalCode, String country) {
-        // necesitamos al menos el pais para buscar algo
+        // sin pais la busqueda suele dar malos resultados
         if (country == null || country.isBlank()) {
             return Optional.empty();
         }
-        // y ademas necesitamos ciudad o codigo postal
+        // tambien se pide ciudad o codigo postal
         boolean hasCity = city != null && !city.isBlank();
         boolean hasPostalCode = postalCode != null && !postalCode.isBlank();
         if (!hasCity && !hasPostalCode) {
@@ -61,7 +57,7 @@ public class GeocodingService {
         String query = buildQuery(addressLine, city, postalCode, country);
 
         try {
-            // llamamos a Nominatim y pedimos solo 1 resultado en formato JSON
+            // solo hace falta el primer resultado
             JsonNode body = restClient.get()
                     .uri(uri -> uri.path("/search")
                             .queryParam("q", query)
@@ -76,7 +72,7 @@ public class GeocodingService {
                 return Optional.empty();
             }
 
-            // sacamos lat y lon del primer resultado
+            // del primer resultado se leen lat y lon
             JsonNode first = body.get(0);
             String latStr = first.path("lat").asText(null);
             String lonStr = first.path("lon").asText(null);
@@ -89,14 +85,12 @@ public class GeocodingService {
                     new BigDecimal(latStr),
                     new BigDecimal(lonStr)));
         } catch (Exception ignored) {
-            // si Nominatim falla o no responde, no pasa nada, el negocio se crea igual sin coordenadas
+            // si falla se sigue sin coordenadas
             return Optional.empty();
         }
     }
 
-    /**
-     * Arma el texto de busqueda juntando las partes de la direccion separadas por comas
-     */
+    /** monta el texto de busqueda para el servicio */
     private String buildQuery(String addressLine, String city,
                                String postalCode, String country) {
         StringBuilder sb = new StringBuilder();

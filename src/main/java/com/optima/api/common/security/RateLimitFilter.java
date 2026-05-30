@@ -26,15 +26,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
- * Filtro que limita cuantas peticiones puede hacer una misma IP a los endpoints de autenticacion
- * Esto es para evitar que alguien intente muchos logins seguidos o cree muchas cuentas de golpe
- * Usamos la libreria Bucket4j que funciona como un cubo con fichas, cada peticion gasta una ficha
+ * limita peticiones por ip en endpoints de auth
+ * sirve para frenar intentos repetidos
  */
 @Component
 @RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    // cada endpoint tiene su propio limite, asi login puede ser mas estricto que registro
+    // cada endpoint tiene su propio limite
 
     /** 10 intentos de login por minuto por cada IP */
     private static final Supplier<Bucket> LOGIN_BUCKET = () -> Bucket.builder()
@@ -56,16 +55,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
             .addLimit(Bandwidth.classic(20, Refill.intervally(20, Duration.ofHours(1))))
             .build();
 
-    // guardamos un cubo por cada IP, asi cada usuario tiene su propio contador
+    // se guarda un cubo por ip
     private final Map<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
     private final Map<String, Bucket> registerBuckets = new ConcurrentHashMap<>();
     private final Map<String, Bucket> forgotBuckets = new ConcurrentHashMap<>();
     private final Map<String, Bucket> resetBuckets = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
 
-    /**
-     * En cada peticion miramos si el endpoint tiene limite y si le quedan fichas a esa IP
-     */
+    /** revisa si la peticion debe pasar por rate limit */
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
@@ -73,29 +70,27 @@ public class RateLimitFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         Bucket bucket = pickBucket(request);
-        // si no es un endpoint limitado, dejamos pasar directo
+        // si no hay limite para esta ruta se deja pasar
         if (bucket == null) {
             chain.doFilter(request, response);
             return;
         }
 
-        // intentamos consumir una ficha del cubo
+        // se intenta consumir una ficha
         ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
         if (probe.isConsumed()) {
             chain.doFilter(request, response);
             return;
         }
 
-        // si no quedan fichas, devolvemos 429 y le decimos cuanto tiene que esperar
+        // si no quedan fichas se devuelve 429
         long waitSeconds = TimeUnit.NANOSECONDS.toSeconds(probe.getNanosToWaitForRefill());
         writeTooManyRequests(response, waitSeconds);
     }
 
-    /**
-     * Segun la URL de la peticion, devuelve el cubo que le toca o null si no se limita
-     */
+    /** elige el cubo segun la ruta */
     private Bucket pickBucket(HttpServletRequest request) {
-        // solo limitamos peticiones POST, los GET no tienen limite
+        // solo se limitan peticiones post
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
             return null;
         }
@@ -116,9 +111,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return null;
     }
 
-    /**
-     * Escribe la respuesta 429 con el mensaje de error
-     */
+    /** escribe la respuesta de too many requests */
     private void writeTooManyRequests(HttpServletResponse response, long retryAfterSeconds)
             throws IOException {
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());

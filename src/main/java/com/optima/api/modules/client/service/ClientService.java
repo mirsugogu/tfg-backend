@@ -18,7 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
-/** Servicio de clientes con validacion por negocio. */
+/** aqui se queda la logica de clientes */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -28,9 +28,7 @@ public class ClientService {
     private final BusinessRepository businessRepository;
     private final AppointmentRepository appointmentRepository;
 
-    /**
-     * Crea un cliente dentro del negocio indicado.
-     */
+    /** crea el cliente dentro del negocio que toque */
     public ClientResponse create(Long businessId, CreateClientRequest request) {
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -48,9 +46,7 @@ public class ClientService {
         return ClientResponse.from(clientRepository.save(c));
     }
 
-    /**
-     * Lista clientes paginados, activos o archivados, con busqueda opcional.
-     */
+    /** lista clientes y si hace falta filtra por busqueda */
     @Transactional(readOnly = true)
     public Page<ClientResponse> listByBusiness(Long businessId, boolean active, String search, Pageable pageable) {
         String q = search == null ? "" : search.trim();
@@ -65,17 +61,13 @@ public class ClientService {
         return page.map(ClientResponse::from);
     }
 
-    /**
-     * Obtiene un cliente del negocio por su id.
-     */
+    /** saca un cliente concreto */
     @Transactional(readOnly = true)
     public ClientResponse getById(Long businessId, Long id) {
         return ClientResponse.from(findOrThrow(businessId, id));
     }
 
-    /**
-     * Actualiza los datos editables de un cliente activo.
-     */
+    /** actualiza los datos del cliente si sigue activo */
     public ClientResponse update(Long businessId, Long id, UpdateClientRequest request) {
         Client c = findOrThrow(businessId, id);
 
@@ -92,7 +84,7 @@ public class ClientService {
         return ClientResponse.from(clientRepository.save(c));
     }
 
-    /** Archiva un cliente si no tiene citas activas futuras. */
+    /** no dejamos archivarlo si aun tiene citas por delante */
     public void deactivate(Long businessId, Long id) {
         Client c = findOrThrow(businessId, id);
         if (!c.getIsActive()) {
@@ -111,9 +103,7 @@ public class ClientService {
         clientRepository.save(c);
     }
 
-    /**
-     * Reactiva un cliente archivado.
-     */
+    /** reactiva un cliente archivado */
     public ClientResponse reactivate(Long businessId, Long id) {
         Client c = findOrThrow(businessId, id);
         if (c.getIsActive()) {
@@ -125,9 +115,7 @@ public class ClientService {
         return ClientResponse.from(clientRepository.save(c));
     }
 
-    /**
-     * Busca un cliente asegurando que pertenece al negocio indicado.
-     */
+    /** busca el cliente dentro de su negocio */
     private Client findOrThrow(Long businessId, Long id) {
         return clientRepository.findByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -136,9 +124,7 @@ public class ClientService {
                                 + " en el negocio con ID: " + businessId));
     }
 
-    /**
-     * Convierte textos vacios en null para campos opcionales.
-     */
+    /** esto limpia campos opcionales para que no se guarden vacios raros */
     private String normalize(String value) {
         if (value == null) return null;
         String trimmed = value.trim();

@@ -14,14 +14,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Utilidad para crear y validar los tokens JWT
- * Tenemos dos tipos de token: el de identidad (cuando aun no eligio negocio)
- * y el de negocio (cuando ya selecciono uno y tiene rol asignado)
+ * crea y valida los jwt
+ * hay uno basico y otro con negocio y rol
  */
 @Component
 public class JwtUtil {
 
-    // estos valores se leen del application.properties
+    // esto sale del properties
     @Value("${app.jwt.secret}")
     private String secretString;
 
@@ -30,21 +29,17 @@ public class JwtUtil {
 
     private SecretKey secretKey;
 
-    /**
-     * Se ejecuta al arrancar la app, convierte el string secreto en una clave de firma
-     */
+    /** prepara la clave para firmar y leer tokens */
     @PostConstruct
     public void init() {
-        // la clave tiene que tener minimo 32 caracteres por seguridad
+        // la clave necesita un minimo para ser valida
         if (secretString == null || secretString.length() < 32) {
             throw new IllegalStateException("La clave 'app.jwt.secret' debe tener al menos 32 caracteres.");
         }
         this.secretKey = Keys.hmacShaKeyFor(secretString.getBytes(StandardCharsets.UTF_8));
     }
 
-    /**
-     * Genera un token completo con el negocio y rol ya seleccionados
-     */
+    /** genera el token cuando ya hay negocio y rol */
     public String generateTenantToken(String email, Long userId, Long businessId, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
@@ -59,9 +54,7 @@ public class JwtUtil {
                 .compact();
     }
 
-    /**
-     * Genera un token basico solo con email y userId, para cuando aun no eligio negocio
-     */
+    /** genera el token basico cuando aun no hay negocio */
     public String generateIdentityToken(String email, Long userId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
@@ -74,9 +67,7 @@ public class JwtUtil {
                 .compact();
     }
 
-    /**
-     * Valida que el token no este expirado ni manipulado y devuelve los datos que tiene dentro
-     */
+    /** lee el token y devuelve sus datos */
     public Claims parseAndValidate(String token) {
         return Jwts.parser()
                 .verifyWith(secretKey)

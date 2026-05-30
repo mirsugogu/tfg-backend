@@ -18,7 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
-/** Logica de categorias de servicios. */
+/** esto lleva las categorias del catalogo */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -28,7 +28,7 @@ public class ServiceCategoryService {
     private final BusinessRepository businessRepository;
     private final BusinessServiceRepository businessServiceRepository;
 
-    /** Crea una nueva categoria en el catalogo del negocio. */
+    /** crea una categoria nueva */
     public ServiceCategoryResponse createCategory(Long businessId, CreateCategoryRequest request) {
 
         String name = request.name().trim();
@@ -52,7 +52,7 @@ public class ServiceCategoryService {
         return ServiceCategoryResponse.from(categoryRepository.save(category));
     }
 
-    /** Lista categorias activas o archivadas del negocio. */
+    /** lista categorias activas o archivadas */
     @Transactional(readOnly = true)
     public Page<ServiceCategoryResponse> getActiveCategories(Long businessId, boolean active, Pageable pageable) {
         Page<ServiceCategory> page = active
@@ -61,13 +61,13 @@ public class ServiceCategoryService {
         return page.map(ServiceCategoryResponse::from);
     }
 
-    /** Obtiene una categoria del negocio. */
+    /** devuelve una categoria concreta */
     @Transactional(readOnly = true)
     public ServiceCategoryResponse getCategoryById(Long businessId, Long id) {
         return ServiceCategoryResponse.from(findOrThrow(businessId, id));
     }
 
-    /** Actualiza una categoria activa y evita nombres duplicados. */
+    /** cambia el nombre de una categoria activa */
     public ServiceCategoryResponse updateCategory(Long businessId, Long id, UpdateCategoryRequest request) {
         ServiceCategory category = findOrThrow(businessId, id);
 
@@ -87,7 +87,7 @@ public class ServiceCategoryService {
         return ServiceCategoryResponse.from(categoryRepository.save(category));
     }
 
-    /** Archiva una categoria si no tiene servicios activos. */
+    /** solo dejamos archivarla si no arrastra servicios activos */
     public void deactivateCategory(Long businessId, Long id) {
         ServiceCategory category = findOrThrow(businessId, id);
         if (!category.getIsActive()) {
@@ -107,7 +107,7 @@ public class ServiceCategoryService {
         categoryRepository.save(category);
     }
 
-    /** Reactiva una categoria archivada del negocio. */
+    /** vuelve a activar una categoria archivada */
     public ServiceCategoryResponse reactivateCategory(Long businessId, Long id) {
         ServiceCategory category = findOrThrow(businessId, id);
         if (category.getIsActive()) {
@@ -119,7 +119,7 @@ public class ServiceCategoryService {
         return ServiceCategoryResponse.from(categoryRepository.save(category));
     }
 
-    /** Busca una categoria dentro del negocio. */
+    /** busca la categoria dentro del negocio */
     private ServiceCategory findOrThrow(Long businessId, Long id) {
         return categoryRepository.findByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new ResponseStatusException(
