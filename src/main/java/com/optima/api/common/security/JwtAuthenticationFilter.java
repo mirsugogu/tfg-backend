@@ -18,7 +18,19 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
-/** Valida el JWT y carga el usuario en el contexto de seguridad. */
+/**
+ * Filtro que se ejecuta en cada peticion para comprobar si el usuario manda un JWT valido
+ * Si el token es bueno, guardamos los datos del usuario en el contexto de Spring Security
+ * para que los controllers puedan saber quien esta haciendo la peticion
+
+ * Token de identidad (cuando aun no eligio negocio):
+ *   { "sub": "admin@optima.com", "userId": 1 }
+
+ * Token de negocio (cuando ya eligio uno):
+ *   { "sub": "admin@optima.com", "userId": 1, "businessId": 3, "role": "ADMIN" }
+
+ * Si el token no trae sub o userId, lo rechazamos porque no sabemos quien es
+ */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -28,23 +40,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
 
+    /**
+     * Intercepta cada peticion HTTP y busca el token en la cabecera Authorization
+     */
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain chain)
             throws ServletException, IOException {
 
+        // si no viene la cabecera Authorization o no empieza con "Bearer ", dejamos pasar sin autenticar
         String header = request.getHeader(AUTH_HEADER);
         if (header == null || !header.startsWith(BEARER_PREFIX)) {
             chain.doFilter(request, response);
             return;
         }
 
+        // quitamos el prefijo "Bearer " para quedarnos solo con el token
         String token = header.substring(BEARER_PREFIX.length());
         try {
             Claims claims = jwtUtil.parseAndValidate(token);
 
-            // Un token valido debe identificar siempre a un usuario.
+            // sacamos el email y el userId del token, estos siempre tienen que venir
             String email = claims.getSubject();
             Object userIdRaw = claims.get("userId");
             Long userId = userIdRaw instanceof Number n ? n.longValue() : null;
@@ -53,14 +70,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 throw new JwtException("Claims requeridos ausentes en el JWT");
             }
 
-            // El token puede ser de identidad o de negocio seleccionado.
+            // businessId y role solo vienen si el usuario ya eligio un negocio
             Number bidClaim = (Number) claims.get("businessId");
             Long businessId = bidClaim != null ? bidClaim.longValue() : null;
             String role = (String) claims.get("role");
 
             AuthPrincipal principal = new AuthPrincipal(userId, businessId, email, role);
 
-            // Solo los tokens con rol pueden pasar validaciones por rol.
+            // le asignamos el rol como autoridad de Spring, asi podemos usar @PreAuthorize en los controllers
             List<SimpleGrantedAuthority> authorities = role != null
                     ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
                     : List.of();
@@ -69,7 +86,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     new UsernamePasswordAuthenticationToken(principal, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(auth);
         } catch (JwtException | ClassCastException | NullPointerException ignored) {
-            // Si el token no es valido, la request queda sin autenticar.
+            // si el token esta mal o expirado, limpiamos el contexto y la peticion sigue sin autenticar
             SecurityContextHolder.clearContext();
         }
 

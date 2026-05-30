@@ -24,17 +24,24 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Comprueba que el usuario autenticado accede solo a su negocio. */
+/**
+ * Filtro de seguridad que se asegura de que un usuario solo pueda acceder a los datos de su negocio
+ * Por ejemplo, si soy empleado del negocio 1, no puedo ver las citas del negocio 2
+ * Tambien comprueba en la base de datos que la membresia siga activa y el rol no haya cambiado
+ */
 @Component
 @RequiredArgsConstructor
 public class TenantGuardFilter extends OncePerRequestFilter {
 
-    /** Detecta rutas que pertenecen a un negocio concreto. */
+    // esta regex saca el id del negocio de la URL, tipo /api/businesses/5/appointments -> saca el 5
     private static final Pattern BUSINESS_PATH = Pattern.compile("^/api/businesses/([^/]+)(/.*)?$");
 
     private final ObjectMapper objectMapper;
     private final MembershipRepository membershipRepository;
 
+    /**
+     * Comprueba que el negocio de la URL coincida con el negocio del token del usuario
+     */
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
@@ -45,25 +52,26 @@ public class TenantGuardFilter extends OncePerRequestFilter {
         if (m.matches()) {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null && auth.getPrincipal() instanceof AuthPrincipal principal) {
+                // sacamos el id del negocio de la URL
                 long pathBusinessId;
                 try {
                     pathBusinessId = Long.parseLong(m.group(1));
                 } catch (NumberFormatException ex) {
-                    // El id de negocio de la URL debe ser numerico.
                     writeForbidden(response, "Identificador de negocio no valido");
                     return;
                 }
-                // Si el token no tiene negocio, primero debe seleccionarse uno.
+                // si el usuario aun no eligio negocio, no puede entrar a ninguno
                 if (principal.businessId() == null) {
                     writeForbidden(response, "Debes seleccionar un negocio antes de acceder a este recurso");
                     return;
                 }
+                // el negocio de la URL tiene que ser el mismo que el del token
                 if (pathBusinessId != principal.businessId()) {
                     writeForbidden(response, "No tienes permiso para acceder a recursos de otro negocio");
                     return;
                 }
 
-                // Revisa en base de datos si el acceso sigue siendo valido.
+                // comprobamos en base de datos que la membresia siga activa
                 Optional<Membership> membershipOpt = membershipRepository
                         .findForSessionGuard(principal.userId(), principal.businessId());
                 if (membershipOpt.isEmpty()
@@ -72,13 +80,13 @@ public class TenantGuardFilter extends OncePerRequestFilter {
                             "Tu acceso a este negocio ha sido revocado. Vuelve a iniciar sesión.");
                     return;
                 }
+                // si el rol cambio desde que se genero el token, obligamos a re-loguearse
                 String currentRole = membershipOpt.get().getRole().getName();
                 if (!Objects.equals(currentRole, principal.role())) {
                     writeUnauthorized(response, "Tu sesión está obsoleta porque tu rol ha cambiado. Vuelve a iniciar sesión.");
                     return;
                 }
             }
-            // Si no hay usuario autenticado, Spring Security respondera 401.
         }
 
         chain.doFilter(request, response);
@@ -92,6 +100,9 @@ public class TenantGuardFilter extends OncePerRequestFilter {
         writeError(response, HttpStatus.UNAUTHORIZED, message);
     }
 
+    /**
+     * Escribe una respuesta de error en formato JSON con el codigo HTTP que corresponda
+     */
     private void writeError(HttpServletResponse response, HttpStatus status, String message) throws IOException {
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

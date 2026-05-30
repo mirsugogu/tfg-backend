@@ -7,18 +7,22 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-/** Envia correos simples sin romper la operacion principal si SMTP falla. */
+/**
+ * Servicio para enviar correos electronicos
+ * Si el servidor de correo falla, no pasa nada, la operacion principal sigue funcionando
+ */
 @Service
 @RequiredArgsConstructor
 public class MailService {
 
     private final JavaMailSender mailSender;
 
+    // el email desde el que se envian los correos, se configura en application.properties
     @Value("${app.mail.from}")
     private String from;
 
     /**
-     * Envia un correo simple. Los errores de SMTP no se propagan al servicio que lo llamo.
+     * Envia un correo simple con asunto y cuerpo de texto
      */
     public void sendSimpleEmail(String to, String subject, String body) {
         SimpleMailMessage message = new SimpleMailMessage();
@@ -30,6 +34,7 @@ public class MailService {
         try {
             mailSender.send(message);
         } catch (MailException ignored) {
+            // si falla el envio no hacemos nada, el negocio no se debe romper por un correo
         }
     }
 }

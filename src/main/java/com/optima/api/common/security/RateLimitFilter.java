@@ -25,37 +25,47 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-/** Limita por IP los endpoints publicos de autenticacion. */
+/**
+ * Filtro que limita cuantas peticiones puede hacer una misma IP a los endpoints de autenticacion
+ * Esto es para evitar que alguien intente muchos logins seguidos o cree muchas cuentas de golpe
+ * Usamos la libreria Bucket4j que funciona como un cubo con fichas, cada peticion gasta una ficha
+ */
 @Component
 @RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    /** Limite de intentos de login por IP. */
+    // cada endpoint tiene su propio limite, asi login puede ser mas estricto que registro
+
+    /** 10 intentos de login por minuto por cada IP */
     private static final Supplier<Bucket> LOGIN_BUCKET = () -> Bucket.builder()
             .addLimit(Bandwidth.classic(10, Refill.intervally(10, Duration.ofMinutes(1))))
             .build();
 
-    /** Limite de registros de negocio por IP. */
+    /** 20 registros por hora por cada IP */
     private static final Supplier<Bucket> REGISTER_BUCKET = () -> Bucket.builder()
             .addLimit(Bandwidth.classic(20, Refill.intervally(20, Duration.ofHours(1))))
             .build();
 
-    /** Limite de solicitudes de recuperacion de contrasena por IP. */
+    /** 10 solicitudes de "olvide mi contrasena" por hora por cada IP */
     private static final Supplier<Bucket> FORGOT_BUCKET = () -> Bucket.builder()
             .addLimit(Bandwidth.classic(10, Refill.intervally(10, Duration.ofHours(1))))
             .build();
 
-    /** Limite de intentos de cambio de contrasena con token por IP. */
+    /** 20 intentos de resetear contrasena por hora por cada IP */
     private static final Supplier<Bucket> RESET_BUCKET = () -> Bucket.builder()
             .addLimit(Bandwidth.classic(20, Refill.intervally(20, Duration.ofHours(1))))
             .build();
 
+    // guardamos un cubo por cada IP, asi cada usuario tiene su propio contador
     private final Map<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
     private final Map<String, Bucket> registerBuckets = new ConcurrentHashMap<>();
     private final Map<String, Bucket> forgotBuckets = new ConcurrentHashMap<>();
     private final Map<String, Bucket> resetBuckets = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
 
+    /**
+     * En cada peticion miramos si el endpoint tiene limite y si le quedan fichas a esa IP
+     */
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
@@ -63,23 +73,29 @@ public class RateLimitFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         Bucket bucket = pickBucket(request);
+        // si no es un endpoint limitado, dejamos pasar directo
         if (bucket == null) {
             chain.doFilter(request, response);
             return;
         }
 
+        // intentamos consumir una ficha del cubo
         ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
         if (probe.isConsumed()) {
             chain.doFilter(request, response);
             return;
         }
 
+        // si no quedan fichas, devolvemos 429 y le decimos cuanto tiene que esperar
         long waitSeconds = TimeUnit.NANOSECONDS.toSeconds(probe.getNanosToWaitForRefill());
         writeTooManyRequests(response, waitSeconds);
     }
 
-    /** Devuelve el cubo que corresponde al endpoint, o null si no se limita. */
+    /**
+     * Segun la URL de la peticion, devuelve el cubo que le toca o null si no se limita
+     */
     private Bucket pickBucket(HttpServletRequest request) {
+        // solo limitamos peticiones POST, los GET no tienen limite
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
             return null;
         }
@@ -100,6 +116,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return null;
     }
 
+    /**
+     * Escribe la respuesta 429 con el mensaje de error
+     */
     private void writeTooManyRequests(HttpServletResponse response, long retryAfterSeconds)
             throws IOException {
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());

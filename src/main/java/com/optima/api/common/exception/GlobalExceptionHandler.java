@@ -24,15 +24,20 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.time.Instant;
 import java.util.stream.Collectors;
 
+/**
+ * Clase que captura todas las excepciones de la API y devuelve respuestas con formato comun
+ * Asi el frontend siempre recibe el mismo JSON de error, sin importar que haya fallado
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     /**
-     * Devuelve los errores de validacion de los DTOs recibidos en el body
+     * Cuando un DTO llega con datos invalidos, juntamos todos los errores y los devolvemos
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleValidation(MethodArgumentNotValidException ex) {
+        // recorremos todos los campos que fallaron y armamos un string con los mensajes
         String errors = ex.getBindingResult().getFieldErrors().stream()
             .map(e -> e.getField() + ": " + e.getDefaultMessage())
             .collect(Collectors.joining(", "));
@@ -41,7 +46,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Convierte argumentos invalidos en una respuesta 400
+     * Para cuando algun servicio lanza IllegalArgumentException con un mensaje custom
      */
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -51,7 +56,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 400 cuando fallan validaciones en parametros de ruta o query
+     * Cuando fallan las validaciones de los parametros de la URL, tipo @Min o @NotNull en el path
      */
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -64,7 +69,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 400 cuando falta un parametro obligatorio
+     * Si falta un parametro obligatorio en la peticion, le avisamos cual es
      */
     @ExceptionHandler(MissingServletRequestParameterException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -75,7 +80,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 400 cuando un parametro no tiene el tipo esperado
+     * Se lanza cuando mandan un tipo incorrecto, por ejemplo un texto donde va un numero
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -90,7 +95,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 400 cuando se intenta ordenar por un campo inexistente
+     * Si intentan ordenar por un campo que no existe en la entidad, devolvemos 400
      */
     @ExceptionHandler(PropertyReferenceException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -101,7 +106,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 400 cuando Spring no puede convertir un parametro
+     * Cuando Spring no puede convertir un parametro al tipo que necesita
      */
     @ExceptionHandler({NumberFormatException.class, ConversionFailedException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -112,12 +117,13 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 400 cuando el cuerpo JSON no se puede leer correctamente
+     * El JSON del body esta mal escrito o viene vacio, devolvemos 400
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleUnreadableBody(HttpMessageNotReadableException ex) {
         Throwable cause = ex.getCause();
+        // si el error viene de nuestra validacion de timezone, usamos ese mensaje especifico
         if (cause instanceof TimezoneNotAllowedException tz) {
             return new ErrorResponse(400, HttpStatus.BAD_REQUEST.getReasonPhrase(),
                 tz.getOriginalMessage(),
@@ -129,7 +135,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 405 cuando la ruta existe, pero no admite ese metodo HTTP
+     * La ruta existe pero usaron el metodo HTTP equivocado, tipo POST en vez de GET
      */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
@@ -143,7 +149,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 404 cuando la URL no corresponde a ningun recurso
+     * La URL que pidieron no existe en nuestra API
      */
     @ExceptionHandler(NoResourceFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
@@ -154,7 +160,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 415 cuando el tipo de contenido no es compatible
+     * El Content-Type no es application/json, que es lo unico que aceptamos
      */
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     @ResponseStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
@@ -166,7 +172,8 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Respeta el codigo HTTP definido por los servicios
+     * Este es el handler generico que respeta el codigo HTTP que le ponga el servicio
+     * Lo usamos con ResponseStatusException para devolver 404, 409, etc desde los services
      */
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex) {
@@ -180,7 +187,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 404 si JPA no encuentra una entidad esperada
+     * Si JPA no encuentra una entidad por ID, devolvemos 404
      */
     @ExceptionHandler(EntityNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
@@ -190,7 +197,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 403 cuando Spring Security bloquea una operacion
+     * Cuando Spring Security bloquea el acceso porque el usuario no tiene permisos
      */
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
@@ -201,7 +208,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Devuelve 409 cuando la base de datos rechaza una restriccion
+     * La base de datos rechazo la operacion, normalmente por un dato duplicado o una FK rota
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
@@ -212,7 +219,8 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Respuesta generica para errores no controlados
+     * Si llega cualquier error que no controlamos arriba, devolvemos 500 generico
+     * Chicos  esto es el ultimo recurso, si cae aqui es que algo no estamos capturando
      */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

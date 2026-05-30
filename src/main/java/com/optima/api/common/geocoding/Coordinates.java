@@ -2,14 +2,21 @@ package com.optima.api.common.geocoding;
 
 import java.math.BigDecimal;
 
-/** Coordenadas que devuelve el servicio de geocoding (es el mapa del registro) */
+/**
+ * Guarda la latitud y longitud que nos devuelve el servicio de geocoding
+ * Usamos BigDecimal porque con double se pierden decimales y las coordenadas salen mal
+ */
 public record Coordinates(BigDecimal latitude, BigDecimal longitude) {
 
+    // limites reales de latitud y longitud en el planeta
     private static final BigDecimal MIN_LAT = BigDecimal.valueOf(-90);
     private static final BigDecimal MAX_LAT = BigDecimal.valueOf(90);
     private static final BigDecimal MIN_LON = BigDecimal.valueOf(-180);
     private static final BigDecimal MAX_LON = BigDecimal.valueOf(180);
 
+    /**
+     * Constructor que valida que las coordenadas esten dentro de los limites reales
+     */
     public Coordinates {
         if (latitude == null || longitude == null) {
             throw new IllegalArgumentException(
