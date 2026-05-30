@@ -28,7 +28,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.time.Instant;
 import java.util.List;
 
-/** aqui esta casi toda la seguridad montada */
+/** configura seguridad rutas publicas y filtros */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -39,12 +39,12 @@ public class SecurityConfig {
     private final TenantGuardFilter tenantGuardFilter;
     private final RateLimitFilter rateLimitFilter;
 
-    /** este mapper lo dejamos para devolver los errores mas limpios */
+    /** se usa para devolver errores en json */
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
-     * aqui se decide quien pasa y quien no
-     * va todo por token porque sesiones como tal no usamos
+     * construye la cadena de filtros de seguridad
+     * la api usa jwt y no guarda sesion
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -55,7 +55,7 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(eh -> eh
                 .authenticationEntryPoint((req, res, ex) -> {
-                    // si no viene bien autenticado devolvemos el json de siempre
+                    // si falla la autenticacion se devuelve el error en json
                     res.setStatus(HttpStatus.UNAUTHORIZED.value());
                     res.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     ErrorResponse body = new ErrorResponse(
@@ -65,7 +65,7 @@ public class SecurityConfig {
                     objectMapper.writeValue(res.getOutputStream(), body);
                 })
                 .accessDeniedHandler((req, res, ex) -> {
-                    // aqui el usuario existe pero no deberia entrar a esta parte
+                    // aqui el usuario esta autenticado pero no tiene permiso
                     res.setStatus(HttpStatus.FORBIDDEN.value());
                     res.setContentType(MediaType.APPLICATION_JSON_VALUE);
                     ErrorResponse body = new ErrorResponse(
@@ -82,7 +82,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/roles").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/appointment-statuses/**").permitAll()
-                // swagger lo dejamos publico para hacer pruebas rapido
+                // swagger queda publico para pruebas
                 .requestMatchers(
                         "/swagger-ui.html",
                         "/swagger-ui/**",
@@ -91,7 +91,7 @@ public class SecurityConfig {
                 ).permitAll()
                 .anyRequest().authenticated()
             )
-            // este orden mejor no moverlo porque luego da fallos raros
+            // este orden aplica rate limit jwt y control de tenant
             .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(jwtAuthenticationFilter, RateLimitFilter.class)
             .addFilterAfter(tenantGuardFilter, JwtAuthenticationFilter.class);
@@ -99,8 +99,8 @@ public class SecurityConfig {
     }
 
     /**
-     * esto deja pasar al front desde los origenes que tengamos guardados
-     * no va por cookies asi que aqui es bastante directo
+     * configura cors para los origenes permitidos
+     * el token viaja por cabecera y no por cookies
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
@@ -116,7 +116,7 @@ public class SecurityConfig {
         return source;
     }
 
-    /** esto cifra las contrasenas antes de guardarlas */
+    /** crea el encoder usado para las contrasenas */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();

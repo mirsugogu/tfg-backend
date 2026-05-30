@@ -5,13 +5,13 @@ import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilde
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** aqui dejamos jackson como lo necesita el proyecto */
+/** configura jackson para las fechas de la api */
 @Configuration
 public class JacksonConfig {
 
     @Bean
     public Jackson2ObjectMapperBuilderCustomizer strictLocalDateTimeCustomizer() {
-        // ojo con esto que si se quita vuelven a entrar fechas raras
+        // registra el deserializador de fechas sin zona
         return builder -> builder.deserializers(new StrictLocalDateTimeDeserializer());
     }
 }
