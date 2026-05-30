@@ -2,7 +2,7 @@ package com.optima.api.modules.auth.dto.response;
 
 import java.util.List;
 
-/** Token devuelto tras login o seleccion de negocio. */
+/** codigo devuelto tras inicio de sesion o seleccion de negocio */
 public record TokenResponse(
         String token,
         String tokenType,

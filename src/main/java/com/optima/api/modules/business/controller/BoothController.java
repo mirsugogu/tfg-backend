@@ -14,7 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/** CRUD de cabinas del negocio. */
+/** gestion de cabinas del negocio */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/booths")
 @RequiredArgsConstructor
@@ -23,7 +23,7 @@ public class BoothController {
 
     private final BoothService boothService;
 
-    /** Crea una cabina nueva. */
+    /** crea una cabina nueva */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
@@ -32,7 +32,7 @@ public class BoothController {
         return boothService.create(businessId, request);
     }
 
-    /** Lista paginada de cabinas. */
+    /** lista de cabinas */
     @GetMapping
     public Page<BoothResponse> listActive(@PathVariable @Positive Long businessId,
                                           @RequestParam(defaultValue = "true") boolean active,
@@ -40,14 +40,14 @@ public class BoothController {
         return boothService.listActive(businessId, active, pageable);
     }
 
-    /** Devuelve el detalle de una cabina del negocio. */
+    /** devuelve el detalle de una cabina del negocio */
     @GetMapping("/{id}")
     public BoothResponse getById(@PathVariable @Positive Long businessId,
                                  @PathVariable @Positive Long id) {
         return boothService.getById(businessId, id);
     }
 
-    /** Actualiza el nombre. */
+    /** actualiza el nombre */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public BoothResponse update(@PathVariable @Positive Long businessId,
@@ -56,7 +56,7 @@ public class BoothController {
         return boothService.update(businessId, id, request);
     }
 
-    /** Archiva la cabina sin borrarla fisicamente. */
+    /** archiva la cabina sin borrarla fisicamente */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
@@ -65,7 +65,7 @@ public class BoothController {
         boothService.deactivate(businessId, id);
     }
 
-    /** Reactiva una cabina archivada. */
+    /** reactiva una cabina archivada */
     @PatchMapping("/{id}/reactivate")
     @PreAuthorize("hasRole('ADMIN')")
     public BoothResponse reactivate(@PathVariable @Positive Long businessId,

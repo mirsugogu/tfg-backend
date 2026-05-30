@@ -13,7 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/** Gestion de bloqueos de agenda del negocio. */
+/** gestion de bloqueos de agenda del negocio */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/schedule-blocks")
 @RequiredArgsConstructor
@@ -22,7 +22,7 @@ public class ScheduleBlockController {
 
     private final ScheduleBlockService blockService;
 
-    /** Crea un bloqueo. */
+    /** crea un bloqueo */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
@@ -31,21 +31,21 @@ public class ScheduleBlockController {
         return blockService.create(businessId, request);
     }
 
-    /** Lista paginada de bloqueos de agenda. */
+    /** lista de bloqueos de agenda */
     @GetMapping
     public Page<ScheduleBlockResponse> listByBusiness(@PathVariable @Positive Long businessId,
                                                       Pageable pageable) {
         return blockService.listByBusiness(businessId, pageable);
     }
 
-    /** Devuelve el detalle de un bloqueo del negocio. */
+    /** devuelve el detalle de un bloqueo del negocio */
     @GetMapping("/{id}")
     public ScheduleBlockResponse getById(@PathVariable @Positive Long businessId,
                                          @PathVariable @Positive Long id) {
         return blockService.getById(businessId, id);
     }
 
-    /** Borra un bloqueo de agenda. */
+    /** borra un bloqueo de agenda */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")

@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** Punto de entrada HTTP del catalogo global de roles. */
+/** rutas del catalogo global de roles */
 @RestController
 @RequestMapping("/api/roles")
 @RequiredArgsConstructor
@@ -19,7 +19,7 @@ public class RoleController {
 
     private final RoleService roleService;
 
-    /** Devuelve todos los roles del catalogo. */
+    /** devuelve todos los roles del catalogo */
     @GetMapping
     public List<RoleResponse> listAll() {
         return roleService.listAll();

@@ -8,19 +8,19 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-/** Acceso a categorias filtradas por negocio. */
+/** consultas de categorias filtradas por negocio */
 @Repository
 public interface ServiceCategoryRepository extends JpaRepository<ServiceCategory, Long> {
 
-    /** Lista paginada de categorias activas (excluye soft-deleted) de un negocio. */
+    /** lista de categorias activas excluye archivadas de un negocio */
     Page<ServiceCategory> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
-    /** Lista categorias archivadas de un negocio. */
+    /** lista categorias archivadas de un negocio */
     Page<ServiceCategory> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
 
-    /** Busca por id dentro del negocio. */
+    /** busca por id dentro del negocio */
     Optional<ServiceCategory> findByIdAndBusinessId(Long id, Long businessId);
 
-    /** Para validar unicidad del nombre dentro del negocio (case-insensitive). */
+    /** para validar unicidad del nombre dentro del negocio case-insensitive */
     boolean existsByBusinessIdAndNameIgnoreCase(Long businessId, String name);
 }

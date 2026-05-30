@@ -1,3 +1,4 @@
+// Punto de entrada de rutas y proveedores globales de la aplicacion
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from '@/context/AuthContext'
 import { CatalogProvider } from '@/context/CatalogContext'
@@ -16,7 +17,7 @@ import Calendario from '@/pages/Calendario'
 import Configuracion from '@/pages/Configuracion'
 import Perfil from '@/pages/Perfil'
 
-/** Raíz de la aplicación: providers globales y router con rutas públicas y protegidas. */
+/** Rutas principales de la aplicacion */
 export default function App() {
   return (
     <BrowserRouter>

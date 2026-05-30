@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-/** Datos para actualizar un impuesto. */
+/** datos para actualizar un impuesto */
 public record UpdateTaxRequest(
 
         @NotBlank(message = "El nombre del impuesto es obligatorio")

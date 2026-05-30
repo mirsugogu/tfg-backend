@@ -1,3 +1,4 @@
+// Gestion del catalogo de servicios, categorias e impuestos con vistas grid y tabla
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Plus, Pencil, Archive, ArchiveRestore, Tag, Scissors, Search, X, Clock, ChevronRight,
@@ -15,9 +16,6 @@ import { useToast } from '@/components/ui/Toast'
 import { usePagedFetch } from '@/hooks/usePagedFetch'
 import api, { getErrorMessage } from '@/lib/api'
 
-/* ============================================================
-   HELPERS Y CONSTANTES
-   ============================================================ */
 
 const emptyService = { name: '', description: '', price: '', durationMinutes: '', categoryId: '', taxId: '' }
 const emptyCategory = { name: '' }
@@ -30,7 +28,7 @@ const fmtSince = (iso) =>
     ? new Date(iso).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
     : '—'
 
-// Colores deterministas por categoryId. Hash simple: (id - 1) % N.
+// Colores deterministas por categoryId Hash simple: (id - 1) % N
 const CAT_PALETTE = [
   { grad: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)', dot: '#06b6d4' },
   { grad: 'linear-gradient(135deg, #c084fc 0%, #a855f7 100%)', dot: '#a855f7' },
@@ -41,9 +39,9 @@ const CAT_PALETTE = [
 ]
 const catColor = (id) => CAT_PALETTE[((id ?? 1) - 1) % CAT_PALETTE.length]
 
-// Si el impuesto del servicio no está en la lista (p. ej. fue archivado, y
-// GET /taxes solo devuelve los activos) devolvemos null en vez de asumir 0 %:
-// así la UI muestra "IVA no disponible" / "—" en lugar de un total inventado.
+// Si el impuesto del servicio no esta en la lista (p ej fue archivado, y
+// GET /taxes solo devuelve los activos) devolvemos null en vez de asumir 0 %
+// asi la interfaz muestra "IVA no disponible" / " - " en lugar de un total inventado
 const taxPercentage = (taxes, id) => {
   const pct = taxes.find((t) => t.id === id)?.percentage
   return pct == null ? null : Number(pct)
@@ -52,15 +50,13 @@ const priceWithVat = (service, taxes) => {
   const pct = taxPercentage(taxes, service.taxId)
   return pct == null ? null : Number(service.price) * (1 + pct / 100)
 }
-
-/** Catálogo de servicios, categorías e impuestos con vistas en tarjetas y tabla. */
+/** Catalogo de servicios, categorias e impuestos con vistas en tarjetas y tabla */
 export default function Catalogo() {
   const { user } = useAuth()
   const toast = useToast()
   const bId = user?.businessId
   const isAdmin = user?.role === 'ADMIN'
 
-  /* ---- Preferencias persistidas ---- */
   const [tab, setTab] = useState(() => localStorage.getItem('optima_cat_tab') || 'services')
   useEffect(() => { localStorage.setItem('optima_cat_tab', tab) }, [tab])
 
@@ -78,13 +74,12 @@ export default function Catalogo() {
   useEffect(() => { localStorage.setItem('optima_cat_sortkey', sortKey) }, [sortKey])
   useEffect(() => { localStorage.setItem('optima_cat_sortdir', sortDir) }, [sortDir])
 
-  /* ---- Vistas activos / archivados (sin persistir) ---- */
   const [serviceView, setServiceView] = useState('active')   // tab Servicios
-  const [categoryView, setCategoryView] = useState('active') // tab Categorías
+  const [categoryView, setCategoryView] = useState('active') // tab Categorias
   const servicesArchived = serviceView === 'archived'
   const categoriesArchived = categoryView === 'archived'
 
-  // Filtros que viajan al backend (ordenación + flag de soft-delete).
+  // Filtros que viajan al servidor (ordenacion + flag de archivado)
   const servicesParams = useMemo(
     () => ({ sort: `${sortKey},${sortDir}`, active: serviceView === 'active' }),
     [sortKey, sortDir, serviceView],
@@ -94,12 +89,11 @@ export default function Catalogo() {
     [categoryView],
   )
 
-  /* ---- Listados paginados ---- */
   const servicesUrl   = bId ? `/api/businesses/${bId}/services`   : null
   const categoriesUrl = bId ? `/api/businesses/${bId}/categories` : null
 
-  // Servicios: se cargan TODOS (size=100, tope del backend) para que la
-  // búsqueda y la paginación operen sobre el conjunto completo.
+  // Servicios: se cargan TODOS (size=100, tope del servidor) para que la
+  // busqueda y la paginacion operen sobre el conjunto completo
   const {
     items: services, totalElements: servTotal,
     loading: servLoading, refresh: refreshServices,
@@ -110,10 +104,9 @@ export default function Catalogo() {
     loading: catLoading, setPage: setCatPage, refresh: refreshCategories,
   } = usePagedFetch(categoriesUrl, { size: 100, params: categoriesParams })
 
-  /* ---- Aux: catálogos auxiliares para el modal + IVA + stats ---- */
-  // Siempre activos: alimentan el desplegable de categorías del modal de
+  // Siempre activos: alimentan el desplegable de categorias del ventana de
   // servicio y los chips de filtro, que no deben mostrar elementos archivados
-  // aunque la pestaña de categorías esté en vista 'archived'.
+  // aunque la pestana de categorias este en vista 'archived'
   const [aux, setAux] = useState({ taxes: [], allServices: [], activeCategories: [] })
   const [auxVersion, setAuxVersion] = useState(0)
   const bumpAux = useCallback(() => setAuxVersion((v) => v + 1), [])
@@ -140,10 +133,9 @@ export default function Catalogo() {
     })
   }, [bId, auxVersion, toast])
 
-  /* ---- Estado UI ---- */
   const [search, setSearch] = useState('')
   const [activeCat, setActiveCat] = useState('ALL')
-  const [drawer, setDrawer] = useState(null) // servicio abierto en drawer
+  const [drawer, setDrawer] = useState(null) // servicio abierto en panel
 
   const [modal, setModal] = useState(null)
   const [selected, setSelected] = useState(null)
@@ -151,7 +143,7 @@ export default function Catalogo() {
   const [catForm, setCatForm] = useState(emptyCategory)
   const [saving, setSaving] = useState(false)
 
-  // Cierra el drawer con Esc
+  // Cierra el panel con Esc
   useEffect(() => {
     if (!drawer) return
     const handler = (e) => { if (e.key === 'Escape') setDrawer(null) }
@@ -161,7 +153,6 @@ export default function Catalogo() {
 
   const closeModal = () => { setModal(null); setSelected(null) }
 
-  /* ---- CRUD servicios ---- */
   const openCreateService = () => {
     setSelected(null); setServiceForm(emptyService); setModal('service-create')
   }
@@ -228,7 +219,7 @@ export default function Catalogo() {
     }
   }
 
-  // Restaurar es un clic directo (no destructivo): sin modal de confirmación.
+  // Restaurar es un clic directo (no destructivo): sin ventana de confirmacion
   const handleReactivateService = async (service) => {
     try {
       await api.patch(`/api/businesses/${bId}/services/${service.id}/reactivate`)
@@ -241,7 +232,6 @@ export default function Catalogo() {
     }
   }
 
-  /* ---- CRUD categorías ---- */
   const openCreateCat = () => { setSelected(null); setCatForm(emptyCategory); setModal('cat-create') }
   const openEditCat = (c) => { setSelected(c); setCatForm({ name: c.name }); setModal('cat-edit') }
   const openArchiveCat = (c) => { setSelected(c); setModal('cat-archive') }
@@ -283,7 +273,7 @@ export default function Catalogo() {
     }
   }
 
-  // Restaurar es un clic directo (no destructivo): sin modal de confirmación.
+  // Restaurar es un clic directo (no destructivo): sin ventana de confirmacion
   const handleReactivateCat = async (category) => {
     try {
       await api.patch(`/api/businesses/${bId}/categories/${category.id}/reactivate`)
@@ -295,7 +285,6 @@ export default function Catalogo() {
     }
   }
 
-  /* ---- Stats globales ---- */
   const stats = useMemo(() => {
     const list = aux.allServices
     if (list.length === 0) return null
@@ -310,7 +299,6 @@ export default function Catalogo() {
     }
   }, [aux.allServices])
 
-  /* ---- Filtros aplicados (sobre el conjunto completo) ---- */
   const visibleServices = useMemo(() => {
     const t = search.trim().toLowerCase()
     return services.filter((s) => {
@@ -324,13 +312,12 @@ export default function Catalogo() {
     })
   }, [services, search, activeCat])
 
-  // Paginación en cliente sobre los servicios ya filtrados.
+  // Paginacion en cliente sobre los servicios ya filtrados
   const [servPage, setServPage] = useState(0)
   const servTotalPages = Math.max(1, Math.ceil(visibleServices.length / pageSize))
   const servSafePage = Math.min(servPage, servTotalPages - 1)
   const pagedServices = visibleServices.slice(servSafePage * pageSize, servSafePage * pageSize + pageSize)
 
-  /* ---- Conteo por categoría para los chips (sobre aux.allServices) ---- */
   const countsByCat = useMemo(() => {
     const m = new Map()
     aux.allServices.forEach((s) => m.set(s.categoryId, (m.get(s.categoryId) ?? 0) + 1))
@@ -339,14 +326,10 @@ export default function Catalogo() {
 
   const refreshAll = () => { refreshServices(); refreshCategories(); bumpAux() }
 
-  /* ============================================================
-     RENDER
-     ============================================================ */
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8">
 
-      {/* Header */}
       <div className="mb-7 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-[#1e3a5f] tracking-tight">Catálogo de servicios</h1>
@@ -371,7 +354,6 @@ export default function Catalogo() {
         </div>
       </div>
 
-      {/* Stats strip — describe el catálogo activo; oculto en vista archivados */}
       {stats && !(tab === 'services' && servicesArchived) && (
         <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatTile label="Servicios activos" value={stats.count} />
@@ -385,7 +367,6 @@ export default function Catalogo() {
         </div>
       )}
 
-      {/* Tabs */}
       <div className="mb-5 flex items-center gap-1 bg-slate-100 rounded-2xl p-1.5 w-fit">
         {[
           { key: 'services',   label: 'Servicios',   Icon: Scissors, count: servTotal },
@@ -406,10 +387,8 @@ export default function Catalogo() {
         ))}
       </div>
 
-      {/* ============== TAB: SERVICIOS ============== */}
       {tab === 'services' && (
         <>
-          {/* Toolbar */}
           <div className="mb-5 flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[240px] max-w-md">
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -435,7 +414,6 @@ export default function Catalogo() {
               <option value="createdAt,desc">Más recientes</option>
             </select>
 
-            {/* View grid/table */}
             <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
               <button
                 onClick={() => setView('grid')}
@@ -451,7 +429,6 @@ export default function Catalogo() {
               </button>
             </div>
 
-            {/* Vista activos / archivados */}
             <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
               {[{ key: 'active', label: 'Activos' }, { key: 'archived', label: 'Archivados' }].map(({ key, label }) => (
                 <button key={key} type="button" onClick={() => setServiceView(key)}
@@ -461,7 +438,6 @@ export default function Catalogo() {
               ))}
             </div>
 
-            {/* Page size */}
             <div className="ml-auto flex items-center gap-2 text-xs text-slate-500">
               <span>Mostrar</span>
               <select
@@ -476,7 +452,6 @@ export default function Catalogo() {
             </div>
           </div>
 
-          {/* Category filter chips + group toggle */}
           {aux.activeCategories.length > 0 && (
             <div className="mb-5 flex flex-wrap items-center gap-2">
               <CatChip
@@ -517,7 +492,6 @@ export default function Catalogo() {
             </div>
           )}
 
-          {/* Body */}
           {servLoading ? (
             view === 'grid' ? (
               <div className="card-grid">
@@ -590,7 +564,6 @@ export default function Catalogo() {
             />
           )}
 
-          {/* Paginación */}
           {servTotalPages > 1 && (
             <div className="mt-6 bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)]">
               <Pagination
@@ -604,10 +577,8 @@ export default function Catalogo() {
         </>
       )}
 
-      {/* ============== TAB: CATEGORÍAS ============== */}
       {tab === 'categories' && (
         <>
-          {/* Toolbar mínima: control de vista activos / archivados */}
           <div className="mb-5 flex flex-wrap items-center gap-3">
             <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
               {[{ key: 'active', label: 'Activos' }, { key: 'archived', label: 'Archivados' }].map(({ key, label }) => (
@@ -720,7 +691,6 @@ export default function Catalogo() {
         </>
       )}
 
-      {/* Drawer servicio */}
       {drawer && (
         <ServiceDrawer
           service={drawer}
@@ -734,9 +704,7 @@ export default function Catalogo() {
         />
       )}
 
-      {/* ===== MODALES ===== */}
 
-      {/* Servicio crear/editar */}
       <Modal
         open={modal === 'service-create' || modal === 'service-edit'}
         onClose={closeModal}
@@ -826,7 +794,6 @@ export default function Catalogo() {
         </div>
       </Modal>
 
-      {/* Categoría crear/editar */}
       <Modal
         open={modal === 'cat-create' || modal === 'cat-edit'}
         onClose={closeModal}
@@ -869,11 +836,8 @@ export default function Catalogo() {
   )
 }
 
-/* ============================================================
-   SUBCOMPONENTES
-   ============================================================ */
 
-/** Tarjeta de KPI del strip superior. */
+/** Tarjeta de KPI del strip superior */
 function StatTile({ label, value }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 p-4">
@@ -883,7 +847,7 @@ function StatTile({ label, value }) {
   )
 }
 
-/** Chip de categoría seleccionable. */
+/** Chip de categoria seleccionable */
 function CatChip({ active, onClick, children }) {
   return (
     <button
@@ -900,7 +864,7 @@ function CatChip({ active, onClick, children }) {
   )
 }
 
-/** Tarjeta de servicio con duración, precio e impuesto. */
+/** Tarjeta de servicio con duracion, precio e impuesto */
 function ServiceCard({ service, taxes, isAdmin, archived, onOpen, onEdit, onArchive, onReactivate }) {
   const color = catColor(service.categoryId)
   const taxPct = taxPercentage(taxes, service.taxId)
@@ -922,7 +886,7 @@ function ServiceCard({ service, taxes, isAdmin, archived, onOpen, onEdit, onArch
             // Servicios archivados: ademas de "Restaurar", se permite "Editar"
             // para poder reasignar categoria/impuesto a uno activo antes de
             // reactivar (deadlock que aparecia si la categoria del servicio
-            // tambien estaba archivada).
+            // tambien estaba archivada)
             <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={() => onEdit(service)}
@@ -975,7 +939,7 @@ function ServiceCard({ service, taxes, isAdmin, archived, onOpen, onEdit, onArch
   )
 }
 
-/** Rejilla plana de ServiceCard sin agrupar por categoría. */
+/** Rejilla plana de ServiceCard sin agrupar por categoria */
 function FlatGrid({ list, taxes, isAdmin, archived, onOpen, onEdit, onArchive, onReactivate }) {
   return (
     <div className="card-grid">
@@ -996,7 +960,7 @@ function FlatGrid({ list, taxes, isAdmin, archived, onOpen, onEdit, onArchive, o
   )
 }
 
-/** Vista de servicios agrupados por categoría con cabeceras. */
+/** Vista de servicios agrupados por categoria con cabeceras */
 function GroupedView({ list, categories, taxes, isAdmin, archived, onOpen, onEdit, onArchive, onReactivate }) {
   const byCat = useMemo(() => {
     const m = new Map()
@@ -1006,10 +970,10 @@ function GroupedView({ list, categories, taxes, isAdmin, archived, onOpen, onEdi
     })
     return m
   }, [list])
-  // Primero las categorías activas en su orden; después cualquier categoría
-  // presente en los servicios pero no en la lista activa (p.ej. en vista
-  // archivados, una categoría que también fue archivada). El nombre se toma
-  // del propio servicio (categoryName) para no perder el grupo.
+  // Primero las categorias activas en su orden; despues cualquier categoria
+  // presente en los servicios pero no en la lista activa (pej en vista
+  // archivados, una categoria que tambien fue archivada) El nombre se toma
+  // del propio servicio (categoryName) para no perder el grupo
   const ordered = useMemo(() => {
     const fromActive = categories.filter((c) => byCat.has(c.id))
     const known = new Set(fromActive.map((c) => c.id))
@@ -1055,7 +1019,7 @@ function GroupedView({ list, categories, taxes, isAdmin, archived, onOpen, onEdi
   )
 }
 
-/** Tabla densa de servicios con columnas ordenables y acciones por fila. */
+/** Tabla densa de servicios con columnas ordenables y acciones por fila */
 function ServicesTable({ list, taxes, isAdmin, archived, onOpen, onEdit, onArchive, onReactivate }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
@@ -1138,7 +1102,7 @@ function ServicesTable({ list, taxes, isAdmin, archived, onOpen, onEdit, onArchi
   )
 }
 
-/** Drawer lateral con el detalle de un servicio. */
+/** panel lateral con el detalle de un servicio */
 function ServiceDrawer({ service, taxes, isAdmin, archived, onClose, onEdit, onArchive, onReactivate }) {
   const color = catColor(service.categoryId)
   const tax = taxes.find((t) => t.id === service.taxId)
@@ -1175,7 +1139,6 @@ function ServiceDrawer({ service, taxes, isAdmin, archived, onClose, onEdit, onA
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* Precio + duración */}
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-xl border border-slate-100 px-4 py-3">
               <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Precio base</div>
@@ -1193,7 +1156,6 @@ function ServiceDrawer({ service, taxes, isAdmin, archived, onClose, onEdit, onA
             </div>
           </div>
 
-          {/* Descripción */}
           <div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-2">Descripción</div>
             <div className="text-sm leading-relaxed text-slate-700 whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3 min-h-[80px]">
@@ -1201,7 +1163,6 @@ function ServiceDrawer({ service, taxes, isAdmin, archived, onClose, onEdit, onA
             </div>
           </div>
 
-          {/* Meta */}
           <div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-2">Datos fiscales</div>
             <div className="grid grid-cols-2 gap-2 text-xs">
@@ -1248,13 +1209,3 @@ function ServiceDrawer({ service, taxes, isAdmin, archived, onClose, onEdit, onA
     </>
   )
 }
-
-/* ------------------------------------------------------------
-   Animaciones del drawer — añade al final de src/index.css
-
-   @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-   @keyframes slideInRight {
-     from { transform: translateX(100%) }
-     to   { transform: translateX(0) }
-   }
-   ------------------------------------------------------------ */

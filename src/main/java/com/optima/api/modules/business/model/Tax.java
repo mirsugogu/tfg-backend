@@ -10,8 +10,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Entidad que representa un impuesto definido por un negocio.
- * El nombre del impuesto es unico dentro de cada negocio.
+ * impuesto definido por un negocio
+ * nombre unico dentro del negocio
  */
 @Entity
 @Table(
@@ -32,32 +32,32 @@ public class Tax {
     @Column(name = "id_tax")
     private Long id;
 
-    /** Negocio al que pertenece este impuesto. */
+    /** negocio al que pertenece este impuesto */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_business", nullable = false)
     private Business business;
 
-    /** Nombre visible del impuesto. */
+    /** nombre visible del impuesto */
     @Column(name = "name", nullable = false, length = 50)
     private String name;
 
-    /** Porcentaje aplicado al impuesto. */
+    /** porcentaje aplicado al impuesto */
     @Column(name = "percentage", nullable = false, precision = 5, scale = 2)
     private BigDecimal percentage;
 
-    /** Indica si el impuesto sigue disponible. */
+    /** indica si el impuesto sigue disponible */
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    /** Fecha y hora en que se creo el impuesto (rellenado por @PrePersist). */
+    /** fecha de creacion del impuesto */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /** Momento de la desactivacion (null mientras el impuesto este activo). */
+    /** momento de la desactivacion sin valor mientras el impuesto este activo */
     @Column(name = "deactivated_at")
     private LocalDateTime deactivatedAt;
 
-    /** Asigna la fecha de creacion antes de guardar. */
+    /** asigna la fecha de creacion antes de guardar */
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

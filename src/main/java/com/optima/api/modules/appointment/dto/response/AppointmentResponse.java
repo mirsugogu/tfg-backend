@@ -6,26 +6,16 @@ import com.optima.api.modules.appointment.model.BookedService;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * DTO de salida con los datos principales de una cita.
- */
+/** datos de salida de una cita */
 public record AppointmentResponse(
         Long id,
         Long businessId,
-
-        // Del cliente mostramos ID y nombre
         Long clientId,
         String clientName,
-
-        // Del empleado mostramos ID y nombre
         Long membershipId,
         String userFullName,
-
-        // De la cabina (opcional) mostramos ID y nombre; null si la cita no usa cabina
         Long boothId,
         String boothName,
-
-        // Del estado mostramos ID y nombre
         Long statusId,
         String statusName,
 
@@ -37,12 +27,12 @@ public record AppointmentResponse(
         LocalDateTime updatedAt,
         List<BookedServiceResponse> bookedServices
 ) {
+    /** pasa la entidad a datos de salida */
     public static AppointmentResponse from(Appointment a,
                                            List<BookedService> bookedServices) {
         List<BookedServiceResponse> mapped = bookedServices.stream()
                 .map(BookedServiceResponse::from)
                 .toList();
-        // Se devuelve la membership del empleado y su nombre visible.
         return new AppointmentResponse(
                 a.getId(),
                 a.getBusiness().getId(),

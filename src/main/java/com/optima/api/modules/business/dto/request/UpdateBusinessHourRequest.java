@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalTime;
 
-/** Datos para actualizar un tramo horario del negocio. */
+/** datos para actualizar un tramo horario del negocio */
 public record UpdateBusinessHourRequest(
 
         @NotNull(message = "El día de la semana es obligatorio")

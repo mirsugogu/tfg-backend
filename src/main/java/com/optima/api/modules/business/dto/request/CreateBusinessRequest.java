@@ -6,8 +6,8 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * DTO de entrada para crear un negocio.
- * Las reglas de negocio se completan en el servicio.
+ * datos para crear un negocio
+ * las reglas de negocio se completan en el servicio
  */
 public record CreateBusinessRequest(
 

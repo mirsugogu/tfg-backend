@@ -1,10 +1,11 @@
+// Sistema de notificaciones tipo toast con auto-cierre y variantes de estado
 import { createContext, useContext, useState, useCallback } from 'react'
 import { CheckCircle, XCircle, AlertCircle, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const ToastContext = createContext(null)
 
-// Contador monotónico para el id de cada toast (evita colisiones por timestamp).
+// Contador monotonico para el id de cada aviso (evita colisiones por timestamp)
 let _toastSeq = 0
 
 const config = {
@@ -25,7 +26,7 @@ const config = {
   },
 }
 
-/** Proveedor de notificaciones toast con auto-cierre a los 4s. */
+/** Proveedor de notificaciones aviso con auto-cierre a los 4s */
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
 
@@ -69,7 +70,7 @@ export function ToastProvider({ children }) {
   )
 }
 
-/** Hook para emitir toasts; lanza si se usa fuera del provider. */
+/** Funcion para emitir avisos; lanza si se usa fuera del proveedor */
 export function useToast() {
   const ctx = useContext(ToastContext)
   if (!ctx) throw new Error('useToast must be inside ToastProvider')

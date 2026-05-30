@@ -13,8 +13,8 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 /**
- * Entidad que representa una cita de un cliente con un empleado.
- * El estado de la cita sustituye al borrado logico.
+ * representa una cita del negocio
+ * guarda cliente empleado estado y horario
  */
 @Entity
 @Table(name = "appointments")
@@ -29,62 +29,62 @@ public class Appointment {
     @Column(name = "id_appointment")
     private Long id;
 
-    /** Negocio al que pertenece la cita. */
+    /** negocio al que pertenece la cita */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_business", nullable = false)
     private Business business;
 
-    /** Cliente que ha reservado la cita. */
+    /** cliente que reserva la cita */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_client", nullable = false)
     private Client client;
 
-    /** Membership (usuario en este negocio con su rol) que atiende la cita. */
+    /** empleado que atiende la cita */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_membership", nullable = false)
     private Membership membership;
 
-    /** Cabina donde se realiza la cita, si aplica. */
+    /** cabina usada cuando corresponde */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_booth")
     private Booth booth;
 
-    /** Estado actual de la cita. */
+    /** estado actual de la cita */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_status", nullable = false)
     private AppointmentStatus status;
 
-    /** Control de pagos para los filtros del calendario. */
+    /** marca si la cita esta pagada */
     @Column(name = "is_paid", nullable = false)
     private Boolean isPaid = false;
 
-    /** Fecha y hora de inicio de la cita. */
+    /** fecha y hora de inicio */
     @Column(name = "start_datetime", nullable = false)
     private LocalDateTime startDateTime;
 
-    /** Fecha y hora de fin de la cita. */
+    /** fecha y hora de fin */
     @Column(name = "end_datetime", nullable = false)
     private LocalDateTime endDateTime;
 
-    /** Notas internas sobre la cita (TEXT: admite texto largo). */
+    /** notas internas de la cita */
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
-    /** Fecha y hora en que se creo la cita (rellenado por @PrePersist). */
+    /** fecha de creacion */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /** Fecha y hora de la ultima modificacion. */
+    /** fecha de ultima modificacion */
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    /** Asigna la fecha de creacion antes de guardar. */
+    /** pone la fecha al crear */
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
     }
 
-    /** Actualiza la fecha de modificacion antes de guardar cambios. */
+    /** actualiza la fecha al guardar cambios */
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();

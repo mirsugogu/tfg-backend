@@ -7,8 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Entidad que representa un estado posible de una cita.
- * Es un catalogo global compartido por todos los negocios.
+ * representa un estado posible de una cita
+ * se usa como catalogo comun
  */
 @Entity
 @Table(name = "appointment_statuses")

@@ -1,3 +1,4 @@
+// Asistente de 3 pasos para crear o editar citas con consulta de disponibilidad
 import { useEffect, useMemo, useState } from 'react'
 import { Check, ArrowRight, ArrowLeft, User, CalendarDays, Clock, MapPin, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -10,14 +11,14 @@ import api, { getErrorMessage } from '@/lib/api'
 import { toHms, hhmm, formatDateLong } from '@/lib/format'
 import { ClientPicker } from './ClientPicker'
 
-// Fecha de hoy en 'YYYY-MM-DD' local; toISOString() usaría UTC y desplazaría el día.
+// Fecha de hoy en 'YYYY-MM-DD' local; toISOString() usaria UTC y desplazaria el dia
 const todayStr = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 const emptyForm = { clientId: '', clientName: '', membershipId: '', boothId: '', serviceIds: [], date: todayStr(), notes: '' }
 
-/** Indicador visual de los 3 pasos del asistente. */
+/** Indicador visual de los 3 pasos del asistente */
 function Stepper({ step }) {
   const labels = ['Datos', 'Disponibilidad', 'Confirmar']
   return (
@@ -52,7 +53,7 @@ function Stepper({ step }) {
   )
 }
 
-/** Asistente de 3 pasos (datos → disponibilidad → confirmar) para crear o editar una cita. */
+/** Asistente de 3 pasos (datos - disponibilidad - confirmar) para crear o editar una cita */
 export function AppointmentWizard({
   open, onClose, onCreated, bId,
   prefillDate, prefillTime, prefillClientId,
@@ -65,13 +66,13 @@ export function AppointmentWizard({
   const [form, setForm] = useState(emptyForm)
   const [slots, setSlots] = useState([])
   const [slotsLoading, setSlotsLoading] = useState(false)
-  // true si el empleado no tiene horario semanal: habilita un mensaje accionable.
+  // Detecta si falta horario semanal
   const [noSchedule, setNoSchedule] = useState(false)
   const [totalDuration, setTotalDuration] = useState(0)
   const [selectedSlot, setSelectedSlot] = useState(null)
   const [saving, setSaving] = useState(false)
 
-  // Datos para los selectores (una sola vez); size=100 = tope del backend.
+  // Datos para los selectores (una sola vez); size=100 = tope del servidor
   useEffect(() => {
     if (!bId) return
     Promise.allSettled([
@@ -91,8 +92,8 @@ export function AppointmentWizard({
     })
   }, [bId, toast])
 
-  // Reinicia al paso 1 al abrir; en modo editar precarga la cita, en modo crear aplica prefills.
-  // Dependencia por id (no por objeto) para no pisar el form si el padre rerenderiza.
+  // Reinicia al paso 1 al abrir; en modo editar precarga la cita, en modo crear aplica prefills
+  // Dependencia por id (no por objeto) para no pisar el form si el padre rerenderiza
   const editingId = appointmentToEdit?.id ?? null
   useEffect(() => {
     if (!open) return
@@ -117,7 +118,7 @@ export function AppointmentWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, prefillDate, prefillClientId, editingId])
 
-  // En editar, el prefillTime es la hora de la cita para preseleccionar el slot original.
+  // En editar, el prefillTime es la hora de la cita para preseleccionar el slot original
   const isEdit = Boolean(appointmentToEdit)
   const effectivePrefillTime = useMemo(
     () => isEdit ? appointmentToEdit.startDateTime.slice(11, 16) : prefillTime,
@@ -137,7 +138,7 @@ export function AppointmentWizard({
   const chosenServices = aux.services.filter((s) => form.serviceIds.includes(s.id))
   const chosenTotal = chosenServices.reduce((acc, s) => acc + Number(s.price || 0), 0)
 
-  /** Paso 1 → 2: valida los datos básicos y pide los huecos al backend. */
+  /** Paso 1 - 2: valida los datos basicos y pide los huecos al servidor */
   const goToSlots = async () => {
     const { clientId, membershipId, serviceIds, date } = form
     if (!clientId || !membershipId || !serviceIds.length || !date) {
@@ -150,34 +151,34 @@ export function AppointmentWizard({
     setNoSchedule(false)
     setStep(2)
     try {
-      // serviceIds como parámetros repetidos (serviceIds=1&serviceIds=2), nunca CSV.
+      // serviceIds como parametros repetidos (serviceIds=1&serviceIds=2), nunca CSV
       const qs = new URLSearchParams()
       qs.set('date', date)
       serviceIds.forEach((id) => qs.append('serviceIds', id))
       qs.set('membershipId', membershipId)
       if (form.boothId) qs.set('boothId', form.boothId)
-      // En editar, el slot actual de la cita no debe contar como ocupado.
+      // En editar, el slot actual de la cita no debe contar como ocupado
       if (isEdit) qs.set('excludeAppointmentId', appointmentToEdit.id)
 
       const { data } = await api.get(`/api/businesses/${bId}/availability?${qs.toString()}`)
 
-      // Si la fecha es hoy, descarta huecos cuya hora ya ha pasado.
+      // Si la fecha es hoy, descarta huecos cuya hora ya ha pasado
       const now = Date.now()
       const fresh = (data.slots ?? []).filter(
         (s) => new Date(`${date}T${toHms(s.startTime)}`).getTime() >= now,
       )
       setSlots(fresh)
       setTotalDuration(data.totalDurationMinutes ?? 0)
-      // Preselecciona el slot indicado por prefill (hora actual en editar, hueco clicado en crear).
+      // Preselecciona el slot indicado por prefill (hora actual en editar, hueco clicado en crear)
       if (effectivePrefillTime) {
         setSelectedSlot(fresh.find((s) => hhmm(s.startTime) === effectivePrefillTime) ?? null)
       }
-      // Sin huecos: distingue "empleado sin horario" del resto para dar un mensaje accionable.
+      // Sin huecos: distingue "empleado sin horario" del resto para dar un mensaje accionable
       if (fresh.length === 0) {
         try {
           const { data: sch } = await api.get(`/api/businesses/${bId}/users/${membershipId}/schedules`)
           setNoSchedule(Array.isArray(sch) && sch.length === 0)
-        } catch { /* mejor esfuerzo: si falla, se muestra el mensaje genérico */ }
+        } catch { /* mejor esfuerzo: si falla, se muestra el mensaje generico */ }
       }
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'No se pudo consultar la disponibilidad.') })
@@ -187,7 +188,7 @@ export function AppointmentWizard({
     }
   }
 
-  /** Paso 3: crea o edita la cita con los datos del hueco elegido. */
+  /** Paso 3: crea o edita la cita con los datos del hueco elegido */
   const handleSave = async () => {
     if (!selectedSlot) {
       toast({ type: 'error', message: 'Selecciona un hueco disponible.' })
@@ -195,8 +196,8 @@ export function AppointmentWizard({
     }
     setSaving(true)
     try {
-      // membershipId/boothId desde el SLOT (verdad de huecos libres); startDateTime sin 'Z' (local).
-      // En editar, el clientId no viaja: la cita pertenece al cliente original.
+      // membershipId/boothId desde el SLOT (verdad de huecos libres); startDateTime sin 'Z' (local)
+      // En editar, el clientId no viaja: la cita pertenece al cliente original
       const body = {
         membershipId:  selectedSlot.membershipId,
         boothId:       selectedSlot.boothId ?? null,
@@ -228,12 +229,11 @@ export function AppointmentWizard({
     <Modal open={open} onClose={onClose} title={isEdit ? 'Editar cita' : 'Nueva cita'} size="lg">
       <Stepper step={step} />
 
-      {/* PASO 1 — Datos básicos */}
       {step === 1 && (
         <div className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-4">
             {isEdit ? (
-              // En editar, el cliente queda fijo; se muestra como panel en lugar del picker.
+              // En editar, el cliente queda fijo; se muestra como panel en lugar del picker
               <div>
                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block mb-2">
                   Cliente
@@ -329,7 +329,6 @@ export function AppointmentWizard({
         </div>
       )}
 
-      {/* PASO 2 — Disponibilidad */}
       {step === 2 && (
         <div className="space-y-4">
           <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3 text-xs text-slate-500 flex flex-wrap gap-x-4 gap-y-1">
@@ -408,7 +407,6 @@ export function AppointmentWizard({
         </div>
       )}
 
-      {/* PASO 3 — Confirmación */}
       {step === 3 && selectedSlot && (
         <div className="space-y-4">
           <div className="grid sm:grid-cols-2 gap-3">

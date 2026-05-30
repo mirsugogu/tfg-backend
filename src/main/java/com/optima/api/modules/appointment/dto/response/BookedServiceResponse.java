@@ -4,7 +4,7 @@ import com.optima.api.modules.appointment.model.BookedService;
 
 import java.math.BigDecimal;
 
-/** DTO de salida para un servicio reservado dentro de una cita. */
+/** datos de salida de un servicio reservado */
 public record BookedServiceResponse(
         Long id,
         Long serviceId,
@@ -12,6 +12,7 @@ public record BookedServiceResponse(
         BigDecimal appliedPrice,
         BigDecimal appliedTaxPercentage
 ) {
+    /** pasa el servicio reservado a datos de salida */
     public static BookedServiceResponse from(BookedService b) {
         return new BookedServiceResponse(
                 b.getId(),

@@ -6,10 +6,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-/** Acceso a tokens de reset guardados por hash. */
+/** consultas de codigos de recuperacion guardados por huella */
 @Repository
 public interface PasswordResetRepository extends JpaRepository<PasswordResetToken, Long> {
 
-    /** Busca un token de reset por su hash. */
+    /** busca un codigo de recuperacion por su huella */
     Optional<PasswordResetToken> findByTokenHash(String tokenHash);
 }

@@ -4,7 +4,7 @@ import com.optima.api.modules.business.model.BusinessHour;
 
 import java.time.LocalTime;
 
-/** Respuesta con un tramo horario semanal del negocio. */
+/** respuesta con un tramo horario semanal del negocio */
 public record BusinessHourResponse(
         Long id,
         Long businessId,

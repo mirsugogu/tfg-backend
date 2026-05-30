@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * Datos para guardar una nueva contrasena usando un token de reset.
+ * datos para guardar una nueva contrasena usando un codigo de recuperacion
  */
 public record ResetPasswordRequest(
 

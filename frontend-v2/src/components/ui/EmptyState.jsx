@@ -2,7 +2,7 @@ import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 
-/** Estado vacío con icono, título, descripción y acción opcional. */
+/** Estado vacio con icono, titulo, descripcion y accion opcional */
 export function EmptyState({ icon: Icon, title, description, actionLabel, onAction, className }) {
   return (
     <div className={cn('flex flex-col items-center justify-center text-center px-6 py-16', className)}>

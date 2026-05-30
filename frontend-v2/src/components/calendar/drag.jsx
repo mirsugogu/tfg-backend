@@ -1,9 +1,10 @@
+// Hook de arrastre (drag-and-drop) para reubicar citas en la rejilla horaria
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 const DRAG_THRESHOLD_PX = 5
 
-/** Hook de drag-and-drop de citas: distingue click de arrastre y resuelve la celda destino con snap a intervalo. */
+/** Gestiona el arrastre de citas en la agenda */
 export function useDragAppointment({ appt, isDraggable, onClick, onDrop }) {
   const stateRef = useRef({
     startX: 0,
@@ -12,7 +13,7 @@ export function useDragAppointment({ appt, isDraggable, onClick, onDrop }) {
     sourceRect: null,
   })
   const [ghost, setGhost] = useState(null)
-  // Limpieza por si el componente se desmonta a mitad de drag.
+  // Limpieza por si el componente se desmonta a mitad de arrastre
   useEffect(() => () => setGhost(null), [])
 
   const handlePointerDown = useCallback((e) => {
@@ -31,8 +32,7 @@ export function useDragAppointment({ appt, isDraggable, onClick, onDrop }) {
       const dy = ev.clientY - stateRef.current.startY
       if (!stateRef.current.isDragging) {
         if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return
-        // En cuanto pasa el umbral activamos drag — pero solo si es draggable.
-        // Si la cita es terminal abortamos limpio.
+        // Activa el arrastre solo si la cita permite cambios
         if (!isDraggable) {
           window.removeEventListener('pointermove', handleMove)
           window.removeEventListener('pointerup', handleUp)
@@ -62,7 +62,7 @@ export function useDragAppointment({ appt, isDraggable, onClick, onDrop }) {
         return
       }
 
-      // Hit-test del drop.
+      // Busca la celda de destino
       const target = document.elementFromPoint(ev.clientX, ev.clientY)
       if (!target) return
       const cell = target.closest('[data-cal-cell]')
@@ -80,7 +80,7 @@ export function useDragAppointment({ appt, isDraggable, onClick, onDrop }) {
         ? null
         : Number(rawResourceId)
 
-      // Hora absoluta del drop = hora visible del grid + offset del cursor.
+      // Convierte la posicion Y del cursor a minutos y redondea al intervalo mas cercano
       const totalMinutes = dayStartHour * 60 + (relativeY / hourPx) * 60
       const snapped = Math.max(0, Math.round(totalMinutes / intervalMin) * intervalMin)
       const hh = Math.floor(snapped / 60)

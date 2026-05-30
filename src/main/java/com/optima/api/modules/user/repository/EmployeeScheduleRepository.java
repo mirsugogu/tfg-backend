@@ -9,26 +9,26 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-/** Repositorio de horarios semanales de empleados. */
+/** consultas de horarios semanales de empleados */
 @Repository
 public interface EmployeeScheduleRepository extends JpaRepository<EmployeeSchedule, Long> {
 
-    /** Lista los tramos de un empleado para un dia concreto. */
+    /** lista los tramos de un empleado para un dia concreto */
     List<EmployeeSchedule> findAllByMembershipIdAndDayOfWeek(Long membershipId, Integer dayOfWeek);
 
     /**
-     * Lista todos los tramos ordenados por dia y hora de inicio.
+     * lista todos los tramos ordenados por dia y hora de inicio
      */
     @EntityGraph(attributePaths = {"membership", "membership.user"})
     List<EmployeeSchedule> findAllByMembershipIdOrderByDayOfWeekAscStartTimeAsc(Long membershipId);
 
     /**
-     * Busca un tramo dentro de una membership concreta.
+     * busca un tramo dentro de una relacion concreta
      */
     Optional<EmployeeSchedule> findByIdAndMembershipId(Long id, Long membershipId);
 
     /**
-     * Carga los horarios de varias memberships para un dia concreto.
+     * carga los horarios de varias relaciones para un dia concreto
      */
     List<EmployeeSchedule> findAllByMembershipIdInAndDayOfWeek(Collection<Long> membershipIds,
                                                                Integer dayOfWeek);

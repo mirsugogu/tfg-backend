@@ -1,9 +1,10 @@
+// Contexto de autenticacion: login en 2 pasos, seleccion de negocio y persistencia JWT
 import { createContext, useContext, useState } from 'react'
 import api from '@/lib/api'
 
 const AuthContext = createContext(null)
 
-/** Extrae los claims del JWT y lanza un Error claro si el token está malformado. */
+/** Lee los datos basicos de la credencial de sesion */
 function decodeJwt(token) {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
@@ -19,7 +20,7 @@ function decodeJwt(token) {
   }
 }
 
-/** True si el JWT está caducado o no se puede leer. */
+/** Revisa si la credencial ya no es valida */
 function isJwtExpired(token) {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
@@ -29,7 +30,7 @@ function isJwtExpired(token) {
   }
 }
 
-/** JSON.parse defensivo: ante un valor corrupto devuelve null en vez de lanzar. */
+/** Lectura segura de datos guardados */
 function safeParse(raw) {
   try {
     return raw ? JSON.parse(raw) : null
@@ -38,7 +39,7 @@ function safeParse(raw) {
   }
 }
 
-/** Lee el user persistido; limpia y devuelve null si el JSON o el JWT no son válidos. */
+/** Lee el usuario guardado y limpia datos no validos */
 function loadStoredUser() {
   const u = safeParse(localStorage.getItem('optima_user'))
   if (!u?.token || isJwtExpired(u.token)) {
@@ -49,7 +50,7 @@ function loadStoredUser() {
   return u
 }
 
-/** Persiste el user en localStorage y limpia los restos del flujo identity. */
+/** Guarda el usuario y limpia restos de sesion */
 function persistUser(user) {
   localStorage.setItem('optima_token', user.token)
   localStorage.setItem('optima_user', JSON.stringify(user))
@@ -57,7 +58,7 @@ function persistUser(user) {
   sessionStorage.removeItem('optima_pending_businesses')
 }
 
-/** Enriquece el user del JWT con GET /api/me; propaga 401, degrada el resto a warn. */
+/** Completa los datos de usuario con el perfil actual */
 async function enrichWithMe(baseUser) {
   try {
     const { data: me } = await api.get('/api/me')
@@ -75,12 +76,12 @@ async function enrichWithMe(baseUser) {
   }
 }
 
-/** Provider de autenticación: login 2 pasos, switch de negocio, registro y perfil. */
+/** Gestion de sesion, negocio activo y perfil */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(loadStoredUser)
   const [loading, setLoading] = useState(false)
 
-  // Estado del flujo identity persistido en sessionStorage.
+  // Negocios pendientes del acceso inicial
   const [pendingBusinesses, setPendingBusinesses] = useState(
     () => safeParse(sessionStorage.getItem('optima_pending_businesses'))
   )
@@ -106,7 +107,7 @@ export function AuthProvider({ children }) {
       const fullUser = await enrichWithMe(baseUser)
       persistUser(fullUser)
       setUser(fullUser)
-      // Limpia restos de un login identity previo en este navegador.
+      // Limpia restos del acceso inicial
       setPendingBusinesses(null)
       setIdentityToken(null)
       return { type: 'tenant' }
@@ -136,7 +137,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  /** Registra un negocio nuevo y arranca sesión con el token tenant devuelto. */
+  /** Registra un negocio nuevo e inicia sesion */
   const register = async (payload) => {
     setLoading(true)
     try {
@@ -151,7 +152,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  /** Cambia de negocio activo sin cerrar sesión usando el token tenant actual. */
+  /** Cambia el negocio activo sin cerrar sesion */
   const switchBusiness = async (businessId) => {
     setLoading(true)
     try {
@@ -176,7 +177,7 @@ export function AuthProvider({ children }) {
     setIdentityToken(null)
   }
 
-  /** Refresca en el contexto los datos de identidad tras un PUT /api/me. */
+  /** Actualiza en memoria los datos del perfil */
   const applyProfile = (me) => {
     setUser((prev) => {
       if (!prev) return prev
@@ -193,7 +194,7 @@ export function AuthProvider({ children }) {
   )
 }
 
-/** Hook para consumir AuthContext; lanza si se usa fuera del provider. */
+/** Funcion para consumir AuthContext; lanza si se usa fuera del proveedor */
 export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be inside AuthProvider')

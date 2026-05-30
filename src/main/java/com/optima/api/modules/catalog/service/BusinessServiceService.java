@@ -21,7 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
-/** aqui va lo de los servicios del catalogo */
+/** parte de los servicios del catalogo */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -104,7 +104,7 @@ public class BusinessServiceService {
         return BusinessServiceResponse.from(findOrThrow(businessId, id));
     }
 
-    /** aqui cambiamos los datos que si se pueden tocar */
+    /** se actualiza los datos editables */
     public BusinessServiceResponse updateService(Long businessId, Long id, UpdateServiceRequest request) {
         BusinessService service = findOrThrow(businessId, id);
 
@@ -152,7 +152,7 @@ public class BusinessServiceService {
         return BusinessServiceResponse.from(serviceRepository.save(service));
     }
 
-    /** esto lo archiva pero no lo pierde */
+    /** archiva sin borrar */
     public void deactivateService(Long businessId, Long id) {
         BusinessService service = findOrThrow(businessId, id);
         if (!service.getIsActive()) {

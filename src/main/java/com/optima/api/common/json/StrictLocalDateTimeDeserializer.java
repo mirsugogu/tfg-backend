@@ -10,12 +10,12 @@ import java.time.LocalDateTime;
 import java.util.regex.Pattern;
 
 /**
- * controla que las fechas lleguen sin zona horaria
+ * maneja que las fechas lleguen sin zona horaria
  * asi evitamos cambios de hora no esperados
  */
 public class StrictLocalDateTimeDeserializer extends LocalDateTimeDeserializer {
 
-    // con esto detectamos offsets tipo +02:00 o -05:00
+    // con este control detectamos desfases tipo +02:00 o -05:00
     private static final Pattern OFFSET_PATTERN = Pattern.compile(".*[+-]\\d{2}:\\d{2}$");
 
     /** comprueba que la fecha no venga con zona */

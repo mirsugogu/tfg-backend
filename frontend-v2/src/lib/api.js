@@ -1,6 +1,7 @@
+// Cliente HTTP centralizado con interceptores de JWT, 401 y rate-limit
 import axios from 'axios'
 
-// Páginas anónimas: un 401 aquí no debe redirigir para no perder el estado del formulario.
+// Paginas anonimas: un 401 aqui no debe redirigir para no perder el estado del formulario
 const PUBLIC_PATHS = ['/login', '/forgot-password', '/reset-password']
 
 function clearSession() {
@@ -11,19 +12,19 @@ function clearSession() {
 }
 
 const api = axios.create({
-  // VITE_API_URL del .env; fallback al backend local para que dev funcione sin .env.
+  // VITE_API_URL del env; alternativa al servidor local para que dev funcione sin env
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Adjunta el JWT de localStorage a cada petición.
+// Adjunta la credencial guardada a cada peticion
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('optima_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
-// 401 redirige a /login salvo en páginas públicas; 403 marca isForbidden; 429 marca isRateLimited + retryAfter.
+// Marca errores de sesion y permisos para la interfaz
 api.interceptors.response.use(
   (res) => res,
   (error) => {
@@ -45,7 +46,7 @@ api.interceptors.response.use(
   }
 )
 
-/** Mensaje de error en castellano a partir de un error de axios; respeta el ErrorResponse del backend. */
+/** Mensaje de error en castellano a partir de un error de peticion; respeta el ErrorResponse del servidor */
 export function getErrorMessage(error, fallback = 'Error inesperado. Intentalo de nuevo.') {
   const data = error?.response?.data
   if (typeof data?.message === 'string' && data.message.trim()) {

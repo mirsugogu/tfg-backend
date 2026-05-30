@@ -26,31 +26,31 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
- * limita peticiones por ip en endpoints de auth
+ * limita peticiones por ip en rutas de auth
  * sirve para frenar intentos repetidos
  */
 @Component
 @RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    // cada endpoint tiene su propio limite
+    // cada ruta tiene su propio limite
 
-    /** 10 intentos de login por minuto por cada IP */
+    /** 10 intentos de inicio de sesion por minuto por cada ip */
     private static final Supplier<Bucket> LOGIN_BUCKET = () -> Bucket.builder()
             .addLimit(Bandwidth.classic(10, Refill.intervally(10, Duration.ofMinutes(1))))
             .build();
 
-    /** 20 registros por hora por cada IP */
+    /** 20 registros por hora por cada ip */
     private static final Supplier<Bucket> REGISTER_BUCKET = () -> Bucket.builder()
             .addLimit(Bandwidth.classic(20, Refill.intervally(20, Duration.ofHours(1))))
             .build();
 
-    /** 10 solicitudes de "olvide mi contrasena" por hora por cada IP */
+    /** 10 solicitudes de "olvide mi contrasena" por hora por cada ip */
     private static final Supplier<Bucket> FORGOT_BUCKET = () -> Bucket.builder()
             .addLimit(Bandwidth.classic(10, Refill.intervally(10, Duration.ofHours(1))))
             .build();
 
-    /** 20 intentos de resetear contrasena por hora por cada IP */
+    /** 20 intentos de resetear contrasena por hora por cada ip */
     private static final Supplier<Bucket> RESET_BUCKET = () -> Bucket.builder()
             .addLimit(Bandwidth.classic(20, Refill.intervally(20, Duration.ofHours(1))))
             .build();
@@ -112,15 +112,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     /** escribe la respuesta de too many requests */
-    private void writeTooManyRequests(HttpServletResponse response, long retryAfterSeconds)
-            throws IOException {
+    private void writeTooManyRequests(HttpServletResponse response, long retryAfterSeconds) throws IOException {
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setHeader("Retry-After", String.valueOf(Math.max(1, retryAfterSeconds)));
-        ErrorResponse body = new ErrorResponse(
-                429, HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(),
-                "Demasiadas peticiones. Reintenta en " + retryAfterSeconds + " segundos.",
-                Instant.now().toString());
+        ErrorResponse body = new ErrorResponse(429, HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(), "Demasiadas peticiones. Reintenta en " + retryAfterSeconds + " segundos.", Instant.now().toString());
         objectMapper.writeValue(response.getOutputStream(), body);
     }
 }

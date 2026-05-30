@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * Email usado para solicitar el restablecimiento de contrasena.
+ * email usado para solicitar el restablecimiento de contrasena
  */
 public record ForgotPasswordRequest(
 

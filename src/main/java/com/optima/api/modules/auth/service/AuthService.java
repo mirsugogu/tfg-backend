@@ -24,13 +24,13 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Optional;
 
-/** logica de login, seleccion de negocio y registro inicial */
+/** logica de inicio de sesion seleccion de negocio y registro inicial */
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class AuthService {
 
-    /** hash usado para igualar tiempos cuando el email no existe */
+    /** huella usada para igualar tiempos cuando el email no existe */
     private static final String DUMMY_BCRYPT_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
     private final JwtUtil jwtUtil;
@@ -42,16 +42,15 @@ public class AuthService {
     private final MailService mailService;
 
     /**
-     * comprueba el login y devuelve el token que corresponda
-     * si el usuario tiene varios negocios devuelve token de identidad
+     * comprueba el inicio de sesion y devuelve el codigo que corresponda
+     * si el usuario tiene varios negocios devuelve codigo de identidad
      */
     public TokenResponse login(LoginRequest request) {
         String email = request.email().trim();
 
         Optional<User> userOpt = userRepository.findByEmailIgnoreCase(email);
         if (userOpt.isEmpty()) {
-            // Se ejecuta BCrypt aunque no exista el usuario para no filtrar emails por tiempo, no toquen esta parte
-            // es seguridad
+            // se revisa la clave aunque no exista el usuario para no filtrar emails por tiempo
             passwordEncoder.matches(request.password(), DUMMY_BCRYPT_HASH);
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
@@ -70,7 +69,7 @@ public class AuthService {
                     HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
         }
 
-        // solo se tienen en cuenta memberships y negocios activos
+        // solo se tienen en cuenta relaciones y negocios activos
         List<Membership> activeMemberships = membershipRepository.findAllByUserId(user.getId())
                 .stream()
                 .filter(Membership::getIsActive)
@@ -100,7 +99,7 @@ public class AuthService {
         return TokenResponse.identity(token, summaries);
     }
 
-    /** cambia un token de identidad por un token de negocio */
+    /** cambia un codigo de identidad por un codigo de negocio */
     public TokenResponse selectBusiness(Long userId, Long businessId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -120,7 +119,7 @@ public class AuthService {
                     HttpStatus.FORBIDDEN, "No tienes acceso a ese negocio");
         }
 
-        // aunque exista la membership, el negocio tambien tiene que seguir activo
+        // aunque exista la relacion el negocio tambien tiene que seguir activo
         if (!Boolean.TRUE.equals(membership.getBusiness().getIsActive())) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN, "No tienes acceso a ese negocio");

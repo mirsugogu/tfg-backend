@@ -1,3 +1,4 @@
+// Barra lateral con navegacion, atajos de teclado y buscador rapido (Cmd+K)
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
@@ -19,18 +20,18 @@ const navItems = [
   { to: '/configuracion', icon: Settings,         label: 'Configuración', key: '7' },
 ]
 
-/** Sidebar de navegación con modo colapsado, drawer móvil, command palette y atajos. */
+/** Barra lateral con modo compacto y buscador rapido */
 export function Sidebar({ mobileOpen = false, onMobileClose }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Preferencia de colapso (escritorio) persistida; en móvil con drawer abierto se ignora.
+  // Preferencia de colapso (escritorio) persistida; en movil con panel abierto se ignora
   const [collapsedPref, setCollapsedPref] = useState(() => localStorage.getItem('optima_sidebar_collapsed') === 'true')
   useEffect(() => { localStorage.setItem('optima_sidebar_collapsed', String(collapsedPref)) }, [collapsedPref])
   const collapsed = collapsedPref && !mobileOpen
 
-  // Cierra el drawer móvil al cambiar de ruta.
+  // Cierra el panel movil al cambiar de ruta
   useEffect(() => { onMobileClose?.() }, [location.pathname, onMobileClose])
 
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -40,7 +41,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
   const displayName = user?.fullName || user?.email || 'Usuario'
   const initials = displayName.trim()[0]?.toUpperCase() ?? 'U'
 
-  // Atajos: 1-7 navegan, Cmd/Ctrl+K palette, Cmd/Ctrl+B colapsa, ? ayuda; se ignoran dentro de campos.
+  // Atajos de teclado para navegar sin afectar campos de texto
   useEffect(() => {
     const handler = (e) => {
       const tag = (e.target?.tagName || '').toLowerCase()
@@ -54,7 +55,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
 
       if (e.key === '?') { e.preventDefault(); setHelpOpen(true); return }
       if (e.key === 'Escape') { setPaletteOpen(false); setHelpOpen(false); onMobileClose?.(); return }
-      // Atajos numéricos solo cuando el palette/help están cerrados
+      // Atajos numericos solo cuando el palette/help estan cerrados
       if (!paletteOpen && !helpOpen) {
         const item = navItems.find((n) => n.key === e.key)
         if (item) { e.preventDefault(); navigate(item.to) }
@@ -69,9 +70,9 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
       <aside
         className={cn(
           // La clase `sidebar` la usa el @media print del Calendario para
-          // ocultar la barra lateral al imprimir la agenda.
+          // ocultar la barra lateral al imprimir la agenda
           'sidebar flex h-[100dvh] flex-col bg-[#1e3a5f] transition-all duration-200',
-          // Movil: drawer fijo, fuera de pantalla; entra deslizando
+          // Movil: panel fijo, fuera de pantalla; entra deslizando
           'fixed inset-y-0 left-0 z-40 w-64',
           mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full',
           // Escritorio: en el flujo normal, con soporte de modo colapsado
@@ -79,7 +80,6 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
           collapsed ? 'lg:w-[72px]' : 'lg:w-64',
         )}
       >
-        {/* Logo + toggle */}
         <div className={cn('flex items-center pt-6 pb-5', collapsed ? 'px-3 justify-center' : 'px-5 justify-between')}>
           <NavLink to="/dashboard" className="flex items-center gap-3" title="Ir al dashboard">
             <img
@@ -96,7 +96,6 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
           </NavLink>
           {!collapsed && (
             <div className="flex items-center gap-1">
-              {/* Cerrar el drawer — solo movil/tablet */}
               <button
                 onClick={onMobileClose}
                 title="Cerrar menú"
@@ -105,7 +104,6 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
               >
                 <X size={18} />
               </button>
-              {/* Colapsar — solo escritorio */}
               <button
                 onClick={() => setCollapsedPref(true)}
                 title="Colapsar (Ctrl+B)"
@@ -119,10 +117,8 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
 
         {!collapsed && <div className="mx-5 h-px bg-white/10" />}
 
-        {/* BusinessSwitcher */}
         {!collapsed && <BusinessSwitcher />}
 
-        {/* Cmd+K trigger (solo expandido) */}
         {!collapsed && (
           <div className="px-3 pt-3">
             <button
@@ -136,14 +132,12 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
           </div>
         )}
 
-        {/* Section label */}
         {!collapsed && (
           <div className="px-5 pt-4 pb-2">
             <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/30">Área de trabajo</p>
           </div>
         )}
 
-        {/* Nav items */}
         <nav className={cn('flex-1 overflow-y-auto space-y-0.5', collapsed ? 'px-2 pt-3' : 'px-3')}>
           {navItems.map(({ to, icon: Icon, label, key }) => (
             <NavLink
@@ -184,7 +178,6 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
             </NavLink>
           ))}
 
-          {/* Sección "Cuenta" */}
           {!collapsed && (
             <div className="px-2 pt-5 pb-2">
               <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/30">Cuenta</p>
@@ -219,7 +212,6 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
           </NavLink>
         </nav>
 
-        {/* User footer */}
         <div className={cn('border-t border-white/10', collapsed ? 'px-2 py-3' : 'px-3 py-4')}>
           {collapsed ? (
             <div className="flex flex-col items-center gap-2">
@@ -274,7 +266,6 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
         </div>
       </aside>
 
-      {/* Backdrop del drawer movil: cubre el contenido y lo cierra al tocar */}
       {mobileOpen && (
         <div
           onClick={onMobileClose}
@@ -289,9 +280,6 @@ export function Sidebar({ mobileOpen = false, onMobileClose }) {
   )
 }
 
-/* ============================================================
-   COMMAND PALETTE (Cmd+K)
-   ============================================================ */
 
 function CommandPalette({ onClose }) {
   const navigate = useNavigate()
@@ -385,9 +373,6 @@ function CommandPalette({ onClose }) {
   )
 }
 
-/* ============================================================
-   KEYBOARD HELP OVERLAY (?)
-   ============================================================ */
 
 function KeyboardHelp({ onClose }) {
   const rows = [

@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-/** DTO de entrada para crear un impuesto. */
+/** datos para crear un impuesto */
 public record CreateTaxRequest(
 
         @NotBlank(message = "El nombre del impuesto es obligatorio")

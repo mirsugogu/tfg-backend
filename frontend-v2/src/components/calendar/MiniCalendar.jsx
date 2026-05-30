@@ -1,10 +1,11 @@
+// Calendario compacto mensual con popover para saltar a una fecha
 import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, CalendarSearch } from 'lucide-react'
 import { MONTHS_ES, DAYS_ES_SHORT, buildMonthGrid, isSameDay } from './utils'
 
-/** Rejilla 7x6 navegable que invoca onPick(Date) al elegir un día. */
+/** Rejilla 7x6 navegable que invoca onPick(Date) al elegir un dia */
 function MiniCalendar({ selected, today, onPick }) {
-  // El mes visible puede diferir del seleccionado mientras el usuario navega sin confirmar.
+  // El mes visible puede diferir del seleccionado mientras el usuario navega sin confirmar
   const [viewDate, setViewDate] = useState(
     () => new Date(selected.getFullYear(), selected.getMonth(), 1),
   )
@@ -76,7 +77,7 @@ function MiniCalendar({ selected, today, onPick }) {
   )
 }
 
-/** Botón de toolbar que abre un MiniCalendar en popover con cierre por outside/Esc. */
+/** Boton de toolbar que abre un MiniCalendar en popover con cierre por outside/Esc */
 export function MiniCalendarPopover({ cursor, today, onPick }) {
   const [open, setOpen] = useState(false)
   const popRef = useRef(null)

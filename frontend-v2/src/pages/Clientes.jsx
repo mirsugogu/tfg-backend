@@ -1,3 +1,4 @@
+// CRUD de clientes con buscador, paginacion, panel lateral y archivado
 import { useState, useEffect, useMemo } from 'react'
 import {
   Plus, Search, Pencil, Archive, ArchiveRestore, Mail, Phone, Users,
@@ -28,7 +29,7 @@ const avatarColor = (id) => AVATAR_COLORS[(id ?? 0) % AVATAR_COLORS.length]
 
 const empty = { fullName: '', email: '', phone: '', notes: '' }
 
-// "ago 2025" — corto, para la columna de la tabla
+// "ago 2025" - corto, para la columna de la tabla
 const fmtSince = (iso) => {
   if (!iso) return '—'
   return new Date(iso)
@@ -36,7 +37,7 @@ const fmtSince = (iso) => {
     .replace('.', '')
 }
 
-// "12 de agosto de 2025 · hace 9 meses" — largo, para el drawer
+// "12 de agosto de 2025 - hace 9 meses" - largo, para el panel
 const fmtSinceLong = (iso) => {
   if (!iso) return '—'
   const d = new Date(iso)
@@ -54,21 +55,19 @@ const fmtSinceLong = (iso) => {
 
 const telHref = (phone) => 'tel:' + String(phone || '').replace(/\s/g, '')
 
-/** Listado y CRUD de clientes con buscador server-side, paginación y soft delete. */
+/** Listado y gestion de clientes con buscador en servidor, paginacion y archivado */
 export default function Clientes() {
   const { user } = useAuth()
   const toast = useToast()
   const bId = user?.businessId
 
-  // ---- estado UI persistido ----
   const [view, setView] = useState(() => localStorage.getItem('optima_clients_view') || 'table')
   useEffect(() => { localStorage.setItem('optima_clients_view', view) }, [view])
 
   const [pageSize, setPageSize] = useState(() => parseInt(localStorage.getItem('optima_clients_size') || '20', 10))
   useEffect(() => { localStorage.setItem('optima_clients_size', String(pageSize)) }, [pageSize])
 
-  // ---- ordenación (Spring Data Pageable lo recoge gratis) ----
-  // sortKey: 'fullName' | 'createdAt'  ·  sortDir: 'asc' | 'desc'
+  // sortKey: 'fullName' | 'createdAt' - sortDir: 'asc' | 'desc'
   const [sortKey, setSortKey] = useState(() => localStorage.getItem('optima_clients_sortkey') || 'createdAt')
   const [sortDir, setSortDir] = useState(() => localStorage.getItem('optima_clients_sortdir') || 'desc')
   useEffect(() => { localStorage.setItem('optima_clients_sortkey', sortKey) }, [sortKey])
@@ -79,28 +78,25 @@ export default function Clientes() {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
     } else {
       setSortKey(key)
-      // Por defecto: nombres asc, fechas desc.
+      // Por defecto: nombres asc, fechas desc
       setSortDir(key === 'fullName' ? 'asc' : 'desc')
     }
   }
 
-  // ---- vista activos / archivados (sin persistir) ----
   const [archiveView, setArchiveView] = useState('active') // 'active' | 'archived'
   const isArchived = archiveView === 'archived'
 
-  // Filtros que viajan al backend: ordenación + flag de soft-delete.
+  // Filtros que viajan al servidor: ordenacion + flag de archivado
   const queryParams = useMemo(
     () => ({ sort: `${sortKey},${sortDir}`, active: archiveView === 'active' }),
     [sortKey, sortDir, archiveView],
   )
 
-  // ---- datos: se cargan TODOS los clientes (size=100, tope del backend)
-  //      para que la búsqueda y la paginación operen sobre el conjunto
-  //      completo, no sobre una sola página. Mismo patrón que Bloqueos.
+  // para que la busqueda y la paginacion operen sobre el conjunto
+  // completo, no sobre una sola pagina Mismo patron que Bloqueos
   const { items: clients, totalElements, loading, refresh } =
     usePagedFetch(bId ? `/api/businesses/${bId}/clients` : null, { size: 100, params: queryParams })
 
-  // ---- búsqueda: filtra sobre el conjunto completo ----
   const [search, setSearch] = useState('')
   const filtered = clients.filter((c) =>
     c.fullName?.toLowerCase().includes(search.toLowerCase()) ||
@@ -108,13 +104,11 @@ export default function Clientes() {
     c.phone?.includes(search)
   )
 
-  // ---- paginación en cliente sobre el resultado ya filtrado ----
   const [page, setPage] = useState(0)
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safePage = Math.min(page, totalPages - 1)
   const paged = filtered.slice(safePage * pageSize, safePage * pageSize + pageSize)
 
-  // ---- modales + drawer ----
   const [modal, setModal] = useState(null)       // 'create' | 'edit' | 'archive' | null
   const [selected, setSelected] = useState(null) // cliente seleccionado para edit/archive
   const [drawer, setDrawer] = useState(null)     // cliente abierto en el panel lateral
@@ -137,7 +131,7 @@ export default function Clientes() {
   const closeModal = () => setModal(null)
   const closeDrawer = () => setDrawer(null)
 
-  // Cierra el drawer con Esc
+  // Cierra el panel con Esc
   useEffect(() => {
     if (!drawer) return
     const handler = (e) => { if (e.key === 'Escape') closeDrawer() }
@@ -179,12 +173,11 @@ export default function Clientes() {
   const handleArchive = async () => {
     setSaving(true)
     try {
-      // El backend hace soft-delete (is_active=false). Mantenemos la
-      // misma llamada DELETE; solo cambia el copy en la UI.
+      // El borrado mantiene el cliente en archivado
       await api.delete(`/api/businesses/${bId}/clients/${selected.id}`)
       toast({ type: 'success', message: 'Cliente archivado.' })
       closeModal()
-      // Si el drawer está abierto sobre este cliente, ciérralo.
+      // Si el panel esta abierto sobre este cliente, cierralo
       if (drawer?.id === selected.id) setDrawer(null)
       refresh()
     } catch (err) {
@@ -194,7 +187,7 @@ export default function Clientes() {
     }
   }
 
-  // Restaurar es un clic directo (no destructivo): sin modal de confirmación.
+  // Restaurar es un clic directo (no destructivo): sin ventana de confirmacion
   const handleReactivate = async (client) => {
     try {
       await api.patch(`/api/businesses/${bId}/clients/${client.id}/reactivate`)
@@ -206,9 +199,6 @@ export default function Clientes() {
     }
   }
 
-  /* ============================================================
-     RENDER
-     ============================================================ */
 
   const SortIcon = ({ k }) => {
     if (sortKey !== k) return <ChevronsUpDown size={12} className="opacity-60" />
@@ -220,7 +210,6 @@ export default function Clientes() {
   return (
     <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8">
 
-      {/* Header */}
       <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-[#1e3a5f] tracking-tight">Clientes</h1>
@@ -248,7 +237,6 @@ export default function Clientes() {
         </div>
       </div>
 
-      {/* Toolbar */}
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[260px] max-w-md">
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -260,7 +248,6 @@ export default function Clientes() {
           />
         </div>
 
-        {/* Vista activos / archivados */}
         <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
           {[{ key: 'active', label: 'Activos' }, { key: 'archived', label: 'Archivados' }].map(({ key, label }) => (
             <button key={key} type="button" onClick={() => setArchiveView(key)}
@@ -270,7 +257,6 @@ export default function Clientes() {
           ))}
         </div>
 
-        {/* Selector de tamaño de página */}
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <span>Mostrar</span>
           <select
@@ -286,7 +272,6 @@ export default function Clientes() {
           <span>por página</span>
         </div>
 
-        {/* Toggle vista */}
         <div className="ml-auto inline-flex items-center bg-slate-100 rounded-xl p-1">
           <button
             type="button"
@@ -313,7 +298,6 @@ export default function Clientes() {
         </div>
       </div>
 
-      {/* ============== TABLA ============== */}
       {view === 'table' && (
         <div className="bg-white rounded-2xl border border-slate-100/80 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)] overflow-hidden">
           <div className="overflow-x-auto">
@@ -463,7 +447,6 @@ export default function Clientes() {
         </div>
       )}
 
-      {/* ============== TARJETAS ============== */}
       {view === 'cards' && (
         <>
           {loading ? (
@@ -576,7 +559,6 @@ export default function Clientes() {
         </>
       )}
 
-      {/* ============== DRAWER ============== */}
       {drawer && (
         <>
           <div
@@ -608,7 +590,6 @@ export default function Clientes() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-              {/* Contacto */}
               <div>
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-2">Contacto</div>
                 {drawer.email ? (
@@ -649,7 +630,6 @@ export default function Clientes() {
                 )}
               </div>
 
-              {/* Notas (texto completo, sin truncar) */}
               <div>
                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-2">Notas</div>
                 <div className="text-sm leading-relaxed text-slate-700 whitespace-pre-wrap min-h-[80px] rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3">
@@ -699,7 +679,6 @@ export default function Clientes() {
         </>
       )}
 
-      {/* ============== MODAL CREATE / EDIT ============== */}
       <Modal
         open={modal === 'create' || modal === 'edit'}
         onClose={closeModal}
@@ -719,7 +698,6 @@ export default function Clientes() {
         </div>
       </Modal>
 
-      {/* ============== MODAL ARCHIVAR ============== */}
       <Modal open={modal === 'archive'} onClose={closeModal} title="Archivar cliente" size="sm">
         <div className="space-y-5">
           <div className="flex items-start gap-3 rounded-2xl bg-amber-50 border border-amber-100 px-4 py-4">
@@ -736,7 +714,6 @@ export default function Clientes() {
         </div>
       </Modal>
 
-      {/* Asistente de nueva cita, abierto desde la ficha del cliente */}
       <AppointmentWizard
         open={!!wizardClient}
         prefillClientId={wizardClient?.id}
@@ -746,14 +723,3 @@ export default function Clientes() {
     </div>
   )
 }
-
-/* ------------------------------------------------------------
-   Animaciones del drawer (añadir al index.css o tailwind config)
-   ------------------------------------------------------------
-
-   @keyframes fadeIn      { from { opacity: 0 } to { opacity: 1 } }
-   @keyframes slideInRight { from { transform: translateX(100%) } to { transform: translateX(0) } }
-
-   Si no quieres tocar el global CSS, las animaciones de Tailwind
-   se degradan a un fade simple — el drawer sigue funcionando.
-   ------------------------------------------------------------ */

@@ -8,19 +8,19 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-/** Acceso a impuestos filtrados por negocio. */
+/** consultas de impuestos filtrados por negocio */
 @Repository
 public interface TaxRepository extends JpaRepository<Tax, Long> {
 
-    /** Lista paginada de impuestos activos (excluye soft-deleted). */
+    /** lista de impuestos activos */
     Page<Tax> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
-    /** Lista impuestos archivados de un negocio. */
+    /** lista impuestos archivados de un negocio */
     Page<Tax> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
 
-    /** Para validar unicidad del nombre dentro del negocio (case-insensitive). */
+    /** para validar unicidad del nombre dentro del negocio */
     boolean existsByBusinessIdAndNameIgnoreCase(Long businessId, String name);
 
-    /** Busca por id dentro del negocio. */
+    /** busca por id dentro del negocio */
     Optional<Tax> findByIdAndBusinessId(Long id, Long businessId);
 }

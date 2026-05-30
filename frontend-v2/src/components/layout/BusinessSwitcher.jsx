@@ -1,3 +1,4 @@
+// Selector de negocio activo para usuarios con multiples memberships
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Building2, ChevronDown, Check, Search } from 'lucide-react'
@@ -7,7 +8,7 @@ import { useCatalog } from '@/context/CatalogContext'
 import { useToast } from '@/components/ui/Toast'
 import api, { getErrorMessage } from '@/lib/api'
 
-/** Selector de negocio activo; si el usuario tiene varios, abre modal con buscador. */
+/** Selector de negocio activo; si el usuario tiene varios, abre ventana con buscador */
 export function BusinessSwitcher() {
   const { user, switchBusiness } = useAuth()
   const { roleLabel } = useCatalog()

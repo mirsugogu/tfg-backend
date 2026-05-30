@@ -6,8 +6,8 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * DTO de entrada para actualizar los datos principales de un negocio.
- * El slug no se modifica desde este request.
+ * datos para actualizar los datos principales de un negocio
+ * el slug no se modifica en la actualizacion
  */
 public record UpdateBusinessRequest(
 

@@ -1,17 +1,17 @@
-/* Helpers y constantes compartidos por el Calendario y sus rejillas. */
+/* Constantes compartidas por el calendario */
 
 export const MONTHS_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 export const DAYS_ES_SHORT = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
 export const VIEW_MODES = ['Mes','Semana','Día']
 
-// Defaults — luego se ajustan dinámicamente desde business_hours.
+// Horario base antes de cargar datos del negocio
 export const DEFAULT_DAY_START = 8
 export const DEFAULT_DAY_END   = 21
 
-// Pixeles por hora en las rejillas Día/Semana/recurso.
+// Altura base de una hora en la agenda
 export const HOUR_PX = 64
 
-/** Paleta determinista para "Color por" Empleado / Cabina. */
+/** Colores estables por empleado o cabina */
 export const PALETTES = [
   { name: 'cyan',    bg: 'bg-cyan-100',    text: 'text-cyan-800',    bar: 'bg-cyan-600',    ring: 'ring-cyan-400',    hover: 'hover:bg-cyan-200',    dot: 'bg-cyan-500' },
   { name: 'amber',   bg: 'bg-amber-100',   text: 'text-amber-800',   bar: 'bg-amber-600',   ring: 'ring-amber-400',   hover: 'hover:bg-amber-200',   dot: 'bg-amber-500' },
@@ -23,7 +23,7 @@ export const PALETTES = [
   { name: 'teal',    bg: 'bg-teal-100',    text: 'text-teal-800',    bar: 'bg-teal-600',    ring: 'ring-teal-400',    hover: 'hover:bg-teal-200',    dot: 'bg-teal-500' },
 ]
 
-/** Paleta de los 6 estados de cita; CANCELLED y NO_SHOW van apagados. */
+/** Colores de estado de cita */
 export const STATUS_STYLES = {
   PENDING:     { bg:'bg-amber-200',   text:'text-amber-900',   bar:'bg-amber-600',   ring:'ring-amber-500',   hover:'hover:bg-amber-300',   dot:'bg-amber-500' },
   CONFIRMED:   { bg:'bg-blue-200',    text:'text-blue-900',    bar:'bg-blue-600',    ring:'ring-blue-500',    hover:'hover:bg-blue-300',    dot:'bg-blue-500' },
@@ -34,12 +34,11 @@ export const STATUS_STYLES = {
 }
 export const GRAY_PALETTE = { bg:'bg-slate-200', text:'text-slate-600', bar:'bg-slate-500', ring:'ring-slate-400', hover:'hover:bg-slate-300', dot:'bg-slate-500' }
 
-// Paleta por nombre ('cyan', 'amber'…); null si no existe.
 const PALETTE_BY_NAME = Object.fromEntries(PALETTES.map((p) => [p.name, p]))
-/** Devuelve la paleta asociada al nombre o null. */
+/** Devuelve la paleta asociada al nombre o null */
 export const paletteByName = (name) => PALETTE_BY_NAME[name] || null
 
-/** Devuelve los estilos del evento según el modo "Color por"; terminales siempre apagadas. */
+/** Devuelve los estilos del evento segun el modo "Color por"; terminales siempre apagadas */
 export const styleFor = (appt, colorBy) => {
   if (appt.statusName === 'CANCELLED' || appt.statusName === 'NO_SHOW')
     return STATUS_STYLES[appt.statusName]
@@ -52,7 +51,6 @@ export const styleFor = (appt, colorBy) => {
   return STATUS_STYLES[appt.statusName] || STATUS_STYLES.PENDING
 }
 
-/* ----- fecha ----- */
 export const pad2 = (n) => String(n).padStart(2, '0')
 export const keyOf = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 export const isSameDay = (a, b) =>
@@ -79,17 +77,17 @@ export const rangeFor = (view, cursor) => {
   return { from: keyOf(cursor), to: keyOf(cursor) }
 }
 
-/* ----- cita ----- */
 export const apptDate = (a) => a.startDateTime.slice(0, 10)
 export const apptHHMM = (iso) => iso.slice(11, 16)
 export const minutesOf = (iso) => { const [h, m] = iso.slice(11, 16).split(':'); return Number(h) * 60 + Number(m) }
 export const apptDuration = (a) => Math.max(15, minutesOf(a.endDateTime) - minutesOf(a.startDateTime))
 
-/** Reparte eventos solapados en sub-columnas (greedy); devuelve cada uno con { a, col, cols }. */
+/** Ordena citas solapadas en columnas (algoritmo greedy de packing) */
 export const layoutEvents = (events) => {
   const items = events
     .map((a) => { const startMin = minutesOf(a.startDateTime); return { a, startMin, endMin: startMin + apptDuration(a) } })
     .sort((x, y) => x.startMin - y.startMin || x.endMin - y.endMin)
+  // Agrupa citas que se solapan en el tiempo
   const groups = []
   let current = [], currentEnd = -1
   items.forEach((it) => {
@@ -97,6 +95,7 @@ export const layoutEvents = (events) => {
     else { if (current.length) groups.push(current); current = [it]; currentEnd = it.endMin }
   })
   if (current.length) groups.push(current)
+  // Dentro de cada grupo, asigna columna visual (col) y total de columnas (cols)
   const out = []
   groups.forEach((group) => {
     const cols = []
@@ -111,7 +110,7 @@ export const layoutEvents = (events) => {
   return out
 }
 
-/** Rangos abiertos del día desde business_hours; soporta turno partido. */
+/** Rangos abiertos del dia con turno partido */
 export const openRangesFor = (businessHours, date) => {
   const dow = date.getDay() === 0 ? 7 : date.getDay()
   return businessHours
@@ -123,7 +122,7 @@ export const openRangesFor = (businessHours, date) => {
     })
 }
 
-/** Rangos laborables del empleado en la fecha; soporta turno partido. */
+/** Rangos laborables del empleado en la fecha; soporta turno partido */
 export const workingRangesFor = (employeeSchedules, date) => {
   const dow = date.getDay() === 0 ? 7 : date.getDay()
   return employeeSchedules
@@ -135,15 +134,14 @@ export const workingRangesFor = (employeeSchedules, date) => {
     })
 }
 
-/* ----- bloqueos de agenda (schedule_blocks) ----- */
 
-// True si la fecha cae en [startDate, endDate] del bloqueo (inclusive).
+// Comprueba si la fecha entra en el bloqueo
 const isDateInBlockRange = (date, block) => {
   const ymd = keyOf(date)
   return ymd >= block.startDate && ymd <= block.endDate
 }
 
-/** Filtra los bloqueos aplicables a la celda (date, resourceType, resourceId); globales aplican siempre. */
+/** Bloqueos visibles para una celda */
 export const blocksForCell = (blocks, date, resourceType = null, resourceId = null) => {
   if (!blocks || blocks.length === 0) return []
   return blocks.filter((b) => {
@@ -156,7 +154,7 @@ export const blocksForCell = (blocks, date, resourceType = null, resourceId = nu
   })
 }
 
-/** Etiqueta corta del bloqueo: usa `reason` o un genérico por tipo. */
+/** Etiqueta corta del bloqueo: usa `reason` o un generico por tipo */
 export const labelForBlock = (b) => {
   if (b.reason && b.reason.trim()) return b.reason
   if (b.membershipId != null) return 'Empleado bloqueado'
@@ -164,7 +162,7 @@ export const labelForBlock = (b) => {
   return 'Día bloqueado'
 }
 
-/** Primer bloqueo que aplica a la cita (global / por empleado / por cabina), o null. */
+/** Primer bloqueo que aplica a la cita (global / por empleado / por cabina), o null */
 export const blockForAppointment = (blocks, appt) => {
   if (!appt || !blocks || blocks.length === 0) return null
   const date = new Date(appt.startDateTime)
@@ -178,7 +176,7 @@ export const blockForAppointment = (blocks, appt) => {
   return null
 }
 
-/** Primera ausencia que solapa con la cita en el mismo empleado, o null. */
+/** Primera ausencia que solapa con la cita en el mismo empleado, o null */
 export const absenceForAppointment = (absences, appt) => {
   if (!appt || !absences || absences.length === 0) return null
   const apptStart = new Date(appt.startDateTime).getTime()

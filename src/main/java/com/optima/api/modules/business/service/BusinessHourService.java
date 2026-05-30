@@ -16,7 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalTime;
 import java.util.List;
 
-/** Logica del horario semanal de apertura del negocio. */
+/** logica del horario semanal de apertura del negocio */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -25,7 +25,7 @@ public class BusinessHourService {
     private final BusinessHourRepository hourRepository;
     private final BusinessRepository businessRepository;
 
-    /** Crea un tramo horario y evita solapes en el mismo dia. */
+    /** crea un tramo horario y evita solapes en el mismo dia */
     public BusinessHourResponse create(Long businessId, CreateBusinessHourRequest request) {
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -45,8 +45,8 @@ public class BusinessHourService {
     }
 
     /**
-     * Lista los tramos horarios del negocio ordenados por dia (lunes-domingo)
-     * y, dentro del mismo dia, por hora de inicio.
+     * lista los tramos horarios del negocio ordenados por dia lunes-domingo
+     * y dentro del mismo dia por hora de inicio
      */
     @Transactional(readOnly = true)
     public List<BusinessHourResponse> listByBusiness(Long businessId) {
@@ -54,13 +54,13 @@ public class BusinessHourService {
                 .stream().map(BusinessHourResponse::from).toList();
     }
 
-    /** Obtiene un tramo horario del negocio. */
+    /** obtiene un tramo horario del negocio */
     @Transactional(readOnly = true)
     public BusinessHourResponse getById(Long businessId, Long id) {
         return BusinessHourResponse.from(findOrThrow(businessId, id));
     }
 
-    /** Sustituye dia, hora de inicio y hora de fin de un tramo existente. */
+    /** sustituye dia hora de inicio y hora de fin de un tramo existente */
     public BusinessHourResponse update(Long businessId, Long id, UpdateBusinessHourRequest request) {
         BusinessHour bh = findOrThrow(businessId, id);
 
@@ -74,13 +74,13 @@ public class BusinessHourService {
         return BusinessHourResponse.from(hourRepository.save(bh));
     }
 
-    /** Borra el tramo horario. */
+    /** borra el tramo horario */
     public void delete(Long businessId, Long id) {
         BusinessHour bh = findOrThrow(businessId, id);
         hourRepository.delete(bh);
     }
 
-    /** Valida que el tramo no se solape con otros horarios abiertos. */
+    /** valida que el tramo no se solape con otros horarios abiertos */
     private void validateNoOverlap(Long businessId, Integer dayOfWeek,
                                    Boolean isClosed, LocalTime startTime, LocalTime endTime,
                                    Long excludeId) {
@@ -100,7 +100,7 @@ public class BusinessHourService {
         }
     }
 
-    /** Aplica la coherencia entre el cierre del dia y sus horas. */
+    /** aplica la coherencia entre el cierre del dia y sus horas */
     private void applyHours(BusinessHour bh, Boolean isClosed,
                             LocalTime startTime, LocalTime endTime) {
         boolean closed = Boolean.TRUE.equals(isClosed);

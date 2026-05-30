@@ -18,7 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
-/** esto lleva las categorias del catalogo */
+/** gestiona las categorias del catalogo */
 @Service
 @Transactional
 @RequiredArgsConstructor

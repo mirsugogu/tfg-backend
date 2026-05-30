@@ -19,8 +19,8 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * revisa el jwt de cada peticion
- * si es valido guarda el usuario en el contexto
+ * revisa la clave de acceso de cada peticion
+ * si es valida guarda el usuario en el contexto
  */
 @Component
 @RequiredArgsConstructor
@@ -31,7 +31,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
 
-    /** busca el token y prepara el usuario autenticado */
+    /** extrae el token JWT y prepara el usuario autenticado */
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
@@ -50,7 +50,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             Claims claims = jwtUtil.parseAndValidate(token);
 
-            // email y userId son obligatorios
+            // email y userid son obligatorios
             String email = claims.getSubject();
             Object userIdRaw = claims.get("userId");
             Long userId = userIdRaw instanceof Number n ? n.longValue() : null;
@@ -59,23 +59,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 throw new JwtException("Claims requeridos ausentes en el JWT");
             }
 
-            // businessId y role solo aparecen en token de negocio
+            // businessId y role solo aparecen en el token de negocio
             Number bidClaim = (Number) claims.get("businessId");
             Long businessId = bidClaim != null ? bidClaim.longValue() : null;
             String role = (String) claims.get("role");
 
             AuthPrincipal principal = new AuthPrincipal(userId, businessId, email, role);
 
-            // spring usa estas autoridades para permisos
-            List<SimpleGrantedAuthority> authorities = role != null
-                    ? List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                    : List.of();
+            // el servidor usa estas autoridades para permisos
+            List<SimpleGrantedAuthority> authorities = role != null ? List.of(new SimpleGrantedAuthority("ROLE_" + role)) : List.of();
 
-            UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(principal, null, authorities);
+            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(principal, null, authorities);
             SecurityContextHolder.getContext().setAuthentication(auth);
         } catch (JwtException | ClassCastException | NullPointerException ignored) {
-            // si el token falla se limpia el contexto
+            // si el token es invalido se limpia el contexto
             SecurityContextHolder.clearContext();
         }
 

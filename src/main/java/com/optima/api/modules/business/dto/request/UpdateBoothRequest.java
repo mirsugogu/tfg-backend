@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-/** DTO de entrada para actualizar una cabina. */
+/** datos para actualizar una cabina */
 public record UpdateBoothRequest(
 
         @NotBlank(message = "El nombre de la cabina es obligatorio")

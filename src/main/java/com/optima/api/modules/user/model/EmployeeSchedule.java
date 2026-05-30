@@ -9,7 +9,7 @@ import lombok.Setter;
 
 import java.time.LocalTime;
 
-/** Entidad que representa un tramo semanal de trabajo de un empleado. */
+/** tramo semanal de trabajo de un empleado */
 @Entity
 @Table(name = "employee_schedules")
 @Getter
@@ -23,20 +23,20 @@ public class EmployeeSchedule {
     @Column(name = "id_schedule")
     private Long id;
 
-    /** Membership a la que pertenece este horario. */
+    /** relacion a la que pertenece este horario */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_membership", nullable = false)
     private Membership membership;
 
-    /** Dia de la semana: 1=lunes y 7=domingo. */
+    /** dia de la semana: 1=lunes y 7=domingo */
     @Column(name = "day_of_week", nullable = false)
     private Integer dayOfWeek;
 
-    /** Hora de inicio del tramo. */
+    /** hora de inicio del tramo */
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;
 
-    /** Hora de fin del tramo. */
+    /** hora de fin del tramo */
     @Column(name = "end_time", nullable = false)
     private LocalTime endTime;
 }

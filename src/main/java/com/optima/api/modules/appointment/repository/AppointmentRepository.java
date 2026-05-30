@@ -15,19 +15,20 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-/** Acceso a la tabla `appointments`. */
+/** consultas de citas */
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 
+    /** busca una cita por id dentro del negocio */
     Optional<Appointment> findByIdAndBusinessId(Long id, Long businessId);
 
-    /** Bloquea la cita para evitar ediciones concurrentes sobre la misma fila. */
+    /** bloquea una cita para editarla */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM Appointment a WHERE a.id = :id AND a.business.id = :businessId")
     Optional<Appointment> findByIdAndBusinessIdForUpdate(@Param("id") Long id,
                                                         @Param("businessId") Long businessId);
 
-    /** Busqueda paginada de citas con filtros opcionales. */
+    /** busca citas con filtros y paginacion */
     @EntityGraph(attributePaths = {"client", "membership", "membership.user",
                                     "booth", "status"})
     @Query("""
@@ -45,7 +46,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             Pageable pageable
     );
 
-    /** Comprueba si un empleado tiene alguna cita que se solape con el rango dado. */
+    /** mira si un empleado ya tiene una cita en ese rango */
     @Query("""
             SELECT COUNT(a) > 0 FROM Appointment a
             WHERE a.membership.id = :membershipId
@@ -59,9 +60,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("endDateTime") LocalDateTime endDateTime
     );
 
-    /**
-     * Variante de existsOverlappingAppointment que excluye una cita concreta
-     */
+    /** hace la misma comprobacion pero ignorando una cita */
     @Query("""
             SELECT COUNT(a) > 0 FROM Appointment a
             WHERE a.membership.id = :membershipId
@@ -77,7 +76,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("excludeId") Long excludeId
     );
 
-    /** Comprueba si una cabina tiene alguna cita que se solape con el rango dado. */
+    /** mira si una cabina ya tiene una cita en ese rango */
     @Query("""
             SELECT COUNT(a) > 0 FROM Appointment a
             WHERE a.booth.id = :boothId
@@ -91,9 +90,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("endDateTime") LocalDateTime endDateTime
     );
 
-    /**
-     * Variante de existsOverlappingBoothAppointment que excluye una cita
-     */
+    /** hace la misma comprobacion pero ignorando una cita */
     @Query("""
             SELECT COUNT(a) > 0 FROM Appointment a
             WHERE a.booth.id = :boothId
@@ -109,7 +106,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("excludeId") Long excludeId
     );
 
-    /** Devuelve todas las citas ACTIVAS (PENDING, CONFIRMED, IN_PROGRESS) de un negocio cuya hora de inicio cae en un rango [dayStart, dayEnd). */
+    /** devuelve las citas activas de un dia */
     @Query("""
             SELECT a FROM Appointment a
             WHERE a.business.id = :businessId
@@ -123,7 +120,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("dayEnd") LocalDateTime dayEnd
     );
 
-    /** Cuenta citas activas futuras de un cliente antes de archivarlo. */
+    /** cuenta citas futuras activas de un cliente */
     @Query("""
             SELECT COUNT(a) FROM Appointment a
             WHERE a.client.id = :clientId
@@ -137,7 +134,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("now") LocalDateTime now
     );
 
-    /** Cuenta reservas activas futuras de una cabina antes de archivarla. */
+    /** cuenta citas futuras activas de una cabina */
     @Query("""
             SELECT COUNT(a) FROM Appointment a
             WHERE a.booth.id = :boothId
@@ -151,7 +148,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("now") LocalDateTime now
     );
 
-    /** Cuenta citas activas futuras de un empleado antes de archivarlo. */
+    /** cuenta citas futuras activas de un empleado */
     @Query("""
             SELECT COUNT(a) FROM Appointment a
             WHERE a.membership.id = :membershipId

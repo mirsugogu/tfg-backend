@@ -7,8 +7,8 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 
 /**
- * DTO de entrada para crear un bloqueo de agenda.
- * Puede aplicarse al negocio, a un empleado o a una cabina.
+ * datos para crear un bloqueo de agenda
+ * aplica a negocio empleado o cabina
  */
 public record CreateScheduleBlockRequest(
 

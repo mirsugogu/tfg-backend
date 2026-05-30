@@ -8,7 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/** Logica del catalogo global de roles. */
+/** logica del catalogo global de roles */
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -17,7 +17,7 @@ public class RoleService {
     private final RoleRepository roleRepository;
 
     /**
-     * Devuelve todos los roles del catalogo (ADMIN, EMPLOYEE).
+     * devuelve todos los roles del catalogo admin employee
      */
     public List<RoleResponse> listAll() {
         return roleRepository.findAll()

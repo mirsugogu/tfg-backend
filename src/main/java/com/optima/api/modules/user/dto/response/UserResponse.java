@@ -6,8 +6,8 @@ import com.optima.api.modules.user.model.User;
 import java.time.LocalDateTime;
 
 /**
- * Respuesta que representa a un empleado dentro de un negocio.
- * No incluye passwordHash. El id principal corresponde a la membership.
+ * respuesta que representa a un empleado dentro de un negocio
+ * no incluye clave privada del usuario
  */
 public record UserResponse(
         Long id,

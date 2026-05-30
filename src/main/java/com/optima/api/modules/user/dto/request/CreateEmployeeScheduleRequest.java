@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalTime;
 
 /**
- * Datos para crear un tramo del horario semanal de un empleado.
+ * datos para crear un tramo del horario semanal de un empleado
  */
 public record CreateEmployeeScheduleRequest(
 

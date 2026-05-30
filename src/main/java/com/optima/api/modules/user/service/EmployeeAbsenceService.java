@@ -18,7 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Servicio de ausencias puntuales de empleados. */
+/** servicio de ausencias puntuales de empleados */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -28,7 +28,7 @@ public class EmployeeAbsenceService {
     private final MembershipRepository membershipRepository;
 
     /**
-     * Lista ausencias del negocio que solapan con un rango.
+     * lista ausencias del negocio que solapan con un rango
      */
     @Transactional(readOnly = true)
     public List<EmployeeAbsenceResponse> listByBusinessAndRange(Long businessId,
@@ -39,7 +39,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Crea una ausencia para un empleado del negocio.
+     * crea una ausencia para un empleado del negocio
      */
     public EmployeeAbsenceResponse create(Long businessId, Long userId, CreateEmployeeAbsenceRequest request) {
         Membership membership = ensureMembershipOfBusiness(businessId, userId);
@@ -64,7 +64,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Lista paginada de ausencias del empleado.
+     * lista de ausencias del empleado
      */
     @Transactional(readOnly = true)
     public Page<EmployeeAbsenceResponse> listByEmployee(Long businessId, Long userId, Pageable pageable) {
@@ -74,7 +74,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Obtiene una ausencia concreta del empleado.
+     * obtiene una ausencia concreta del empleado
      */
     @Transactional(readOnly = true)
     public EmployeeAbsenceResponse getById(Long businessId, Long userId, Long id) {
@@ -83,7 +83,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Actualiza el rango y motivo de una ausencia existente.
+     * actualiza el rango y motivo de una ausencia existente
      */
     public EmployeeAbsenceResponse update(Long businessId, Long userId, Long id, UpdateEmployeeAbsenceRequest request) {
         ensureMembershipOfBusiness(businessId, userId);
@@ -100,7 +100,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Elimina una ausencia.
+     * elimina una ausencia
      */
     public void delete(Long businessId, Long userId, Long id) {
         ensureMembershipOfBusiness(businessId, userId);
@@ -109,7 +109,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Verifica que la membership existe y pertenece al negocio.
+     * comprueba que la relacion existe y pertenece al negocio
      */
     private Membership ensureMembershipOfBusiness(Long businessId, Long membershipId) {
         return membershipRepository.findByIdAndBusinessId(membershipId, businessId)
@@ -119,6 +119,7 @@ public class EmployeeAbsenceService {
                                 + " en el negocio con ID: " + businessId));
     }
 
+    /** busca la ausencia dentro de la relacion */
     private EmployeeAbsence findOrThrow(Long membershipId, Long id) {
         return absenceRepository.findByIdAndMembershipId(id, membershipId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -127,6 +128,7 @@ public class EmployeeAbsenceService {
                                 + " para el empleado con ID: " + membershipId));
     }
 
+    /** valida que el inicio sea anterior al fin */
     private void validateRange(LocalDateTime start, LocalDateTime end) {
         if (!start.isBefore(end)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -135,7 +137,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Valida que el rango no solape con otras ausencias.
+     * valida que el rango no solape con otras ausencias
      */
     private void validateNoOverlap(Long membershipId,
                                    LocalDateTime startDateTime,
@@ -153,7 +155,7 @@ public class EmployeeAbsenceService {
     }
 
     /**
-     * Convierte motivos vacios en null.
+     * limpia motivos vacios
      */
     private String normalize(String value) {
         if (value == null) return null;

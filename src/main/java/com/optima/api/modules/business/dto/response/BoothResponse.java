@@ -4,7 +4,7 @@ import com.optima.api.modules.business.model.Booth;
 
 import java.time.LocalDateTime;
 
-/** DTO de salida con los datos de una cabina. */
+/** datos de una cabina */
 public record BoothResponse(
         Long id,
         Long businessId,

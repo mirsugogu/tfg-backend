@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-/** DTO de entrada para crear un servicio del catalogo. */
+/** datos para crear un servicio del catalogo */
 public record CreateServiceRequest(
 
         @NotNull(message = "El ID de la categoría es obligatorio")

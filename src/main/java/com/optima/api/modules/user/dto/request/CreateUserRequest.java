@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 /**
- * Datos para crear un empleado dentro de un negocio.
+ * datos para crear un empleado dentro de un negocio
  */
 public record CreateUserRequest(
 

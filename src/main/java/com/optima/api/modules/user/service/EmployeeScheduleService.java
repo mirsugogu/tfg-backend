@@ -16,7 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalTime;
 import java.util.List;
 
-/** Servicio de horarios semanales de empleados. */
+/** servicio de horarios semanales de empleados */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -26,7 +26,7 @@ public class EmployeeScheduleService {
     private final MembershipRepository membershipRepository;
 
     /**
-     * Crea un tramo del horario semanal de un empleado.
+     * crea un tramo del horario semanal de un empleado
      */
     public EmployeeScheduleResponse create(Long businessId, Long userId, CreateEmployeeScheduleRequest request) {
         Membership membership = ensureMembershipOfBusiness(businessId, userId);
@@ -52,7 +52,7 @@ public class EmployeeScheduleService {
     }
 
     /**
-     * Lista todos los tramos del horario semanal de un empleado.
+     * lista todos los tramos del horario semanal de un empleado
      */
     @Transactional(readOnly = true)
     public List<EmployeeScheduleResponse> listByEmployee(Long businessId, Long userId) {
@@ -63,7 +63,7 @@ public class EmployeeScheduleService {
     }
 
     /**
-     * Obtiene un tramo concreto del horario.
+     * obtiene un tramo concreto del horario
      */
     @Transactional(readOnly = true)
     public EmployeeScheduleResponse getById(Long businessId, Long userId, Long id) {
@@ -72,7 +72,7 @@ public class EmployeeScheduleService {
     }
 
     /**
-     * Actualiza dia y horas de un tramo existente.
+     * actualiza dia y horas de un tramo existente
      */
     public EmployeeScheduleResponse update(Long businessId, Long userId, Long id, UpdateEmployeeScheduleRequest request) {
         ensureMembershipOfBusiness(businessId, userId);
@@ -89,7 +89,7 @@ public class EmployeeScheduleService {
     }
 
     /**
-     * Elimina un tramo del horario.
+     * elimina un tramo del horario
      */
     public void delete(Long businessId, Long userId, Long id) {
         ensureMembershipOfBusiness(businessId, userId);
@@ -98,7 +98,7 @@ public class EmployeeScheduleService {
     }
 
     /**
-     * Verifica que la membership existe y pertenece al negocio.
+     * comprueba que la relacion existe y pertenece al negocio
      */
     private Membership ensureMembershipOfBusiness(Long businessId, Long membershipId) {
         return membershipRepository.findByIdAndBusinessId(membershipId, businessId)
@@ -108,6 +108,7 @@ public class EmployeeScheduleService {
                                 + " en el negocio con ID: " + businessId));
     }
 
+    /** busca el tramo dentro de la relacion */
     private EmployeeSchedule findOrThrow(Long membershipId, Long id) {
         return scheduleRepository.findByIdAndMembershipId(id, membershipId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -116,6 +117,7 @@ public class EmployeeScheduleService {
                                 + " para el empleado con ID: " + membershipId));
     }
 
+    /** valida que la hora de inicio sea anterior a la de fin */
     private void validateHours(LocalTime startTime, LocalTime endTime) {
         if (!startTime.isBefore(endTime)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -123,6 +125,7 @@ public class EmployeeScheduleService {
         }
     }
 
+    /** valida que el tramo no solape con otros del mismo dia */
     private void validateNoOverlap(Long membershipId, Integer dayOfWeek,
                                    LocalTime startTime, LocalTime endTime,
                                    Long excludeId) {

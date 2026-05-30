@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 
 /**
- * Datos para crear una ausencia de empleado.
+ * datos para crear una ausencia de empleado
  */
 public record CreateEmployeeAbsenceRequest(
 

@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.util.List;
 
-/** Consulta ausencias de todos los empleados de un negocio. */
+/** consulta ausencias de todos los empleados de un negocio */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/absences")
 @RequiredArgsConstructor
@@ -26,7 +26,7 @@ public class BusinessAbsencesController {
     private final EmployeeAbsenceService absenceService;
 
     /**
-     * Devuelve las ausencias del negocio que solapan con el rango indicado.
+     * devuelve las ausencias del negocio que solapan con el rango indicado
      */
     @GetMapping
     public List<EmployeeAbsenceResponse> listByBusiness(

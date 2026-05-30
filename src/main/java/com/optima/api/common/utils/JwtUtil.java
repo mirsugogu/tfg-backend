@@ -14,13 +14,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * crea y valida los jwt
- * hay uno basico y otro con negocio y rol
+ * crea y valida las claves de acceso
+ * hay una basica y otra con negocio y rol
  */
 @Component
 public class JwtUtil {
 
-    // esto sale del properties
+    // valor tomado de la configuracion
     @Value("${app.jwt.secret}")
     private String secretString;
 
@@ -29,7 +29,7 @@ public class JwtUtil {
 
     private SecretKey secretKey;
 
-    /** prepara la clave para firmar y leer tokens */
+    /** prepara la clave para firmar y validar tokens */
     @PostConstruct
     public void init() {
         // la clave necesita un minimo para ser valida
@@ -39,7 +39,7 @@ public class JwtUtil {
         this.secretKey = Keys.hmacShaKeyFor(secretString.getBytes(StandardCharsets.UTF_8));
     }
 
-    /** genera el token cuando ya hay negocio y rol */
+    /** genera el codigo cuando ya hay negocio y rol */
     public String generateTenantToken(String email, Long userId, Long businessId, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
@@ -54,7 +54,7 @@ public class JwtUtil {
                 .compact();
     }
 
-    /** genera el token basico cuando aun no hay negocio */
+    /** genera el codigo basico cuando aun no hay negocio */
     public String generateIdentityToken(String email, Long userId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
@@ -67,7 +67,7 @@ public class JwtUtil {
                 .compact();
     }
 
-    /** lee el token y devuelve sus datos */
+    /** lee el codigo y devuelve sus datos */
     public Claims parseAndValidate(String token) {
         return Jwts.parser()
                 .verifyWith(secretKey)

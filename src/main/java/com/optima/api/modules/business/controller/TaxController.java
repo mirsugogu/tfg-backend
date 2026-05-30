@@ -14,7 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/** CRUD de impuestos del negocio. */
+/** gestion de impuestos del negocio */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/taxes")
 @RequiredArgsConstructor
@@ -23,7 +23,7 @@ public class TaxController {
 
     private final TaxService taxService;
 
-    /** Crea un impuesto nuevo. */
+    /** crea un impuesto nuevo */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
@@ -32,7 +32,7 @@ public class TaxController {
         return taxService.create(businessId, request);
     }
 
-    /** Lista paginada de impuestos. */
+    /** lista de impuestos */
     @GetMapping
     public Page<TaxResponse> listActive(@PathVariable @Positive Long businessId,
                                         @RequestParam(defaultValue = "true") boolean active,
@@ -40,14 +40,14 @@ public class TaxController {
         return taxService.listActive(businessId, active, pageable);
     }
 
-    /** Devuelve el detalle de un impuesto del negocio. */
+    /** devuelve el detalle de un impuesto del negocio */
     @GetMapping("/{id}")
     public TaxResponse getById(@PathVariable @Positive Long businessId,
                                @PathVariable @Positive Long id) {
         return taxService.getById(businessId, id);
     }
 
-    /** Actualiza nombre y porcentaje. */
+    /** actualiza nombre y porcentaje */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public TaxResponse update(@PathVariable @Positive Long businessId,
@@ -56,7 +56,7 @@ public class TaxController {
         return taxService.update(businessId, id, request);
     }
 
-    /** Archiva el impuesto sin borrarlo fisicamente. */
+    /** archiva el impuesto sin borrarlo fisicamente */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
@@ -65,7 +65,7 @@ public class TaxController {
         taxService.deactivate(businessId, id);
     }
 
-    /** Reactiva un impuesto archivado. */
+    /** reactiva un impuesto archivado */
     @PatchMapping("/{id}/reactivate")
     @PreAuthorize("hasRole('ADMIN')")
     public TaxResponse reactivate(@PathVariable @Positive Long businessId,

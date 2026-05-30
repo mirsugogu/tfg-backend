@@ -5,7 +5,7 @@ import com.optima.api.modules.business.model.Business;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** DTO de salida con los datos de un negocio. */
+/** datos de un negocio */
 public record BusinessResponse(
     Long id,
     String name,

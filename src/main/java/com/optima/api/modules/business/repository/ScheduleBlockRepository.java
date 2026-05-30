@@ -13,18 +13,18 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-/** Acceso a la tabla `schedule_blocks`. */
+/** consultas de schedule_blocks */
 @Repository
 public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, Long> {
 
-    /** Listado paginado de bloqueos de un negocio (orden cronologico ASC). */
+    /** lista de bloqueos de un negocio orden asc */
     @EntityGraph(attributePaths = {"membership", "membership.user", "booth"})
     Page<ScheduleBlock> findByBusinessIdOrderByStartDateAsc(Long businessId, Pageable pageable);
 
-    /** Busca por id dentro del negocio. */
+    /** busca por id dentro del negocio */
     Optional<ScheduleBlock> findByIdAndBusinessId(Long id, Long businessId);
 
-    /** Devuelve los bloqueos aplicables a una cita concreta. */
+    /** devuelve los bloqueos aplicables a una cita concreta */
     @Query("""
             SELECT b FROM ScheduleBlock b
             WHERE b.business.id = :businessId
@@ -43,7 +43,7 @@ public interface ScheduleBlockRepository extends JpaRepository<ScheduleBlock, Lo
             @Param("boothId") Long boothId
     );
 
-    /** Devuelve los bloqueos del negocio que afectan a una fecha. */
+    /** devuelve los bloqueos del negocio que afectan a una fecha */
     @Query("""
             SELECT b FROM ScheduleBlock b
             WHERE b.business.id = :businessId

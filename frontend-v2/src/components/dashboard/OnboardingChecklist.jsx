@@ -1,11 +1,12 @@
+// Checklist de configuracion inicial del negocio (horario, empleados, servicios)
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CheckCircle2, Circle, ArrowRight, Sparkles } from 'lucide-react'
 import api from '@/lib/api'
 
-/** Checklist de onboarding (horario, empleados, servicios); se oculta al completar los tres. */
+/** Checklist de onboarding (horario, empleados, servicios); se oculta al completar los tres */
 export function OnboardingChecklist({ businessId }) {
-  // Estado por paso: null = cargando/fallo (se trata como hecho para no engañar), true/false directos.
+  // Estado de cada paso del arranque
   const [state, setState] = useState({
     hasOpenHours: null,
     hasEmployees: null,
@@ -28,7 +29,7 @@ export function OnboardingChecklist({ businessId }) {
         hasOpenHours: hoursData == null
           ? null
           : hoursData.some((x) => !x.isClosed && x.startTime && x.endTime),
-        // El propio admin cuenta como 1 membership; se considera "con empleados" a partir de 2.
+        // El propio admin cuenta como 1 membership; se considera "con empleados" a partir de 2
         hasEmployees: emp.status === 'fulfilled' ? emp.value.data.totalElements > 1 : null,
         hasServices:  srv.status === 'fulfilled' ? srv.value.data.totalElements > 0 : null,
       })
@@ -36,7 +37,7 @@ export function OnboardingChecklist({ businessId }) {
     return () => { cancelled = true }
   }, [businessId])
 
-  // null se trata como hecho para no enseñar el checklist con datos sospechosos.
+  // null se trata como hecho para no ensenar el checklist con datos sospechosos
   const hasOpenHours = state.hasOpenHours !== false
   const hasEmployees = state.hasEmployees !== false
   const hasServices  = state.hasServices  !== false

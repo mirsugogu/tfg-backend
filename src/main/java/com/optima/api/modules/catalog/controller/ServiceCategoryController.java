@@ -14,7 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/** CRUD de categorias de servicios. */
+/** gestion de categorias de servicios */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/categories")
 @RequiredArgsConstructor
@@ -23,7 +23,7 @@ public class ServiceCategoryController {
 
     private final ServiceCategoryService categoryService;
 
-    /** Crea una categoria dentro del negocio. */
+    /** crea una categoria dentro del negocio */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
@@ -32,7 +32,7 @@ public class ServiceCategoryController {
         return categoryService.createCategory(businessId, request);
     }
 
-    /** Lista paginada de categorías de un negocio. */
+    /** lista de categorias de un negocio */
     @GetMapping
     public Page<ServiceCategoryResponse> getActiveCategories(@PathVariable @Positive Long businessId,
                                                      @RequestParam(defaultValue = "true") boolean active,
@@ -40,14 +40,14 @@ public class ServiceCategoryController {
         return categoryService.getActiveCategories(businessId, active, pageable);
     }
 
-    /** Obtiene una categoria del negocio. */
+    /** obtiene una categoria del negocio */
     @GetMapping("/{id}")
     public ServiceCategoryResponse getCategoryById(@PathVariable @Positive Long businessId,
                                             @PathVariable @Positive Long id) {
         return categoryService.getCategoryById(businessId, id);
     }
 
-    /** Actualiza el nombre de una categoria. */
+    /** actualiza el nombre de una categoria */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ServiceCategoryResponse updateCategory(@PathVariable @Positive Long businessId,
@@ -56,7 +56,7 @@ public class ServiceCategoryController {
         return categoryService.updateCategory(businessId, id, request);
     }
 
-    /** Archiva una categoria del negocio. */
+    /** archiva una categoria del negocio */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
@@ -64,7 +64,7 @@ public class ServiceCategoryController {
         categoryService.deactivateCategory(businessId, id);
     }
 
-    /** Reactiva una categoria archivada. */
+    /** reactiva una categoria archivada */
     @PatchMapping("/{id}/reactivate")
     @PreAuthorize("hasRole('ADMIN')")
     public ServiceCategoryResponse reactivateCategory(@PathVariable @Positive Long businessId,

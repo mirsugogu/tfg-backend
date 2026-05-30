@@ -5,7 +5,7 @@ import com.optima.api.modules.business.model.Tax;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** Respuesta con los datos de un impuesto. */
+/** datos de un impuesto */
 public record TaxResponse(
     Long id,
     Long businessId,

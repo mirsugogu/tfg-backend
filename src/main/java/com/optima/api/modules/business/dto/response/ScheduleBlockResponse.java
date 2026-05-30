@@ -5,16 +5,16 @@ import com.optima.api.modules.business.model.ScheduleBlock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** DTO de salida con los datos de un bloqueo de agenda. */
+/** datos de un bloqueo de agenda */
 public record ScheduleBlockResponse(
         Long id,
         Long businessId,
 
-        // Del empleado (opcional, null en bloqueo global o de cabina)
+        // del empleado opcional sin valor en bloqueo global o de cabina
         Long membershipId,
         String userFullName,
 
-        // De la cabina (opcional, null en bloqueo global o de empleado)
+        // de la cabina opcional sin valor en bloqueo global o de empleado
         Long boothId,
         String boothName,
 
@@ -24,7 +24,7 @@ public record ScheduleBlockResponse(
         LocalDateTime createdAt
 ) {
     public static ScheduleBlockResponse from(ScheduleBlock b) {
-        // Si el bloqueo pertenece a un empleado, se devuelve su membership y nombre.
+        // resuelve las relaciones opcionales de empleado y cabina
         return new ScheduleBlockResponse(
                 b.getId(),
                 b.getBusiness().getId(),

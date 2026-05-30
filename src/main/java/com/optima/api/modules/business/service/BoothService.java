@@ -18,7 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
-/** Logica de cabinas del negocio. */
+/** logica de cabinas del negocio */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -29,8 +29,8 @@ public class BoothService {
     private final AppointmentRepository appointmentRepository;
 
     /**
-     * Crea una cabina para el negocio. Falla si ya existe otra cabina
-     * con el mismo nombre en este negocio (409).
+     * crea una cabina para el negocio
+     * lanza 409 si ya existe otra con el mismo nombre
      */
     public BoothResponse create(Long businessId, CreateBoothRequest request) {
         Business business = businessRepository.findById(businessId)
@@ -52,7 +52,7 @@ public class BoothService {
         return BoothResponse.from(boothRepository.save(b));
     }
 
-    /** Lista cabinas activas o archivadas del negocio. */
+    /** lista cabinas activas o archivadas del negocio */
     @Transactional(readOnly = true)
     public Page<BoothResponse> listActive(Long businessId, boolean active, Pageable pageable) {
         Page<Booth> page = active
@@ -61,15 +61,15 @@ public class BoothService {
         return page.map(BoothResponse::from);
     }
 
-    /** Devuelve una cabina del negocio. */
+    /** devuelve una cabina del negocio */
     @Transactional(readOnly = true)
     public BoothResponse getById(Long businessId, Long id) {
         return BoothResponse.from(findOrThrow(businessId, id));
     }
 
     /**
-     * Actualiza el nombre de la cabina. Lanza 400 si esta desactivada,
-     * 409 si el nuevo nombre choca con otra cabina del mismo negocio.
+     * actualiza la cabina
+     * lanza 400 si esta desactivada o 409 si el nombre ya existe
      */
     public BoothResponse update(Long businessId, Long id, UpdateBoothRequest request) {
         Booth b = findOrThrow(businessId, id);
@@ -91,7 +91,7 @@ public class BoothService {
         return BoothResponse.from(boothRepository.save(b));
     }
 
-    /** Archiva una cabina si no tiene citas activas futuras. */
+    /** archiva una cabina si no tiene citas activas futuras */
     public void deactivate(Long businessId, Long id) {
         Booth b = findOrThrow(businessId, id);
         if (!b.getIsActive()) {
@@ -110,7 +110,7 @@ public class BoothService {
         boothRepository.save(b);
     }
 
-    /** Reactiva una cabina archivada. */
+    /** reactiva una cabina archivada */
     public BoothResponse reactivate(Long businessId, Long id) {
         Booth b = findOrThrow(businessId, id);
         if (b.getIsActive()) {

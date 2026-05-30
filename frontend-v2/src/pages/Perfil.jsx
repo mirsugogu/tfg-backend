@@ -1,3 +1,4 @@
+// Perfil del usuario: edicion de datos personales, cambio de contrasena y negocios
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -17,7 +18,7 @@ const ROLE_LABEL = { ADMIN: 'Administrador', EMPLOYEE: 'Empleado' }
 
 const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim())
 
-// Fuerza de contraseña: 0-4 según longitud + variedad
+// Fuerza de contrasena: 0-4 segun longitud + variedad
 const passwordStrength = (pwd) => {
   if (!pwd) return { score: 0, label: '—', cls: 'bg-slate-100', text: 'text-slate-400' }
   let score = 0
@@ -42,7 +43,7 @@ const ROLE_PALETTE = {
   EMPLOYEE: 'from-emerald-400 to-teal-500',
 }
 
-/** Perfil del usuario autenticado: edición de datos personales y cambio de contraseña. */
+/** Perfil del usuario autenticado: edicion de datos personales y cambio de contrasena */
 export default function Perfil() {
   const { user, applyProfile, switchBusiness } = useAuth()
   const toast = useToast()
@@ -86,7 +87,7 @@ export default function Perfil() {
       .catch(() => setBusinesses([]))
   }, [reload])
 
-  // ¿Hay cambios respecto a los datos cargados? Para deshabilitar "Guardar".
+  // Cambios pendientes para activar guardar
   const dirty = useMemo(() => {
     if (!me) return false
     return (
@@ -119,7 +120,7 @@ export default function Perfil() {
   }
 
   const handleProfileSave = () => {
-    // Si cambia el email, confirmar antes (login + recuperación dependen de él).
+    // Confirma antes de guardar un cambio de email
     if (emailChanged) setConfirmEmail(true)
     else doProfileSave()
   }
@@ -166,7 +167,6 @@ export default function Perfil() {
   const initial = displayName.trim()[0]?.toUpperCase() || 'U'
   const headerGrad = ROLE_PALETTE[user?.role] || ROLE_PALETTE.ADMIN
 
-  // ---- Strength meter visual ----
   const meterCells = [0, 1, 2, 3].map((i) => (
     <div
       key={i}
@@ -191,7 +191,6 @@ export default function Perfil() {
         </button>
       </div>
 
-      {/* Cabecera con avatar, rol y contactos clicables */}
       <div className={`${CARD} p-6 mb-6`}>
         <div className="flex items-center gap-5">
           <div className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${headerGrad} text-white text-3xl font-bold shadow-[0_8px_20px_-8px_rgba(14,165,233,0.5)]`}>
@@ -226,7 +225,6 @@ export default function Perfil() {
         </div>
       </div>
 
-      {/* Negocio activo */}
       {user?.businessId && businesses && businesses.length > 0 && (
         <div className={`${CARD} p-4 mb-6 flex flex-wrap items-center gap-3`}>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 shrink-0">
@@ -247,7 +245,6 @@ export default function Perfil() {
         </div>
       )}
 
-      {/* Datos personales */}
       <div className={`${CARD} p-6 mb-6`}>
         <div className="flex items-center gap-2 mb-5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
@@ -303,7 +300,6 @@ export default function Perfil() {
         </div>
       </div>
 
-      {/* Mis negocios */}
       {businesses && businesses.length > 0 && (
         <div className={`${CARD} p-6 mb-6`}>
           <div className="flex items-center gap-2 mb-5">
@@ -350,7 +346,6 @@ export default function Perfil() {
         </div>
       )}
 
-      {/* Cambiar contraseña */}
       <div className={`${CARD} p-6`}>
         <div className="flex items-center gap-2 mb-5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
@@ -414,7 +409,6 @@ export default function Perfil() {
         </div>
       </div>
 
-      {/* Modal confirmar cambio de email */}
       <Modal open={confirmEmail} onClose={() => setConfirmEmail(false)} title="Confirmar cambio de email" size="sm">
         <div className="space-y-5">
           <div className="flex items-start gap-3 rounded-2xl bg-amber-50 border border-amber-100 px-4 py-4">
@@ -434,10 +428,7 @@ export default function Perfil() {
   )
 }
 
-/* ============================================================
-   Campo de contraseña con toggle "mostrar / ocultar"
-   ============================================================ */
-/** Campo de contraseña con toggle de visibilidad. */
+/** Campo de contrasena con toggle de visibilidad */
 function PasswordField({ label, value, onChange, show, onToggle, placeholder, autoComplete }) {
   return (
     <div>

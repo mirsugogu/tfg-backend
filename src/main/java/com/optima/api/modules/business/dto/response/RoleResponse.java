@@ -2,7 +2,7 @@ package com.optima.api.modules.business.dto.response;
 
 import com.optima.api.modules.business.model.Role;
 
-/** Respuesta simple del catalogo de roles. */
+/** datos del catalogo de roles */
 public record RoleResponse(
     Long id,
     String name

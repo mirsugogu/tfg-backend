@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** Endpoints del usuario autenticado. */
+/** rutas del usuario autenticado */
 @RestController
 @RequestMapping("/api/me")
 @RequiredArgsConstructor
@@ -30,7 +30,7 @@ public class MeController {
     private final UserService userService;
 
     /**
-     * Devuelve el perfil de la identidad autenticada.
+     * devuelve el perfil de la identidad autenticada
      */
     @GetMapping
     public MeResponse getMe(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -38,7 +38,7 @@ public class MeController {
     }
 
     /**
-     * Actualiza los datos personales de la identidad autenticada.
+     * actualiza los datos personales de la identidad autenticada
      */
     @PutMapping
     public MeResponse updateMe(@AuthenticationPrincipal AuthPrincipal principal,
@@ -47,7 +47,7 @@ public class MeController {
     }
 
     /**
-     * Cambia la contrasena de la identidad autenticada.
+     * cambia la contrasena de la identidad autenticada
      */
     @PutMapping("/password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -61,7 +61,7 @@ public class MeController {
     }
 
     /**
-     * Lista los negocios activos a los que pertenece el usuario.
+     * lista los negocios activos a los que pertenece el usuario
      */
     @GetMapping("/businesses")
     public List<MembershipSummaryResponse> listMyBusinesses(@AuthenticationPrincipal AuthPrincipal principal) {

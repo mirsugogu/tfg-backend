@@ -13,7 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/** Endpoints para gestionar clientes del negocio. */
+/** rutas de clientes del negocio */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/clients")
 @RequiredArgsConstructor
@@ -22,7 +22,7 @@ public class ClientController {
 
     private final ClientService clientService;
 
-    /** Crea un nuevo cliente final del negocio. */
+    /** crea un nuevo cliente final del negocio */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ClientResponse create(@PathVariable @Positive Long businessId,
@@ -31,7 +31,7 @@ public class ClientController {
     }
 
     /**
-     * Lista clientes activos o archivados, con busqueda opcional.
+     * lista clientes activos o archivados con busqueda opcional
      */
     @GetMapping
     public Page<ClientResponse> listByBusiness(@PathVariable @Positive Long businessId,
@@ -41,13 +41,13 @@ public class ClientController {
         return clientService.listByBusiness(businessId, active, search, pageable);
     }
 
-    /** Obtiene un cliente del negocio. */
+    /** obtiene un cliente del negocio */
     @GetMapping("/{id}")
     public ClientResponse getById(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
         return clientService.getById(businessId, id);
     }
 
-    /** Actualiza los datos editables de un cliente. */
+    /** actualiza los datos editables de un cliente */
     @PutMapping("/{id}")
     public ClientResponse update(@PathVariable @Positive Long businessId,
                                  @PathVariable @Positive Long id,
@@ -55,7 +55,7 @@ public class ClientController {
         return clientService.update(businessId, id, request);
     }
 
-    /** Archiva un cliente sin borrarlo. */
+    /** archiva un cliente sin borrarlo */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deactivate(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
@@ -63,7 +63,7 @@ public class ClientController {
     }
 
     /**
-     * Reactiva un cliente que estaba archivado.
+     * reactiva un cliente que estaba archivado
      */
     @PatchMapping("/{id}/reactivate")
     public ClientResponse reactivate(@PathVariable @Positive Long businessId,

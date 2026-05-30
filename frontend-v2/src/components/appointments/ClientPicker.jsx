@@ -1,3 +1,4 @@
+// Selector de cliente con busqueda server-side y formulario de alta rapida
 import { useState, useEffect, useRef, useId } from 'react'
 import { Search, X, UserPlus, Check, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -6,14 +7,14 @@ import { useToast } from '@/components/ui/Toast'
 import { Input, INPUT_SANITIZE } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 
-/** Selector de cliente con búsqueda server-side, debounce y alta al vuelo. */
+/** Selector de cliente con busqueda y alta rapida */
 export function ClientPicker({ bId, value, onChange, label, error }) {
   const toast = useToast()
   const fieldId = useId()
   const boxRef = useRef(null)
-  // id del cliente ya resuelto; evita re-fetchear tras selección propia.
+  // Cliente ya cargado para evitar consultas repetidas
   const lastResolved = useRef(null)
-  // onChange vía ref para que el efecto de prefill no se re-suscriba en cada render.
+  // Referencia estable para cambios externos
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
 
@@ -26,7 +27,7 @@ export function ClientPicker({ bId, value, onChange, label, error }) {
   const [newClient, setNewClient] = useState({ fullName: '', email: '', phone: '' })
   const [savingNew, setSavingNew] = useState(false)
 
-  // Resuelve el objeto cliente cuando llega un `value` de fuera (prefill).
+  // Resuelve el objeto cliente cuando llega un `value` de fuera (prefill)
   useEffect(() => {
     if (!value) { setSelected(null); lastResolved.current = null; return }
     if (String(lastResolved.current) === String(value)) return
@@ -38,11 +39,11 @@ export function ClientPicker({ bId, value, onChange, label, error }) {
         lastResolved.current = String(value)
         onChangeRef.current(r.data)
       })
-      .catch(() => { /* si falla, el campo queda en modo búsqueda */ })
+      .catch(() => { /* si falla, el campo queda en modo busqueda */ })
     return () => { cancelled = true }
   }, [value, bId])
 
-  // Búsqueda con debounce (300 ms). Mínimo 2 caracteres.
+  // Busca a partir de dos caracteres
   useEffect(() => {
     if (!open || creating) return
     const q = query.trim()
@@ -60,7 +61,7 @@ export function ClientPicker({ bId, value, onChange, label, error }) {
     return () => clearTimeout(t)
   }, [query, open, creating, bId, toast])
 
-  // Cierra el desplegable al pulsar fuera.
+  // Cierra el desplegable al pulsar fuera
   useEffect(() => {
     if (!open) return
     const onClickOutside = (e) => {
@@ -120,7 +121,6 @@ export function ClientPicker({ bId, value, onChange, label, error }) {
       )}
 
       {selected ? (
-        /* Cliente elegido — chip con opción de quitarlo */
         <div className="flex items-center justify-between h-11 rounded-2xl border border-blue-200 bg-blue-50 px-3.5">
           <span className="flex items-center gap-2 text-sm font-semibold text-[#1e3a5f] truncate">
             <Check size={15} className="text-blue-500 shrink-0" />
@@ -132,7 +132,6 @@ export function ClientPicker({ bId, value, onChange, label, error }) {
           </button>
         </div>
       ) : (
-        /* Buscador */
         <div className="relative">
           <Search size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -153,7 +152,6 @@ export function ClientPicker({ bId, value, onChange, label, error }) {
           {open && (
             <div className="absolute z-30 mt-1.5 w-full rounded-2xl border border-slate-200 bg-white shadow-[0_20px_50px_-10px_rgba(15,23,42,0.18)] overflow-hidden">
               {creating ? (
-                /* Mini-formulario: crear cliente al vuelo (P5) */
                 <div className="p-3 space-y-2.5">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Nuevo cliente</p>
                   <Input label="Nombre *" value={newClient.fullName} autoFocus maxLength={150}

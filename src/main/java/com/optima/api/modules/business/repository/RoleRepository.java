@@ -6,13 +6,13 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-/** Acceso a la tabla `roles` de MySQL. */
+/** consultas de roles de base de datos */
 @Repository
 public interface RoleRepository extends JpaRepository<Role, Long> {
 
     /**
-     * Busca un rol por su nombre exacto (ADMIN o EMPLOYEE).
-     * Spring Data deriva la query del nombre del metodo.
+     * busca un rol por su nombre exacto admin o employee
+     * consulta derivada por nombre
      */
     Optional<Role> findByName(String name);
 }

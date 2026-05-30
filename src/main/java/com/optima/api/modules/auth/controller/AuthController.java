@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Endpoints de registro, login, seleccion de negocio y reset de contrasena. */
+/** rutas de registro inicio de sesion seleccion de negocio y recuperacion de contrasena */
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -32,7 +32,7 @@ public class AuthController {
     private final PasswordResetService passwordResetService;
 
     /**
-     * Registra un nuevo negocio junto con su usuario administrador.
+     * registra un nuevo negocio junto con su usuario administrador
      */
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -41,7 +41,7 @@ public class AuthController {
     }
 
     /**
-     * Autentica al usuario y devuelve el token que corresponda.
+     * autentica al usuario y devuelve el codigo que corresponda
      */
     @PostMapping("/token")
     public TokenResponse token(@Valid @RequestBody LoginRequest request) {
@@ -49,7 +49,7 @@ public class AuthController {
     }
 
     /**
-     * Genera un token de negocio despues de seleccionar una empresa.
+     * genera un codigo de negocio despues de seleccionar una empresa
      */
     @PostMapping("/select-business/{businessId}")
     public TokenResponse selectBusiness(@AuthenticationPrincipal AuthPrincipal principal,
@@ -58,7 +58,7 @@ public class AuthController {
     }
 
     /**
-     * Inicia el proceso para restablecer la contrasena.
+     * inicia el proceso para restablecer la contrasena
      */
     @PostMapping("/forgot-password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -67,7 +67,7 @@ public class AuthController {
     }
 
     /**
-     * Guarda una nueva contrasena usando el token recibido por correo.
+     * guarda una nueva contrasena usando el codigo recibido por correo
      */
     @PostMapping("/reset-password")
     @ResponseStatus(HttpStatus.NO_CONTENT)

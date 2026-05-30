@@ -14,7 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/** CRUD de servicios comerciales del catalogo. */
+/** gestion de servicios comerciales del catalogo */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/services")
 @RequiredArgsConstructor
@@ -23,7 +23,7 @@ public class BusinessServiceController {
 
     private final BusinessServiceService businessServiceService;
 
-    /** Crea un servicio del catalogo. */
+    /** crea un servicio del catalogo */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
@@ -32,7 +32,7 @@ public class BusinessServiceController {
         return businessServiceService.createService(businessId, request);
     }
 
-    /** Lista paginada de servicios del negocio. */
+    /** lista de servicios del negocio */
     @GetMapping
     public Page<BusinessServiceResponse> getServicesByBusiness(@PathVariable @Positive Long businessId,
                                                        @RequestParam(defaultValue = "true") boolean active,
@@ -40,14 +40,14 @@ public class BusinessServiceController {
         return businessServiceService.getActiveServicesByBusiness(businessId, active, pageable);
     }
 
-    /** Obtiene un servicio del negocio. */
+    /** obtiene un servicio del negocio */
     @GetMapping("/{id}")
     public BusinessServiceResponse getServiceById(@PathVariable @Positive Long businessId,
                                           @PathVariable @Positive Long id) {
         return businessServiceService.getServiceById(businessId, id);
     }
 
-    /** Actualiza un servicio del catalogo. */
+    /** actualiza un servicio del catalogo */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public BusinessServiceResponse updateService(@PathVariable @Positive Long businessId,
@@ -56,7 +56,7 @@ public class BusinessServiceController {
         return businessServiceService.updateService(businessId, id, request);
     }
 
-    /** Desactiva un servicio del catalogo. */
+    /** desactiva un servicio del catalogo */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
@@ -64,7 +64,7 @@ public class BusinessServiceController {
         businessServiceService.deactivateService(businessId, id);
     }
 
-    /** Reactiva un servicio desactivado. */
+    /** reactiva un servicio desactivado */
     @PatchMapping("/{id}/reactivate")
     @PreAuthorize("hasRole('ADMIN')")
     public BusinessServiceResponse reactivateService(@PathVariable @Positive Long businessId,

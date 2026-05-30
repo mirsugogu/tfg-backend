@@ -1,8 +1,9 @@
+// Mapa interactivo Leaflet con marcador para la ubicacion del negocio
 import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-/** Mapa Leaflet/OpenStreetMap con un pin en las coordenadas dadas. */
+/** Mapa mapa externo con un pin en las coordenadas dadas */
 export function LocationMap({ lat, lon }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
@@ -16,7 +17,7 @@ export function LocationMap({ lat, lon }) {
       maxZoom: 19,
     }).addTo(map)
     mapRef.current = map
-    // El contenedor puede no tener su tamaño definitivo justo al montar.
+    // El contenedor puede no tener su tamano definitivo justo al montar
     setTimeout(() => map.invalidateSize(), 120)
     return () => {
       map.remove()

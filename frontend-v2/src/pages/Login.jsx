@@ -1,3 +1,4 @@
+// Pantalla de login con seleccion de negocio para usuarios multi-tenant
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, Navigate, Link } from 'react-router-dom'
 import {
@@ -39,13 +40,13 @@ const inputBase =
 const inputOk = `${inputBase} border-slate-200 focus:border-blue-400 focus:ring-blue-100`
 const inputErr = `${inputBase} border-amber-300 bg-white focus:border-amber-400 focus:ring-amber-100`
 
-/** Pantalla de inicio de sesión con login en dos pasos y selector de negocio. */
+/** Pantalla de acceso con seleccion de negocio */
 export default function Login() {
   const { user, login, selectBusiness, loading, pendingBusinesses } = useAuth()
   const navigate = useNavigate()
   const emailRef = useRef(null)
 
-  // Recordar email entre sesiones (NUNCA la contraseña).
+  // Recordar email entre sesiones (NUNCA la contrasena)
   const [form, setForm] = useState({
     email: localStorage.getItem('optima_last_email') || '',
     password: '',
@@ -56,7 +57,7 @@ export default function Login() {
   const [error, setError] = useState('')
   const [rateLeft, setRateLeft] = useState(0) // segundos restantes si 429
 
-  // autoFocus inteligente: email si está vacío, password si no
+  // autoFocus inteligente: email si esta vacio, password si no
   useEffect(() => {
     if (emailRef.current) {
       if (!form.email) emailRef.current.focus()
@@ -76,7 +77,7 @@ export default function Login() {
 
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
 
-  // Detecta Bloq Mayús mientras se escribe la contraseña
+  // Detecta Bloq Mayus mientras se escribe la contrasena
   const handlePwdKey = (e) => {
     if (typeof e.getModifierState === 'function') setCapsLock(e.getModifierState('CapsLock'))
   }
@@ -97,13 +98,12 @@ export default function Login() {
     }
     try {
       const result = await login(form.email, form.password)
-      // Guarda el email para próximas sesiones (solo si el login no peta).
+      // Guarda el email para proximas sesiones si el acceso fue correcto
       localStorage.setItem('optima_last_email', form.email)
       if (result.type === 'tenant') navigate('/dashboard')
-      // type === 'identity' → pendingBusinesses queda en el contexto.
     } catch (err) {
-      // Si el backend devuelve 429, el interceptor de api.js ya extrajo
-      // retryAfter; lo usamos para mostrar countdown.
+      // Si el servidor devuelve 429, el interceptor de apijs ya extrajo
+      // retryAfter; lo usamos para mostrar countdown
       if (err?.isRateLimited && Number.isFinite(err.retryAfter) && err.retryAfter > 0) {
         setRateLeft(err.retryAfter)
         setError('')
@@ -124,7 +124,7 @@ export default function Login() {
   }
 
   const handleBackToLogin = () => {
-    // Limpia el flujo identity y vuelve al formulario.
+    // Limpia el acceso inicial y vuelve al formulario
     sessionStorage.removeItem('optima_identity_token')
     sessionStorage.removeItem('optima_pending_businesses')
     window.location.reload()
@@ -132,7 +132,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex bg-[#f4f7fe]">
-      {/* ─── Tarjeta de acceso ─── */}
       <div className="flex flex-1 overflow-y-auto p-5 sm:p-8">
         <div className="w-full max-w-md m-auto">
           <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_24px_70px_-24px_rgba(15,23,42,0.3)] p-7 sm:p-9">
@@ -145,7 +144,6 @@ export default function Login() {
             </div>
 
             {pendingBusinesses ? (
-              /* ── Selector de negocio (login multi-membership) ── */
               <>
                 <div className="flex items-center justify-between mb-1.5">
                   <h1 className="text-2xl font-bold text-[#1e3a5f] tracking-tight">Selecciona negocio</h1>
@@ -293,7 +291,6 @@ export default function Login() {
         </div>
       </div>
 
-      {/* ─── Panel de marca (solo escritorio) ─── */}
       <div className="hidden lg:flex lg:w-[45%] relative bg-[#1e3a5f] flex-col justify-center overflow-hidden px-12 xl:px-16">
         <div className="absolute -top-32 -right-24 w-[460px] h-[460px] rounded-full bg-gradient-to-br from-cyan-400/25 to-blue-500/5 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-40 -left-24 w-[420px] h-[420px] rounded-full bg-gradient-to-tr from-blue-500/20 to-cyan-300/5 blur-3xl pointer-events-none" />

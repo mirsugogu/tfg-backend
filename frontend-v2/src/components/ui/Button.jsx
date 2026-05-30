@@ -17,7 +17,7 @@ const sizes = {
   icon: 'h-10 w-10 rounded-xl',
 }
 
-/** Botón con variantes de color y tamaños predefinidos. */
+/** Boton con variantes de color y tamanos predefinidos */
 export function Button({
   children,
   variant = 'primary',

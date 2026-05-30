@@ -9,8 +9,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * DTO de entrada para crear una cita.
- * La hora final se calcula en el servicio.
+ * datos de entrada para crear una cita
+ * la hora final se calcula en el servicio
  */
 public record CreateAppointmentRequest(
 

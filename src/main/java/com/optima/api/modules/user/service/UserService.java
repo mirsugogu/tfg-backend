@@ -27,7 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** aqui esta lo de empleados y perfil propio */
+/** parte de empleados y perfil propio */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -54,7 +54,7 @@ public class UserService {
 
         String email = request.email().trim().toLowerCase();
 
-        // si el usuario ya existe reutilizamos su cuenta y solo le metemos la membership
+        // si el usuario existe se reutiliza su cuenta
         User user = userRepository.findByEmailIgnoreCase(email).orElseGet(() -> {
             User u = new User();
             u.setFullName(request.fullName().trim());
@@ -94,7 +94,7 @@ public class UserService {
         return UserResponse.from(findOrThrow(businessId, id));
     }
 
-    /** aqui cambiamos rol y color dentro de este negocio */
+    /** se actualiza rol y color dentro de este negocio */
     public UserResponse update(Long businessId, Long id, UpdateUserRequest request) {
         Membership m = findOrThrow(businessId, id);
 
@@ -114,8 +114,8 @@ public class UserService {
     }
 
     /**
-     * archiva al empleado si no tiene citas futuras
-     * y tampoco dejamos que uno se quite a si mismo
+     * archiva sin citas futuras
+     * evita que el usuario se archive a si mismo
      */
     public void deactivate(Long businessId, Long id, Long callerUserId) {
         Membership m = findOrThrow(businessId, id);
@@ -138,7 +138,7 @@ public class UserService {
         membershipRepository.save(m);
     }
 
-    /** reactiva una membership archivada */
+    /** reactiva una relacion archivada */
     public UserResponse reactivate(Long businessId, Long id) {
         Membership m = findOrThrow(businessId, id);
         if (m.getIsActive()) {
@@ -149,7 +149,7 @@ public class UserService {
         return UserResponse.from(membershipRepository.save(m));
     }
 
-    /** esto saca los datos del propio usuario */
+    /** obtiene los datos del propio usuario */
     @Transactional(readOnly = true)
     public MeResponse getMyProfile(Long userId) {
         User u = userRepository.findById(userId)
@@ -214,7 +214,7 @@ public class UserService {
         userRepository.save(u);
     }
 
-    /** busca la membership dentro del negocio */
+    /** busca la relacion dentro del negocio */
     private Membership findOrThrow(Long businessId, Long id) {
         return membershipRepository.findByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new ResponseStatusException(

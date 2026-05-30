@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Datos para actualizar el perfil del usuario autenticado.
+ * datos para actualizar el perfil del usuario autenticado
  */
 public record UpdateMeRequest(
 

@@ -7,21 +7,19 @@ import org.springframework.stereotype.Repository;
 import java.util.Collection;
 import java.util.List;
 
-/** Acceso a la tabla `appointment_services`. */
+/** consultas de servicios reservados */
 @Repository
 public interface BookedServiceRepository extends JpaRepository<BookedService, Long> {
 
     /**
-     * Devuelve todos los servicios reservados de una cita concreta.
-     * Útil para mostrar el detalle de una cita con sus servicios.
+     * devuelve los servicios guardados de una cita
+     * se usa al sacar su detalle
      */
     List<BookedService> findAllByAppointmentId(Long appointmentId);
 
-    /** Devuelve todos los servicios reservados de un conjunto de citas en una sola query (cláusula SQL `WHERE appointment_id IN (...)`). */
+    /** devuelve los servicios de varias citas a la vez */
     List<BookedService> findAllByAppointmentIdIn(Collection<Long> appointmentIds);
 
-    /**
-     * Borra todos los servicios reservados de una cita concreta. Usado por
-     */
+    /** borra los servicios guardados de una cita */
     void deleteAllByAppointmentId(Long appointmentId);
 }

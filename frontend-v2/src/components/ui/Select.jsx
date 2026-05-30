@@ -2,9 +2,9 @@ import { useId } from 'react'
 import { cn } from '@/lib/utils'
 import { ChevronDown } from 'lucide-react'
 
-/** Desplegable con etiqueta y mensaje de error opcionales. */
+/** Desplegable con etiqueta y mensaje de error opcionales */
 export function Select({ label, error, className, children, id, ...props }) {
-  // useId asocia la <label> con el <select> (htmlFor/id) para accesibilidad.
+  // useId asocia la <label> con el <select> (htmlFor/id) para accesibilidad
   const autoId = useId()
   const fieldId = id ?? autoId
   return (

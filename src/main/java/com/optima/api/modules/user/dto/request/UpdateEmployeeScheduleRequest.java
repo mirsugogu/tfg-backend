@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalTime;
 
 /**
- * Datos para actualizar un tramo del horario de un empleado.
+ * datos para actualizar un tramo del horario de un empleado
  */
 public record UpdateEmployeeScheduleRequest(
 

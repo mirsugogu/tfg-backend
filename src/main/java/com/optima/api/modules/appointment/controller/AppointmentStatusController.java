@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** Catalogo publico de estados de cita. */
+/** expone los estados de cita */
 @RestController
 @RequestMapping("/api/appointment-statuses")
 @RequiredArgsConstructor
@@ -18,17 +18,13 @@ public class AppointmentStatusController {
 
     private final AppointmentStatusService statusService;
 
-    /**
-     * Devuelve todos los estados de cita disponibles.
-     */
+    /** devuelve todos los estados disponibles */
     @GetMapping
     public List<AppointmentStatusResponse> listAll() {
         return statusService.listAll();
     }
 
-    /**
-     * Devuelve un estado de cita por su ID.
-     */
+    /** devuelve un estado por id */
     @GetMapping("/{id}")
     public AppointmentStatusResponse getStatusById(@PathVariable @Positive Long id) {
         return statusService.getStatusById(id);

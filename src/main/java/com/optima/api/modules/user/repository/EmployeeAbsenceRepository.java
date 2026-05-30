@@ -15,31 +15,31 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Repositorio de ausencias de empleados.
+ * consultas de ausencias de empleados
  *
- * Las consultas se filtran por membership o por negocio segun el caso.
+ * las consultas se filtran por relacion o por negocio segun el caso
  */
 @Repository
 public interface EmployeeAbsenceRepository extends JpaRepository<EmployeeAbsence, Long> {
 
     /**
-     * Lista paginada de ausencias de una membership.
+     * lista de ausencias de una relacion
      */
     @EntityGraph(attributePaths = {"membership", "membership.user"})
     Page<EmployeeAbsence> findByMembershipIdOrderByStartDateTimeAsc(Long membershipId, Pageable pageable);
 
     /**
-     * Lista todas las ausencias de una membership.
+     * lista todas las ausencias de una relacion
      */
     List<EmployeeAbsence> findAllByMembershipId(Long membershipId);
 
     /**
-     * Busca una ausencia dentro de una membership concreta.
+     * busca una ausencia dentro de una relacion concreta
      */
     Optional<EmployeeAbsence> findByIdAndMembershipId(Long id, Long membershipId);
 
     /**
-     * Carga ausencias de varias memberships que solapan con un dia.
+     * carga ausencias de varias relaciones que solapan con un dia
      */
     @Query("""
             SELECT a FROM EmployeeAbsence a
@@ -54,7 +54,7 @@ public interface EmployeeAbsenceRepository extends JpaRepository<EmployeeAbsence
     );
 
     /**
-     * Busca ausencias de una membership que solapan con un rango horario.
+     * busca ausencias de una relacion que solapan con un rango horario
      */
     @Query("""
             SELECT a FROM EmployeeAbsence a
@@ -69,7 +69,7 @@ public interface EmployeeAbsenceRepository extends JpaRepository<EmployeeAbsence
     );
 
     /**
-     * Busca ausencias del negocio que solapan con un rango horario.
+     * busca ausencias del negocio que solapan con un rango horario
      */
     @EntityGraph(attributePaths = {"membership", "membership.user"})
     @Query("""

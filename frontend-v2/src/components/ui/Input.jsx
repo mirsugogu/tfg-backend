@@ -1,20 +1,20 @@
 import { useId } from 'react'
 import { cn } from '@/lib/utils'
 
-/** Regex de saneo predefinidas para la prop `sanitize` del Input. */
+/** Reglas de limpieza para campos de entrada */
 export const INPUT_SANITIZE = {
   DIGITS_ONLY: /[^0-9]/g,
   PHONE: /[^0-9+\s()\-]/g,
 }
 
-// Teclas de edición/navegación que nunca se filtran.
+// Teclas de edicion/navegacion que nunca se filtran
 const CONTROL_KEYS = new Set([
   'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
   'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
   'Home', 'End',
 ])
 
-/** Filtra teclas no numéricas en inputs type=number, respetando atajos de edición. */
+/** Filtra teclas no numericas respetando atajos de edicion */
 function saneNumericKey(e, allowDecimal, userOnKeyDown) {
   if (CONTROL_KEYS.has(e.key)) {
     userOnKeyDown?.(e)
@@ -33,7 +33,7 @@ function saneNumericKey(e, allowDecimal, userOnKeyDown) {
   userOnKeyDown?.(e)
 }
 
-/** Input con label, error y sanitizado opcional para campos numéricos o por regex. */
+/** Campo con etiqueta, error y limpieza opcional */
 export function Input({ className, label, error, id, onKeyDown, onChange, sanitize, ...props }) {
   const autoId = useId()
   const fieldId = id ?? autoId
@@ -44,8 +44,7 @@ export function Input({ className, label, error, id, onKeyDown, onChange, saniti
     ? (e) => saneNumericKey(e, allowDecimal, onKeyDown)
     : onKeyDown
 
-  // Cubre lo que el filtro de tecla no llega a tapar (pegar, autocompletar, IME):
-  // reescribe el value DOM con el setter nativo para que React detecte el cambio.
+  // Tambien cubre pegado y autocompletado
   const handleChange = (e) => {
     if (sanitize) {
       const cleaned = e.target.value.replace(sanitize, '')

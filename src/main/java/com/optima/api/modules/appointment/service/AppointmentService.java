@@ -39,8 +39,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Servicio con la logica principal de citas.
- * Valida disponibilidad, estados y servicios reservados.
+ * logica principal de citas
+ * valida disponibilidad estados y servicios reservados
  */
 @Service
 @Transactional
@@ -58,9 +58,11 @@ public class AppointmentService {
     private final AppointmentValidator validator;
 
     /**
-     * Crea una cita y guarda los servicios con el precio e impuesto actuales.
+     * crea una cita nueva
+     * guarda los servicios con su precio e impuesto actuales
      */
     public AppointmentResponse createAppointment(Long businessId, CreateAppointmentRequest request) {
+        // primero se revisa negocio y cliente
 
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -90,7 +92,7 @@ public class AppointmentService {
             );
         }
 
-        // Bloqueamos la membership para que dos altas a la vez no pasen el solape.
+        // se bloquea la relacion para evitar altas simultaneas en el mismo hueco
         Membership membership = membershipRepository.findByIdAndBusinessIdForUpdate(
                         request.membershipId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -111,6 +113,7 @@ public class AppointmentService {
                 business.getAppointmentInterval()
         );
 
+        // se cargan los servicios de la reserva
         List<BusinessService> services = new ArrayList<>();
         for (Long serviceId : request.serviceIds()) {
             BusinessService service = serviceRepository
@@ -131,13 +134,14 @@ public class AppointmentService {
             services.add(service);
         }
 
-        // El frontend no manda endDateTime, se calcula con la duracion total.
+        // el final se calcula con la duracion total de los servicios
         int totalMinutes = services.stream()
                 .mapToInt(BusinessService::getDurationMinutes)
                 .sum();
 
         LocalDateTime endDateTime = request.startDateTime().plusMinutes(totalMinutes);
 
+        // despues se valida horario empleado y solapes
         validator.validateBusinessHours(
                 businessId,
                 request.startDateTime(),
@@ -157,14 +161,14 @@ public class AppointmentService {
                 null
         );
 
-        // POST repite esta validacion aunque el calendario ya oculte esos huecos.
+        // se valida otra vez aunque el calendario ya filtre esos huecos
         validator.validateNoEmployeeAbsence(
                 request.membershipId(),
                 request.startDateTime(),
                 endDateTime
         );
 
-        // Si hay cabina, tambien se bloquea para evitar dos reservas simultaneas.
+        // si hay cabina tambien se bloquea para evitar reservas a la vez
         Booth booth = null;
         if (request.boothId() != null) {
             booth = boothRepository
@@ -197,7 +201,8 @@ public class AppointmentService {
                 request.startDateTime()
         );
 
-        // Si falta PENDING, el problema es de datos base del servidor.
+        // toda cita nueva empieza en pendiente
+        // si falta el estado pendiente el problema es de datos base del servidor
         AppointmentStatus pendingStatus = statusRepository.findByName("PENDING")
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -209,13 +214,13 @@ public class AppointmentService {
         appointment.setBusiness(business);
         appointment.setClient(client);
         appointment.setMembership(membership);
-        appointment.setBooth(booth);  // null si la cita no usa cabina
+        appointment.setBooth(booth);  // queda sin valor si la cita no usa cabina
         appointment.setStatus(pendingStatus);
         appointment.setStartDateTime(request.startDateTime());
         appointment.setEndDateTime(endDateTime);
         appointment.setNotes(request.notes());
 
-        // El flush permite convertir los UNIQUE de agenda en un 409 controlado.
+        // el guardado previo adelanta errores de duplicado para devolver un 409 controlado
         Appointment saved;
         try {
             saved = appointmentRepository.saveAndFlush(appointment);
@@ -236,6 +241,7 @@ public class AppointmentService {
             throw ex;
         }
 
+        // se congelan precio e impuesto de cada servicio
         List<BookedService> bookedServices = new ArrayList<>();
         for (BusinessService service : services) {
             BookedService booked = new BookedService();
@@ -255,19 +261,18 @@ public class AppointmentService {
         return AppointmentResponse.from(saved, savedBookedServices);
     }
 
-    /** Campos permitidos para ordenar la busqueda de citas. */
+    /** campos permitidos para ordenar la busqueda de citas */
     private static final Set<String> SORTABLE_FIELDS =
             Set.of("id", "startDateTime", "endDateTime", "createdAt", "isPaid");
 
-    /** Busca citas con paginacion y filtros opcionales. */
+    /** busca citas con paginacion y filtros opcionales */
     @Transactional(readOnly = true)
     public Page<AppointmentResponse> searchAppointments(Long businessId,
                                                        LocalDate from,
                                                        LocalDate to,
                                                        Long membershipId,
                                                        Pageable pageable) {
-        // Rechaza un ?sort= por un campo que la query JPQL no sabe ordenar:
-        // sin esto Hibernate falla al traducir el HQL y el endpoint da 500.
+        // si el campo no se puede ordenar se rechaza antes de consultar la base de datos
         pageable.getSort().forEach(order -> {
             if (!SORTABLE_FIELDS.contains(order.getProperty())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -278,6 +283,7 @@ public class AppointmentService {
         LocalDateTime fromInclusive = from != null ? from.atStartOfDay() : null;
         LocalDateTime toExclusive = to != null ? to.plusDays(1).atStartOfDay() : null;
 
+        // se busca la pagina ya filtrada
         Page<Appointment> appointmentPage = appointmentRepository.searchAppointments(
                 businessId, fromInclusive, toExclusive, membershipId, pageable);
 
@@ -286,6 +292,7 @@ public class AppointmentService {
             return appointmentPage.map(a -> AppointmentResponse.from(a, List.of()));
         }
 
+        // evita pedir servicios uno por uno
         List<Long> appointmentIds = appointments.stream()
                 .map(Appointment::getId)
                 .toList();
@@ -303,7 +310,7 @@ public class AppointmentService {
         ));
     }
 
-    /** Busca una cita dentro de un negocio. */
+    /** busca una cita dentro de un negocio */
     @Transactional(readOnly = true)
     public AppointmentResponse getAppointmentById(Long businessId, Long id) {
         Appointment appointment = appointmentRepository.findByIdAndBusinessId(id, businessId)
@@ -318,13 +325,12 @@ public class AppointmentService {
         return AppointmentResponse.from(appointment, bookedServices);
     }
 
-    /**
-     * Cambia el estado de una cita, validando que la transición sea legal.
-     */
+    /** cambia el estado de una cita validando la transicion */
     public AppointmentResponse updateAppointmentStatus(Long businessId,
                                                        Long appointmentId,
                                                        UpdateAppointmentStatusRequest request) {
 
+        // se carga la cita y luego el estado pedido
         Appointment appointment = appointmentRepository
                 .findByIdAndBusinessId(appointmentId, businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -333,7 +339,7 @@ public class AppointmentService {
                                 + " en el negocio con ID: " + businessId
                 ));
 
-        // Un estado inexistente es entrada invalida, no un recurso del negocio.
+        // un estado inexistente se trata como entrada invalida
         AppointmentStatus newStatus = statusRepository
                 .findByName(request.statusName())
                 .orElseThrow(() -> new ResponseStatusException(
@@ -346,6 +352,7 @@ public class AppointmentService {
         String currentStatusName = appointment.getStatus().getName();
         validator.validateStatusTransition(currentStatusName, request.statusName());
 
+        // si la transicion es valida se guarda el cambio
         appointment.setStatus(newStatus);
 
         Appointment updated = appointmentRepository.save(appointment);
@@ -354,18 +361,19 @@ public class AppointmentService {
         return AppointmentResponse.from(updated, bookedServices);
     }
 
-    /** Estados que no permiten editar la cita. */
+    /** estados que no permiten editar la cita */
     private static final Set<String> NON_EDITABLE_STATUSES = Set.of("COMPLETED");
 
-    /** Estados que vuelven a PENDING al editarse. */
+    /** estados que vuelven a pendiente al editarse */
     private static final Set<String> RESET_TO_PENDING_ON_EDIT =
             Set.of("CANCELLED", "NO_SHOW");
 
-    /** Actualiza los datos editables de una cita. */
+    /** actualiza los datos editables de una cita */
     public AppointmentResponse updateAppointment(Long businessId,
                                                  Long appointmentId,
                                                  UpdateAppointmentRequest request) {
 
+        // se bloquea la cita porque puede cambiar casi todo menos cliente y pago
         Appointment appointment = appointmentRepository
                 .findByIdAndBusinessIdForUpdate(appointmentId, businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -394,7 +402,7 @@ public class AppointmentService {
             );
         }
 
-        // Se bloquea el empleado nuevo porque puede cambiar al reagendar.
+        // se bloquea el empleado porque puede cambiar al reagendar
         Membership membership = membershipRepository
                 .findByIdAndBusinessIdForUpdate(request.membershipId(), businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -414,6 +422,7 @@ public class AppointmentService {
                 business.getAppointmentInterval()
         );
 
+        // se recargan los servicios para recalcular duracion y precios
         List<BusinessService> services = new ArrayList<>();
         for (Long serviceId : request.serviceIds()) {
             BusinessService service = serviceRepository
@@ -432,12 +441,13 @@ public class AppointmentService {
             services.add(service);
         }
 
-        // Al editar se recalcula la duracion con los servicios actuales.
+        // al editar se recalcula la duracion con los servicios actuales
         int totalMinutes = services.stream()
                 .mapToInt(BusinessService::getDurationMinutes)
                 .sum();
         LocalDateTime endDateTime = request.startDateTime().plusMinutes(totalMinutes);
 
+        // con los datos nuevos se repiten las validaciones
         validator.validateBusinessHours(
                 businessId,
                 request.startDateTime(),
@@ -463,7 +473,7 @@ public class AppointmentService {
                 endDateTime
         );
 
-        // Si hay cabina, se valida igual que en la creacion pero excluyendo esta cita.
+        // si hay cabina se valida igual que en creacion pero excluyendo esta cita
         Booth booth = null;
         if (request.boothId() != null) {
             booth = boothRepository
@@ -494,7 +504,7 @@ public class AppointmentService {
                 request.startDateTime()
         );
 
-        // Reagendar una cita cancelada la devuelve al flujo normal desde PENDING.
+        // reagendar una cita cancelada la devuelve al flujo normal desde pendiente
         if (RESET_TO_PENDING_ON_EDIT.contains(currentStatus)) {
             AppointmentStatus pending = statusRepository.findByName("PENDING")
                     .orElseThrow(() -> new ResponseStatusException(
@@ -510,7 +520,7 @@ public class AppointmentService {
         appointment.setEndDateTime(endDateTime);
         appointment.setNotes(request.notes());
 
-        // El flush adelanta posibles choques de UNIQUE para traducirlos a 409.
+        // el guardado previo adelanta posibles errores de duplicado para devolver 409
         Appointment saved;
         try {
             saved = appointmentRepository.saveAndFlush(appointment);
@@ -531,7 +541,8 @@ public class AppointmentService {
             throw ex;
         }
 
-        // Al editar se congelan de nuevo precios e impuestos del catalogo.
+        // se borra lo viejo y se guarda lo nuevo
+        // al editar se vuelven a guardar precios e impuestos actuales
         bookedServiceRepository.deleteAllByAppointmentId(saved.getId());
         bookedServiceRepository.flush();
 
@@ -550,11 +561,12 @@ public class AppointmentService {
         return AppointmentResponse.from(saved, savedBookedServices);
     }
 
-    /** Cambia el estado de pago de una cita del negocio. */
+    /** cambia el estado de pago de una cita del negocio */
     public AppointmentResponse markPayment(Long businessId,
                                            Long appointmentId,
                                            UpdatePaymentRequest request) {
 
+        // este cambio solo toca si esta pagada o no
         Appointment appointment = appointmentRepository
                 .findByIdAndBusinessId(appointmentId, businessId)
                 .orElseThrow(() -> new ResponseStatusException(

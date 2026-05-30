@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
-/** Paginador prev/next con indicador "Pagina X de Y"; se oculta con 1 o 0 paginas. */
+/** Paginador prev/next con indicador "Pagina X de Y"; se oculta con 1 o 0 paginas */
 export function Pagination({ page, totalPages, totalElements, onChange }) {
   if (!totalPages || totalPages <= 1) return null
 

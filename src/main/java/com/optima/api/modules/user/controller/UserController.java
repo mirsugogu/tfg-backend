@@ -16,7 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/** Endpoints para gestionar empleados de un negocio. */
+/** rutas de empleados de un negocio */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/users")
 @RequiredArgsConstructor
@@ -26,7 +26,7 @@ public class UserController {
     private final UserService userService;
 
     /**
-     * Crea un empleado dentro del negocio.
+     * crea un empleado dentro del negocio
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -37,7 +37,7 @@ public class UserController {
     }
 
     /**
-     * Lista empleados activos o archivados del negocio.
+     * lista empleados activos o archivados del negocio
      */
     @GetMapping
     public Page<UserResponse> listByBusiness(@PathVariable @Positive Long businessId,
@@ -47,7 +47,7 @@ public class UserController {
     }
 
     /**
-     * Obtiene un empleado del negocio por su id.
+     * obtiene un empleado del negocio por su id
      */
     @GetMapping("/{id}")
     public UserResponse getById(@PathVariable @Positive Long businessId, @PathVariable @Positive Long id) {
@@ -55,7 +55,7 @@ public class UserController {
     }
 
     /**
-     * Actualiza los datos propios de la membership del empleado.
+     * actualiza los datos propios de la relacion del empleado
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -66,7 +66,7 @@ public class UserController {
     }
 
     /**
-     * Desactiva la membership del empleado en este negocio.
+     * desactiva la relacion del empleado en este negocio
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -78,7 +78,7 @@ public class UserController {
     }
 
     /**
-     * Reactiva la membership de un empleado archivado.
+     * reactiva la relacion de un empleado archivado
      */
     @PatchMapping("/{id}/reactivate")
     @PreAuthorize("hasRole('ADMIN')")

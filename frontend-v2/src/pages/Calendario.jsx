@@ -1,3 +1,4 @@
+// Pagina de calendario con vistas mes, semana y dia, arrastre de citas y filtros
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ChevronLeft, ChevronRight, Plus, RefreshCw, Printer,
@@ -28,63 +29,57 @@ import { ResourceDayGrid }  from '@/components/calendar/ResourceDayGrid'
 import { WeekResourceGrid } from '@/components/calendar/WeekResourceGrid'
 import { MiniCalendarPopover } from '@/components/calendar/MiniCalendar'
 
-/* ============================================================
-   CALENDARIO
-   ============================================================ */
 
-/** Abreviatura de cabina ("Cabina 3" → "C3"); fallback a 3 primeras letras. */
+/** Abreviatura de cabina ("Cabina 3" - "C3"); alternativa a 3 primeras letras */
 const boothShort = (name) => {
   const m = (name || '').match(/^cabina\s*(\d+)$/i)
   return m ? `C${m[1]}` : (name || '').slice(0, 3).toUpperCase()
 }
 
-/** Calendario Mes/Semana/Día con citas, ausencias, bloqueos y drag-and-drop para reagendar. */
+/** Calendario Mes/Semana/Dia con citas, ausencias, bloqueos y arrastre para reagendar */
 export default function Calendario() {
   const { user } = useAuth()
   const { statusLabel } = useCatalog()
   const toast = useToast()
   const bId = user?.businessId
 
-  /* ---- Preferencias persistidas ---- */
   const [view, setView] = useState(() => localStorage.getItem('optima_cal_view') || 'Mes')
   useEffect(() => { localStorage.setItem('optima_cal_view', view) }, [view])
 
-  // hourPx adaptativo: con horarios extensos se reduce para que la rejilla quepa en pantalla.
+  // hourPx adaptativo: con horarios extensos se reduce para que la rejilla quepa en pantalla
 
   const [colorBy, setColorBy] = useState(() => localStorage.getItem('optima_cal_colorby') || 'status')
   useEffect(() => { localStorage.setItem('optima_cal_colorby', colorBy) }, [colorBy])
 
-  // Filtros de contenido no persistidos para que no oculten citas nuevas tras reabrir.
+  // Filtros de contenido no persistidos para que no oculten citas nuevas tras reabrir
   const [employeeFilter, setEmployeeFilter] = useState('')
   const [boothFilter, setBoothFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
 
-  // Agrupación del Día/Semana: 'time' (cronologica) | 'booth' | 'employee'
+  // Agrupacion del Dia/Semana: 'time' (cronologica) | 'booth' | 'employee'
   const [groupBy, setGroupBy] = useState(() => localStorage.getItem('optima_cal_groupby') || 'booth')
   useEffect(() => { localStorage.setItem('optima_cal_groupby', groupBy) }, [groupBy])
 
-  /* ---- Estado base ---- */
   const [cursor, setCursor] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()) })
   const [appointments, setAppointments] = useState([])
   const [loading, setLoading] = useState(true)
   const [reloadFlag, setReloadFlag] = useState(0)
   const today = useMemo(() => new Date(), [])
 
-  // tick cada minuto para la línea "ahora"
+  // tick cada minuto para la linea "ahora"
   const [now, setNow] = useState(new Date())
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(t) }, [])
 
-  /* ---- Carga de listas auxiliares ---- */
   const [employees, setEmployees] = useState([])
   const [booths, setBooths] = useState([])
   const [businessHours, setBusinessHours] = useState([])
-  // Bloqueos completos del negocio; se filtran al rango visible en blocksInRange.
+  // Bloqueos completos del negocio; se filtran al rango visible en blocksInRange
   const [scheduleBlocks, setScheduleBlocks] = useState([])
-  // Ausencias filtradas por rango por el endpoint dedicado.
+  // Ausencias filtradas por rango por el rutas dedicado
   const [absences, setAbsences] = useState([])
-  // Intervalo del negocio (15/30/45/60) usado por el snap del drag.
+  // Intervalo usado al mover citas
   const [appointmentInterval, setAppointmentInterval] = useState(30)
-  // Horarios semanales indexados por membershipId; falta → fallback al horario del negocio.
+  // Horarios semanales indexados por membershipId; falta - alternativa al horario del negocio
   const [schedulesByMembership, setSchedulesByMembership] = useState(() => new Map())
 
   useEffect(() => {
@@ -107,7 +102,7 @@ export default function Calendario() {
     })
   }, [bId, reloadFlag])
 
-  // Carga los horarios de cada empleado en paralelo; los fallos se ignoran sin romper la vista.
+  // Carga los horarios de cada empleado en paralelo; los fallos se ignoran sin romper la vista
   useEffect(() => {
     if (!bId || employees.length === 0) {
       setSchedulesByMembership(new Map())
@@ -132,7 +127,7 @@ export default function Calendario() {
     return () => { cancelled = true }
   }, [bId, employees])
 
-  // Rango horario dinámico: abarca business_hours y todas las citas; defaults 8-21.
+  // Rango horario dinamico: abarca business_hours y todas las citas; defaults 8-21
   const { dayStart, dayEnd } = useMemo(() => {
     let minStart = 24, maxEnd = 0
     businessHours.forEach((h) => {
@@ -144,7 +139,7 @@ export default function Calendario() {
       if (s < minStart) minStart = s
       if (e > maxEnd)   maxEnd   = e
     })
-    // Extiende el rango para que toda cita cargada tenga celdas de rejilla.
+    // Extiende el rango para que toda cita cargada tenga celdas de rejilla
     appointments.forEach((a) => {
       const s = minutesOf(a.startDateTime) / 60
       const e = minutesOf(a.endDateTime) / 60
@@ -152,7 +147,7 @@ export default function Calendario() {
       if (e > maxEnd)   maxEnd   = e
     })
     if (minStart === 24 || maxEnd === 0) return { dayStart: DEFAULT_DAY_START, dayEnd: DEFAULT_DAY_END }
-    // Cap [0, 24] defensivo.
+    // Cap [0, 24] defensivo
     return {
       dayStart: Math.max(0, Math.floor(minStart)),
       dayEnd: Math.min(24, Math.ceil(maxEnd)),
@@ -172,7 +167,7 @@ export default function Calendario() {
     let cancelled = false
     const { from, to } = rangeFor(view, cursor)
     setLoading(true)
-    // size 100 = tope de Pageable del backend; rangos con más citas se ven parciales.
+    // size 100 = tope de Pageable del servidor; rangos con mas citas se ven parciales
     const params = { from, to, size: 100, sort: 'startDateTime,asc' }
     if (employeeFilter) params.membershipId = employeeFilter
     api.get(`/api/businesses/${bId}/appointments`, { params })
@@ -184,7 +179,7 @@ export default function Calendario() {
 
   const refetch = useCallback(() => setReloadFlag((v) => v + 1), [])
 
-  // Mapas color por empleado y cabina; el color asignado tiene prioridad sobre el automático.
+  // Mapas color por empleado y cabina; el color asignado tiene prioridad sobre el automatico
   const empColorMap = useMemo(
     () => new Map(employees.map((e) => [e.id, e.color])),
     [employees],
@@ -194,7 +189,7 @@ export default function Calendario() {
     [booths],
   )
 
-  // Filtros client-side y anexado de employeeColor/boothColor para styleFor.
+  // Filtros en cliente y anexado de employeeColor/boothColor para styleFor
   const filtered = useMemo(() => appointments
     .filter((a) => {
       if (statusFilter && a.statusName !== statusFilter) return false
@@ -208,7 +203,7 @@ export default function Calendario() {
     })),
     [appointments, statusFilter, boothFilter, empColorMap, boothColorMap])
 
-  // Agrupado por día
+  // Agrupado por dia
   const eventsByDay = useMemo(() => {
     const map = new Map()
     filtered.forEach((a) => {
@@ -219,13 +214,13 @@ export default function Calendario() {
     return map
   }, [filtered])
 
-  // Blocks que intersectan el rango visible; reduce el trabajo por celda.
+  // Blocks que intersectan el rango visible; reduce el trabajo por celda
   const blocksInRange = useMemo(() => {
     const r = rangeFor(view, cursor)
     return scheduleBlocks.filter((b) => b.endDate >= r.from && b.startDate <= r.to)
   }, [scheduleBlocks, view, cursor])
 
-  // Ausencias del rango visible; el endpoint ya filtra, no hace falta filtro client-side.
+  // Ausencias del rango visible; el rutas ya filtra, no hace falta filtro en cliente
   useEffect(() => {
     if (!bId) return
     let cancelled = false
@@ -248,7 +243,6 @@ export default function Calendario() {
     return { count: filtered.length, revenue, pendingCount, inProgressCount }
   }, [filtered, now])
 
-  /* ---- Navegación ---- */
   const goPrev  = useCallback(() => {
     if (view === 'Mes')         setCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))
     else if (view === 'Semana') setCursor((c) => { const d = new Date(c); d.setDate(c.getDate() - 7); return d })
@@ -261,16 +255,16 @@ export default function Calendario() {
   }, [view])
   const goToday = useCallback(() => { const d = new Date(); setCursor(new Date(d.getFullYear(), d.getMonth(), d.getDate())) }, [])
 
-  // Wizard cubre crear y editar; detalle delega al wizard en "Editar cita".
+  // Wizard cubre crear y editar; detalle delega al wizard en "Editar cita"
   const [wizard, setWizard] = useState({ open: false, date: null, time: null, appt: null })
   const [detailAppt, setDetailAppt] = useState(null)
-  // Drag-and-drop: pre-vista del cambio; el modal pide confirmación antes del PUT.
+  // arrastre: pre-vista del cambio; el ventana pide confirmacion antes del PUT
   const [pendingDrop, setPendingDrop] = useState(null)
   const [droppingSaving, setDroppingSaving] = useState(false)
   const openWizard = useCallback((date = null, time = null) => setWizard({ open: true, date, time, appt: null }), [])
   const closeWizard = useCallback(() => setWizard({ open: false, date: null, time: null, appt: null }), [])
 
-  // Bloqueo y ausencia aplicables a la cita del detalle, para los avisos del modal.
+  // Bloqueo y ausencia aplicables a la cita del detalle, para los avisos del ventana
   const detailApptBlock = useMemo(
     () => blockForAppointment(blocksInRange, detailAppt),
     [blocksInRange, detailAppt],
@@ -280,7 +274,7 @@ export default function Calendario() {
     [absences, detailAppt],
   )
 
-  // Arma pendingDrop con el cambio; si nada cambia (mismo slot y recurso) no se hace nada.
+  // Arma pendingDrop con el cambio; si nada cambia (mismo slot y recurso) no se hace nada
   const handleDropAppointment = useCallback(({ appt, newStartDateTime, newResourceType, newResourceId }) => {
     if (!appt) return
     const newMembershipId = newResourceType === 'employee'
@@ -347,10 +341,9 @@ export default function Calendario() {
   const onCellClick = useCallback((dayKey) => openWizard(dayKey, null), [openWizard])
   const onOpenDay   = useCallback((date) => { setCursor(date); setView('Día') }, [])
 
-  /* ---- Atajos de teclado ---- */
   useEffect(() => {
     const handler = (e) => {
-      // No interceptes si el foco está en un input o si hay un modal abierto
+      // No interceptes si el foco esta en un input o si hay un ventana abierto
       const tag = (e.target?.tagName || '').toLowerCase()
       if (tag === 'input' || tag === 'select' || tag === 'textarea') return
       if (wizard.open || detailAppt) return
@@ -365,7 +358,6 @@ export default function Calendario() {
     return () => window.removeEventListener('keydown', handler)
   }, [goPrev, goNext, goToday, wizard.open, detailAppt])
 
-  /* ---- Texto de cabecera ---- */
   let headerText = `${MONTHS_ES[cursor.getMonth()]} ${cursor.getFullYear()}`
   if (view === 'Semana') {
     const ws = startOfWeek(cursor); const we = new Date(ws); we.setDate(ws.getDate() + 6)
@@ -376,7 +368,6 @@ export default function Calendario() {
     headerText = cursor.toLocaleDateString('es-ES', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })
   }
 
-  /* ---- Recursos para vistas agrupadas ---- */
   const boothResources = useMemo(
     () => booths.map((b) => ({
       id: b.id,
@@ -401,7 +392,6 @@ export default function Calendario() {
   return (
     <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8 print:p-0 print:max-w-none">
 
-      {/* Estilos de impresión: oculta UI no esencial, conserva colores de cita y aplana el sticky. */}
       <style>{`
         @media print {
           @page { margin: 12mm; }
@@ -420,7 +410,6 @@ export default function Calendario() {
         }
       `}</style>
 
-      {/* Header solo en impresion: titulo + rango + fecha de impresion */}
       <div className="hidden print:block mb-3">
         <div className="flex items-baseline justify-between border-b-2 border-slate-300 pb-2">
           <div>
@@ -463,7 +452,6 @@ export default function Calendario() {
         </div>
       </div>
 
-      {/* Stats strip del rango activo */}
       <div className="mb-5 grid grid-cols-2 md:grid-cols-4 gap-3 no-print">
         <StatTile label={`Citas (${view.toLowerCase()})`} value={rangeStats.count} />
         <StatTile label="€ previstos" value={`${rangeStats.revenue.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €`} />
@@ -473,7 +461,6 @@ export default function Calendario() {
 
       <div className="bg-white rounded-2xl border border-slate-100/80 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)] overflow-hidden print-area">
 
-        {/* Toolbar fila 1: navegación + vista */}
         <div className="flex flex-wrap items-center gap-3 px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-1.5">
             <button onClick={goPrev} title="Anterior (←)" aria-label="Anterior" className="w-9 h-9 rounded-xl border border-slate-200 text-slate-500 hover:text-[#1e3a5f] hover:border-blue-300 hover:bg-blue-50 transition flex items-center justify-center"><ChevronLeft size={16} /></button>
@@ -500,7 +487,6 @@ export default function Calendario() {
           <span className="text-[10px] text-slate-400 hidden md:inline">←/→ navegar · T hoy · M/W/D vista</span>
         </div>
 
-        {/* Toolbar fila 2: filtros (popover) + agrupar + densidad */}
         <FiltersBar
           employees={employees}
           booths={booths}
@@ -636,7 +622,7 @@ export default function Calendario() {
   )
 }
 
-/** Modal de confirmación del drag-and-drop; lista solo los campos que cambian. */
+/** ventana de confirmacion del arrastre; lista solo los campos que cambian */
 function ConfirmDropModal({ pending, employeeResources, boothResources, saving, onCancel, onConfirm }) {
   if (!pending) return null
   const { appt, newStartDateTime, newMembershipId, newBoothId } = pending
@@ -698,11 +684,8 @@ function ConfirmDropModal({ pending, employeeResources, boothResources, saving, 
   )
 }
 
-/* ============================================================
-   SUBCOMPONENTES DE VISTAS CRONOLÓGICAS
-   ============================================================ */
 
-/** Tarjeta de KPI compacta para el strip superior del calendario. */
+/** Tarjeta de KPI compacta para el strip superior del calendario */
 function StatTile({ label, value, tone }) {
   const tones = { default: 'text-[#1e3a5f]', success: 'text-emerald-600', cyan: 'text-cyan-600', warning: 'text-orange-600' }
   return (
@@ -713,15 +696,12 @@ function StatTile({ label, value, tone }) {
   )
 }
 
-/** Rejilla mensual 7x6 con citas y bloqueos por día. */
+/** Rejilla mensual 7x6 con citas y bloqueos por dia */
 function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectEvent, onOpenDay, blocks = [] }) {
   const cells = buildMonthGrid(cursor.getFullYear(), cursor.getMonth())
   const month = cursor.getMonth()
   return (
     <>
-      {/* Separadores reforzados (border-b-2 + gap de 2 px en slate-300)
-          para que la malla del Mes se lea como la rejilla de Semana/Dia
-          en lugar de un grid casi sin lineas. */}
       <div className="grid grid-cols-7 border-b-2 border-slate-300 bg-slate-50/40">
         {DAYS_ES_SHORT.map((d, i) => (
           <div key={d} className={`px-3 py-3 text-[11px] uppercase tracking-[0.14em] font-semibold ${i >= 5 ? 'text-blue-600' : 'text-slate-500'}`}>{d}</div>
@@ -737,9 +717,9 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
           const activeAppts = dayEvents.filter((a) => a.statusName !== 'CANCELLED' && a.statusName !== 'NO_SHOW')
           const dayRevenue = activeAppts.reduce((acc, a) => acc + parseFloat(totalBooked(a.bookedServices)), 0)
           // [J] Heatmap por densidad de citas activas: cuanto mas ocupado el
-          // dia, mas saturado el fondo. Umbrales 1/3/6 ajustados a un negocio
-          // pequeno-mediano. Dias fuera del mes mantienen su gris claro y
-          // hoy conserva su acento (chip con el numero del dia).
+          // dia, mas saturado el fondo Umbrales 1/3/6 ajustados a un negocio
+          // pequeno-mediano Dias fuera del mes mantienen su gris claro y
+          // hoy conserva su acento (chip con el numero del dia)
           const heat = activeAppts.length
           const heatBg = !inMonth
             ? 'bg-slate-50/60 hover:bg-slate-50'
@@ -747,14 +727,12 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
             : heat >= 3 ? 'bg-blue-50/70 hover:bg-blue-100/60'
             : heat >= 1 ? 'bg-blue-50/40 hover:bg-blue-50/70'
             : 'bg-white hover:bg-blue-50/40'
-          // En la vista Mes no hay sub-columnas por recurso, asi que
-          // mostramos cualquier bloqueo que aplique al dia (global o no);
-          // el badge se imprime con el primer reason encontrado.
+          // En el mes se muestra el primer bloqueo del dia
           const dayBlocks = blocksForCell(blocks, date)
             .concat(blocks.filter((b) => (b.membershipId != null || b.boothId != null)
                                           && keyOf(date) >= b.startDate
                                           && keyOf(date) <= b.endDate))
-          // Deduplica por id (los globales pueden colarse dos veces).
+          // Evita repetir bloqueos ya encontrados
           const seenIds = new Set()
           const uniqueDayBlocks = dayBlocks.filter((b) => {
             if (seenIds.has(b.id)) return false
@@ -775,9 +753,6 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
                     ? 'bg-gradient-to-br from-cyan-500 to-blue-500 text-white shadow-[0_4px_10px_-2px_rgba(14,165,233,0.55)]'
                     : inMonth ? 'text-[#1e3a5f]' : 'text-slate-400'
                 }`}>{date.getDate()}</div>
-                {/* El boton "+" desaparece si el dia tiene un bloqueo
-                    aplicable: no tiene sentido invitar a crear cita
-                    cuando el backend (y los overlays) lo rechazarian. */}
                 {!hasBlock && (
                   <button
                     type="button"
@@ -818,7 +793,7 @@ function MonthGrid({ cursor, today, eventsByDay, colorBy, onCellClick, onSelectE
   )
 }
 
-/** Vista Semana cronológica (sin sub-columnas de recurso). */
+/** Vista semanal por horas */
 function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotClick, dayStart, dayEnd, hourPx, businessHours, now, blocks = [], onDropAppointment, appointmentInterval = 30 }) {
   const ws = startOfWeek(cursor)
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(ws); d.setDate(ws.getDate() + i); return d })
@@ -832,10 +807,7 @@ function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotCl
             const laidOut = layoutEvents(eventsByDay.get(dayKey) || [])
             const isToday = isSameDay(d, today)
             const openRanges = openRangesFor(businessHours, d)
-            // En la vista Semana cronologica solo se renderizan los bloqueos
-            // globales: una columna sin sub-columnas no puede separar un
-            // bloqueo por empleado o por cabina. Los parciales se ven en
-            // la vista Semana agrupada por recurso.
+            // En semana simple solo se muestran bloqueos globales
             const dayBlocks = blocksForCell(blocks, d)
             const dayIsBlocked = dayBlocks.length > 0
             const dayBlockLabel = dayIsBlocked ? labelForBlock(dayBlocks[0]) : null
@@ -872,7 +844,7 @@ function WeekGrid({ cursor, today, eventsByDay, colorBy, onSelectEvent, onSlotCl
   )
 }
 
-/** Vista Día cronológica con barra lateral de agenda. */
+/** Vista Dia cronologica con barra lateral de agenda */
 function DayGrid({ cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick, statusLabel, dayStart, dayEnd, hourPx, businessHours, now, blocks = [], onDropAppointment, appointmentInterval = 30 }) {
   const dayKey = keyOf(cursor)
   const dayEvents = eventsByDay.get(dayKey) || []
@@ -880,9 +852,7 @@ function DayGrid({ cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick, sta
   const laidOut = layoutEvents(dayEvents)
   const openRanges = openRangesFor(businessHours, cursor)
   const isToday = isSameDay(cursor, new Date())
-  // Vista Dia cronologica: solo se muestran los bloqueos globales (no hay
-  // sub-columnas para los bloqueos por recurso, que se ven al pasar a
-  // agrupacion por cabina/empleado).
+  // En dia simple solo se muestran bloqueos globales
   const dayBlocks = blocksForCell(blocks, cursor)
   const dayIsBlocked = dayBlocks.length > 0
   const dayBlockLabel = dayIsBlocked ? labelForBlock(dayBlocks[0]) : null
@@ -954,9 +924,6 @@ function DayGrid({ cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick, sta
   )
 }
 
-/* ============================================================
-   TOOLBAR DE FILTROS (popover compacto)
-   ============================================================ */
 
 const STATUS_FILTER_OPTIONS = [
   { key: '',            label: 'Todos' },
@@ -968,7 +935,7 @@ const STATUS_FILTER_OPTIONS = [
   { key: 'NO_SHOW',     dot: 'bg-rose-500' },
 ]
 
-/** Barra de filtros del calendario con popovers de filtro, color y agrupado. */
+/** Barra de filtros del calendario con popovers de filtro, color y agrupado */
 function FiltersBar({
   employees, booths,
   employeeFilter, setEmployeeFilter,
@@ -1017,7 +984,6 @@ function FiltersBar({
 
   return (
     <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-slate-100 bg-slate-50/40 no-print">
-      {/* Botón Filtros */}
       <div className="relative">
         <button
           ref={btnRef}
@@ -1104,7 +1070,6 @@ function FiltersBar({
         )}
       </div>
 
-      {/* Chips activos (resumen rápido junto al botón) */}
       {employeeLabel && (
         <ActiveChip label={employeeLabel} onClear={() => setEmployeeFilter('')} />
       )}
@@ -1119,7 +1084,6 @@ function FiltersBar({
         />
       )}
 
-      {/* Color (preferencia visual, en todas las vistas) */}
       <div className="flex items-center gap-1.5 ml-1">
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em]">Color</span>
         <div className="inline-flex items-center bg-slate-100 rounded-lg p-1">
@@ -1137,7 +1101,6 @@ function FiltersBar({
         </div>
       </div>
 
-      {/* Agrupar (solo en Día/Semana) */}
       {(view === 'Día' || view === 'Semana') && (
         <div className="flex items-center gap-1.5 ml-1">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em]">Agrupar</span>

@@ -17,7 +17,7 @@ public class MailService {
 
     private final JavaMailSender mailSender;
 
-    // el remitente sale del properties
+    // el remitente sale de la configuracion
     @Value("${app.mail.from}")
     private String from;
 
@@ -32,7 +32,7 @@ public class MailService {
         try {
             mailSender.send(message);
         } catch (MailException ignored) {
-            // si falla se ignora para no romper el flujo
+
         }
     }
 }

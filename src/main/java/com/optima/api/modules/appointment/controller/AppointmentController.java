@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 
-/** Gestion de citas (operativa diaria del negocio). */
+/** rutas de citas */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/appointments")
 @RequiredArgsConstructor
@@ -27,7 +27,7 @@ public class AppointmentController {
 
     private final AppointmentService appointmentService;
 
-    /** Crea una cita. */
+    /** crea una cita */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public AppointmentResponse createAppointment(@PathVariable @Positive Long businessId,
@@ -35,7 +35,7 @@ public class AppointmentController {
         return appointmentService.createAppointment(businessId, request);
     }
 
-    /** Lista citas con filtros opcionales. */
+    /** lista citas con filtros */
     @GetMapping
     public Page<AppointmentResponse> searchAppointments(
             @PathVariable @Positive Long businessId,
@@ -46,14 +46,14 @@ public class AppointmentController {
         return appointmentService.searchAppointments(businessId, from, to, membershipId, pageable);
     }
 
-    /** Obtiene el detalle de una cita. */
+    /** devuelve una cita por id */
     @GetMapping("/{id}")
     public AppointmentResponse getAppointmentById(@PathVariable @Positive Long businessId,
                                                   @PathVariable @Positive Long id) {
         return appointmentService.getAppointmentById(businessId, id);
     }
 
-    /** Edita o reagenda una cita. */
+    /** edita o reagenda una cita */
     @PutMapping("/{id}")
     public AppointmentResponse updateAppointment(@PathVariable @Positive Long businessId,
                                                  @PathVariable @Positive Long id,
@@ -61,7 +61,7 @@ public class AppointmentController {
         return appointmentService.updateAppointment(businessId, id, request);
     }
 
-    /** Cambia el estado de una cita. */
+    /** cambia el estado de una cita */
     @PatchMapping("/{id}/status")
     public AppointmentResponse updateStatus(@PathVariable @Positive Long businessId,
                                             @PathVariable @Positive Long id,
@@ -69,7 +69,7 @@ public class AppointmentController {
         return appointmentService.updateAppointmentStatus(businessId, id, request);
     }
 
-    /** Actualiza el estado de pago de una cita. */
+    /** cambia el estado de pago de una cita */
     @PatchMapping("/{id}/payment")
     public AppointmentResponse markPayment(@PathVariable @Positive Long businessId,
                                            @PathVariable @Positive Long id,

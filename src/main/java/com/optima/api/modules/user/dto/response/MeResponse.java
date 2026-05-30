@@ -5,7 +5,7 @@ import com.optima.api.modules.user.model.User;
 import java.time.LocalDateTime;
 
 /**
- * Respuesta con los datos de la identidad autenticada.
+ * datos de la identidad autenticada
  */
 public record MeResponse(
         Long id,

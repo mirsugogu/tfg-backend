@@ -5,7 +5,7 @@ import com.optima.api.modules.client.model.Client;
 import java.time.LocalDateTime;
 
 /**
- * Respuesta con los datos publicos de un cliente.
+ * respuesta con los datos publicos de un cliente
  */
 public record ClientResponse(
         Long id,

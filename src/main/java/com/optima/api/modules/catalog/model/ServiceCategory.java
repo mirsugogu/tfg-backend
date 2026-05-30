@@ -10,8 +10,8 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 /**
- * Entidad que agrupa los servicios de un negocio por categoria.
- * El nombre no se puede repetir dentro del mismo negocio.
+ * grupo de servicios del negocio
+ * nombre unico dentro del negocio
  */
 @Entity
 @Table(
@@ -32,28 +32,28 @@ public class ServiceCategory {
     @Column(name = "id_category")
     private Long id;
 
-    /** Negocio al que pertenece esta categoria. */
+    /** negocio al que pertenece esta categoria */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_business", nullable = false)
     private Business business;
 
-    /** Nombre visible de la categoria. */
+    /** nombre visible de la categoria */
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    /** Indica si la categoria sigue disponible. */
+    /** indica si la categoria sigue disponible */
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    /** Fecha y hora en que se creo la categoria (rellenado por @PrePersist). */
+    /** fecha y hora en que se creo la categoria */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /** Momento de la desactivacion (null mientras la categoria este activa). */
+    /** momento de la desactivacion sin valor mientras la categoria este activa */
     @Column(name = "deactivated_at")
     private LocalDateTime deactivatedAt;
 
-    /** Asigna la fecha de creacion antes de guardar. */
+    /** asigna la fecha de creacion antes de guardar */
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

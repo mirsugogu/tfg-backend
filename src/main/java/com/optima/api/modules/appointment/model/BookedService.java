@@ -10,8 +10,8 @@ import lombok.Setter;
 import java.math.BigDecimal;
 
 /**
- * Entidad que representa un servicio reservado dentro de una cita.
- * Guarda el precio y el impuesto aplicados en el momento de la reserva.
+ * representa un servicio guardado dentro de una cita
+ * mantiene el precio y el impuesto usados en ese momento
  */
 @Entity
 @Table(name = "appointment_services")
@@ -26,21 +26,21 @@ public class BookedService {
     @Column(name = "id_appointment_service")
     private Long id;
 
-    /** Cita a la que pertenece este servicio reservado. */
+    /** cita a la que pertenece */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_appointment", nullable = false)
     private Appointment appointment;
 
-    /** Servicio del catalogo que se esta reservando. */
+    /** servicio que se reservo */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_service", nullable = false)
     private BusinessService service;
 
-    /** Precio aplicado al crear la cita. */
+    /** precio usado al reservar */
     @Column(name = "applied_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal appliedPrice;
 
-    /** Porcentaje de impuesto aplicado al crear la cita. */
+    /** impuesto usado al reservar */
     @Column(name = "applied_tax_percentage", nullable = false, precision = 5, scale = 2)
     private BigDecimal appliedTaxPercentage;
 }

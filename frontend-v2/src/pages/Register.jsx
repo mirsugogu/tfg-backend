@@ -1,3 +1,4 @@
+// Wizard de registro en 3 pasos: negocio, ubicacion y cuenta de administrador
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Navigate, Link } from 'react-router-dom'
 import {
@@ -11,9 +12,6 @@ import { LocationMap } from '@/components/ui/LocationMap'
 import { useAuth } from '@/context/AuthContext'
 import { getErrorMessage } from '@/lib/api'
 
-/* ============================================================
-   HELPERS
-   ============================================================ */
 
 const slugify = (s) =>
   s.toLowerCase()
@@ -51,12 +49,12 @@ const EMPTY_FORM = {
   terms: false,
 }
 
-/** Auto-registro de negocio + administrador en una sola operación con sesión inmediata. */
+/** Auto-registro de negocio + administrador en una sola operacion con sesion inmediata */
 export default function Register() {
   const { user, register, loading } = useAuth()
   const navigate = useNavigate()
 
-  // Recupera draft (sin contraseña) tras una recarga accidental
+  // Recupera draft (sin contrasena) tras una recarga accidental
   const [form, setForm] = useState(() => {
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY)
@@ -65,12 +63,12 @@ export default function Register() {
     return EMPTY_FORM
   })
   useEffect(() => {
-    // Persistimos todo menos la contraseña
+    // Persistimos todo menos la contrasena
     const { adminPassword: _omit, ...persistable } = form
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(persistable))
   }, [form])
 
-  const [step, setStep] = useState(0) // 0 negocio · 1 ubicación · 2 cuenta
+  const [step, setStep] = useState(0) // 0 negocio - 1 ubicacion - 2 cuenta
   const [slugTouched, setSlugTouched] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [capsLock, setCapsLock] = useState(false)
@@ -81,7 +79,6 @@ export default function Register() {
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }))
   const handleName = (v) => setForm((p) => ({ ...p, bizName: v, bizSlug: slugTouched ? p.bizSlug : slugify(v) }))
 
-  /* ---- Geocoder Nominatim (mismo de antes) ---- */
   useEffect(() => {
     if (step !== 1) return
     const query = [form.bizAddress, form.bizPostalCode, form.bizCity].map((s) => s.trim()).filter(Boolean).join(', ')
@@ -100,7 +97,6 @@ export default function Register() {
 
   if (user) return <Navigate to="/dashboard" replace />
 
-  /* ---- Validaciones por paso ---- */
   const slugInvalid = form.bizSlug.length > 0 && !SLUG_RE.test(form.bizSlug)
   const bizEmailInvalid = form.bizEmail.length > 0 && !isEmail(form.bizEmail)
   const adminEmailInvalid = form.adminEmail.length > 0 && !isEmail(form.adminEmail)
@@ -149,12 +145,12 @@ export default function Register() {
       sessionStorage.removeItem(STORAGE_KEY)
       navigate('/dashboard')
     } catch (err) {
-      // El backend devuelve 409 si el slug o el email ya existen.
+      // El servidor devuelve 409 si el slug o el email ya existen
       const msg = getErrorMessage(err, 'No se pudo completar el registro. Inténtalo de nuevo.')
       const lower = msg.toLowerCase()
       if (lower.includes('slug')) { setStep(0); setError(`${msg} — revisa el identificador del negocio.`) }
       else if (lower.includes('email')) {
-        // No sabemos seguro de cuál, pero el biz email se valida primero
+        // No sabemos seguro de cual, pero el biz email se valida primero
         setStep(lower.includes('admin') || lower.includes('usuario') ? 2 : 0)
         setError(msg)
       } else {
@@ -183,12 +179,10 @@ export default function Register() {
           <h1 className="text-2xl font-bold text-[#1e3a5f] tracking-tight">Crea tu cuenta</h1>
           <p className="mt-1.5 text-sm text-slate-500">Paso {step + 1} de 3 · {stepLabels[step]}</p>
 
-          {/* Stepper */}
           <Stepper step={step} />
 
           <form onSubmit={handleSubmit} className="space-y-6">
 
-            {/* Paso 0: Negocio */}
             {step === 0 && (
               <div>
                 <SectionHeader icon={Building2}>Datos del negocio</SectionHeader>
@@ -243,7 +237,6 @@ export default function Register() {
               </div>
             )}
 
-            {/* Paso 1: Ubicación */}
             {step === 1 && (
               <div>
                 <SectionHeader icon={MapPin}>Ubicación del negocio</SectionHeader>
@@ -277,7 +270,6 @@ export default function Register() {
               </div>
             )}
 
-            {/* Paso 2: Cuenta admin */}
             {step === 2 && (
               <div>
                 <SectionHeader icon={UserCircle}>Tu cuenta de administrador</SectionHeader>
@@ -371,7 +363,6 @@ export default function Register() {
               </div>
             )}
 
-            {/* Navegación */}
             <div className="flex gap-2">
               {step > 0 && (
                 <button type="button" onClick={back} className="flex-1 h-11 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 inline-flex items-center justify-center gap-2">
@@ -406,11 +397,8 @@ export default function Register() {
   )
 }
 
-/* ============================================================
-   SUBCOMPONENTES
-   ============================================================ */
 
-/** Indicador visual de los 4 pasos del registro. */
+/** Indicador visual de los 4 pasos del registro */
 function Stepper({ step }) {
   const items = [
     { idx: 0, label: 'Negocio' },
@@ -444,7 +432,7 @@ function Stepper({ step }) {
   )
 }
 
-/** Cabecera con icono para cada sección del wizard. */
+/** Cabecera con icono para cada seccion del wizard */
 function SectionHeader({ icon: Icon, children }) {
   return (
     <div className="flex items-center gap-2 mb-3">
@@ -454,7 +442,7 @@ function SectionHeader({ icon: Icon, children }) {
   )
 }
 
-/** Contador de caracteres restantes para campos con maxLength. */
+/** Contador de caracteres restantes para campos con maxLength */
 function CharCount({ value, max }) {
   if (!value) return null
   const pct = Math.round((value.length / max) * 100)
@@ -462,7 +450,7 @@ function CharCount({ value, max }) {
   return <p className={`text-[10px] mt-0.5 text-right tabular-nums ${tone}`}>{value.length} / {max}</p>
 }
 
-/** Resumen del paso final antes de confirmar el registro. */
+/** Resumen del paso final antes de confirmar el registro */
 function SummaryPreview({ form }) {
   if (!form.bizName) return null
   return (

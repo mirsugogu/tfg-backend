@@ -11,7 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
-/** Logica del catalogo de estados de cita. */
+/** logica del catalogo de estados de cita */
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -19,9 +19,7 @@ public class AppointmentStatusService {
 
     private final AppointmentStatusRepository statusRepository;
 
-    /**
-     * Devuelve todos los estados de cita disponibles.
-     */
+    /** devuelve todos los estados de cita disponibles */
     public List<AppointmentStatusResponse> listAll() {
         return statusRepository.findAll()
                 .stream()
@@ -29,15 +27,12 @@ public class AppointmentStatusService {
                 .toList();
     }
 
-    /**
-     * Busca un estado por su ID.
-     * Si no existe, lanza una excepción.
-     */
+    /** busca un estado por id */
     public AppointmentStatusResponse getStatusById(Long id) {
         AppointmentStatus status = statusRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND,
-                        "No se encontró el estado con ID: " + id
+                        "No se encontro el estado con ID: " + id
                 ));
 
         return AppointmentStatusResponse.from(status);

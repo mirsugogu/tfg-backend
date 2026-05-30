@@ -1,3 +1,4 @@
+// Vista diaria de la agenda con columnas por recurso (empleado o cabina)
 import { useMemo } from 'react'
 import {
   PALETTES, GRAY_PALETTE, paletteByName,
@@ -6,26 +7,26 @@ import {
 } from './utils'
 import { HourColumn, HourSlots, NowLine, PositionedEvent, EventChip, BlockOverlay, AbsenceOverlay } from './cells'
 
-/** Vista Día con columnas de recurso (empleado o cabina) y rejilla horaria. */
+/** Agenda diaria por recurso */
 export function ResourceDayGrid({
   cursor, eventsByDay, colorBy, onSelectEvent, onSlotClick,
   dayStart, dayEnd, hourPx, businessHours, now,
-  resources, // [{ id, name, accent }] — accent: índice de paleta
-  resourceFor, // (appt) => resource.id  (o null = "Sin asignar")
+  resources,
+  resourceFor,
   unassignedLabel = 'Sin asignar',
-  blocks = [],         // schedule_blocks aplicables al rango visible
-  resourceType = null, // 'employee' | 'booth' | null
-  absences = [],       // ausencias del rango; solo se pintan en columnas de empleado
-  schedulesByMembership = null, // Map<membershipId, EmployeeSchedule[]>; opcional. Solo se consulta en columnas de empleado para pintar como gris los huecos del horario semanal del empleado (descansos, turno partido).
-  onDropAppointment,   // drag-and-drop: callback al soltar una cita en otra sub-columna
-  appointmentInterval = 30, // snap del drag al intervalo del negocio
+  blocks = [],
+  resourceType = null,
+  absences = [],
+  schedulesByMembership = null,
+  onDropAppointment,
+  appointmentInterval = 30,
 }) {
   const dayKey = keyOf(cursor)
   const dayEvents = eventsByDay.get(dayKey) || []
   const openRanges = openRangesFor(businessHours, cursor)
   const isToday = isSameDay(cursor, new Date())
 
-  // Bucketizar eventos por recurso. Citas sin recurso → columna "unassigned".
+  // Agrupa citas por recurso
   const buckets = useMemo(() => {
     const map = new Map()
     resources.forEach((r) => map.set(r.id, []))
@@ -38,7 +39,7 @@ export function ResourceDayGrid({
     return { map, unassigned }
   }, [dayEvents, resources, resourceFor])
 
-  // Si hay citas sin recurso, añadimos una columna "Sin asignar" al principio.
+  // Si hay citas sin recurso, anadimos una columna "Sin asignar" al principio
   const columns = [
     ...(buckets.unassigned.length ? [{ id: '__none__', name: unassignedLabel, accent: -1, events: buckets.unassigned }] : []),
     ...resources.map((r) => ({ ...r, events: buckets.map.get(r.id) || [] })),
@@ -57,7 +58,6 @@ export function ResourceDayGrid({
                 const laidOut = layoutEvents(col.events)
                 return (
                   <div key={col.id} className="relative border-r-2 border-slate-300 last:border-r-0">
-                    {/* Cabecera sticky del recurso; z-30 > eventos (z-20). */}
                     <div className="h-10 border-b-2 border-slate-300 px-2.5 flex items-center justify-between gap-2 sticky top-0 z-30 bg-slate-50">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className={`w-2 h-2 rounded-full shrink-0 ${palette.dot}`} />
@@ -88,7 +88,7 @@ export function ResourceDayGrid({
                         const cellAbsences = (resourceType === 'employee' && col.id !== '__none__')
                           ? absences.filter((ab) => ab.membershipId === col.id)
                           : []
-                        // Rangos laborables solo en columnas de empleado con horario cargado.
+                        // Rangos laborables solo en columnas de empleado con horario cargado
                         const cellWorkingRanges = (resourceType === 'employee' && col.id !== '__none__' && schedulesByMembership?.has(col.id))
                           ? workingRangesFor(schedulesByMembership.get(col.id), cursor)
                           : null
@@ -133,7 +133,6 @@ export function ResourceDayGrid({
                   </div>
                 )
               })}
-              {/* Línea "ahora": una sola, sobre todas las columnas (top:40 = alto de la cabecera). */}
               {isToday && (
                 <div className="absolute left-0 right-0 pointer-events-none" style={{ top: 40 }}>
                   <NowLine now={now} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx} />

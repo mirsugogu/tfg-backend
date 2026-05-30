@@ -1,30 +1,24 @@
+// Dialogo modal accesible con cierre por Escape y gestion de foco
 import { useEffect, useId, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-/** Modal accesible centrado con backdrop, cierre por Esc y restauración de foco. */
+/** Ventana centrada con cierre por teclado */
 export function Modal({ open, onClose, title, children, size = 'md' }) {
   const titleId = useId()
   const panelRef = useRef(null)
 
-  // El componente padre recrea `onClose` en cada render (p. ej.
-  // `onClose={() => setModal(null)}`). Lo guardamos en un ref para leerlo
-  // desde el efecto de abajo SIN incluirlo en sus dependencias: si
-  // estuviera en las deps, el efecto se re-ejecutaría en cada render del
-  // padre — y como un formulario re-renderiza en cada pulsación de tecla,
-  // el `panelRef.current.focus()` robaría el foco al <input> letra a letra.
+  // Mantiene el cierre actual sin rehacer el efecto
   const onCloseRef = useRef(onClose)
   useEffect(() => { onCloseRef.current = onClose }, [onClose])
 
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
     if (!open) return
-    // Cerrar con la tecla Escape, igual que los drawers laterales.
+    // Cierre con Escape
     const onKey = (e) => { if (e.key === 'Escape') onCloseRef.current?.() }
     window.addEventListener('keydown', onKey)
-    // Accesibilidad: al abrir, recuerda el elemento que tenía el foco y
-    // muévelo al diálogo; al cerrar, restáuralo. Sin esto el foco se queda
-    // en el botón del fondo y un lector de pantalla nunca "entra" al modal.
+    // Al abrir mueve el foco y al cerrar lo restaura
     const prevFocus = document.activeElement
     panelRef.current?.focus()
     return () => {
@@ -32,8 +26,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }) {
       window.removeEventListener('keydown', onKey)
       if (prevFocus instanceof HTMLElement) prevFocus.focus()
     }
-    // Dependencia SOLO `open`: el efecto debe correr al abrir/cerrar el
-    // modal, nunca en cada render del padre (ver comentario del ref arriba).
+    // Efecto ligado solo al estado abierto
   }, [open])
 
   if (!open) return null
@@ -53,10 +46,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }) {
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cn(
-          // max-h + flex-col: el panel nunca supera el 90% del alto VISIBLE de
-          // la ventana (dvh, no vh — descuenta la barra del navegador móvil);
-          // si el contenido es más alto, el cuerpo hace scroll en lugar de
-          // salirse de la pantalla (crítico en móvil y pantallas bajas).
+          // El panel conserva altura visible y deja scroll interno
           'relative flex max-h-[90dvh] w-full flex-col rounded-2xl bg-white shadow-[0_20px_60px_-10px_rgba(15,23,42,0.25)] animate-in fade-in zoom-in-95 duration-200 focus:outline-none',
           sizes[size]
         )}
@@ -71,9 +61,6 @@ export function Modal({ open, onClose, title, children, size = 'md' }) {
             <X size={17} />
           </button>
         </div>
-        {/* min-h-0 permite que este bloque encoja dentro del flex y, con
-            overflow-y-auto, el contenido largo hace scroll sin tapar la
-            cabecera ni dejar los botones fuera de la pantalla. */}
         <div className="min-h-0 overflow-y-auto px-6 py-5">{children}</div>
       </div>
     </div>

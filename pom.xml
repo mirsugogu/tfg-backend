@@ -57,25 +57,21 @@
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
 		</dependency>
-		<!-- OpenAPI / Swagger UI (genera /swagger-ui.html y /v3/api-docs)
-		     2.8.0+ es la rama compatible con Spring Boot 3.4.x. La 2.6.0
-		     usa una API de Spring Web que dejo de existir en 3.4
-		     (ControllerAdviceBean(Object) -> NoSuchMethodError). -->
+		<!-- documentacion para pruebas -->
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 			<version>2.8.0</version>
 		</dependency>
 
-		<!-- Bucket4j: token-bucket rate limiting en memoria. Lo usa
-		     RateLimitFilter para frenar brute-force contra /api/auth/*. -->
+		<!-- limite de intentos en rutas sensibles -->
 		<dependency>
 			<groupId>com.bucket4j</groupId>
 			<artifactId>bucket4j-core</artifactId>
 			<version>8.10.1</version>
 		</dependency>
 
-		<!-- JJWT (JSON Web Tokens) -->
+		<!-- codigos de sesion -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>

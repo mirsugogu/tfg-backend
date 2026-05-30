@@ -9,7 +9,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-/** Entidad que representa una ausencia puntual de un empleado. */
+/** ausencia puntual de un empleado */
 @Entity
 @Table(name = "employee_absences")
 @Getter
@@ -23,28 +23,28 @@ public class EmployeeAbsence {
     @Column(name = "id_absence")
     private Long id;
 
-    /** Membership a la que pertenece la ausencia. */
+    /** relacion a la que pertenece la ausencia */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_membership", nullable = false)
     private Membership membership;
 
-    /** Fecha y hora en la que empieza la ausencia. */
+    /** fecha y hora en la que empieza la ausencia */
     @Column(name = "start_datetime", nullable = false)
     private LocalDateTime startDateTime;
 
-    /** Fecha y hora en la que termina la ausencia. */
+    /** fecha y hora en la que termina la ausencia */
     @Column(name = "end_datetime", nullable = false)
     private LocalDateTime endDateTime;
 
-    /** Motivo opcional de la ausencia. */
+    /** motivo opcional de la ausencia */
     @Column(name = "reason", length = 255)
     private String reason;
 
-    /** Fecha y hora de creacion de la ausencia. */
+    /** fecha y hora de creacion de la ausencia */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /** Asigna la fecha de creacion antes de guardar. */
+    /** asigna la fecha de creacion antes de guardar */
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

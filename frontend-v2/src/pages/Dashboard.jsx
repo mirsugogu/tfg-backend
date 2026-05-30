@@ -1,3 +1,4 @@
+// Dashboard principal con KPIs del dia, agenda, donut mensual y rankings
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -12,9 +13,6 @@ import { OnboardingChecklist } from '@/components/dashboard/OnboardingChecklist'
 import api, { getErrorMessage } from '@/lib/api'
 import { totalBooked } from '@/lib/format'
 
-/* ============================================================
-   CONSTANTES Y HELPERS
-   ============================================================ */
 
 const ACTIVE_STATUSES = ['PENDING', 'CONFIRMED', 'IN_PROGRESS']
 
@@ -101,11 +99,8 @@ const countdownLabel = (mins) => {
   return m ? `en ${h} h ${m} min` : `en ${h} h`
 }
 
-/* ============================================================
-   SUBCOMPONENTES
-   ============================================================ */
 
-/** Tarjeta de KPI con icono, valor grande y subtítulo. */
+/** Tarjeta de KPI con icono, valor grande y subtitulo */
 function StatCard({ label, value, sub, icon: Icon, tint = 'cyan-blue', attention = false }) {
   const tints = {
     'cyan-blue':   'from-cyan-400 to-blue-500',
@@ -129,7 +124,7 @@ function StatCard({ label, value, sub, icon: Icon, tint = 'cyan-blue', attention
   )
 }
 
-/** Hero con la próxima cita: countdown, datos y CTA al detalle. */
+/** Hero con la proxima cita: countdown, datos y CTA al detalle */
 function NextAppointmentHero({ appt, mins, onOpen }) {
   return (
     <div className="relative overflow-hidden rounded-2xl p-5 text-white shadow-[0_20px_50px_-20px_rgba(14,165,233,0.45)]"
@@ -166,7 +161,7 @@ function NextAppointmentHero({ appt, mins, onOpen }) {
   )
 }
 
-/** Donut con la distribución de citas del mes por estado. */
+/** Donut con la distribucion de citas del mes por estado */
 function StatusDonut({ buckets, total }) {
   const slices = []
   let deg = 0
@@ -207,9 +202,9 @@ function StatusDonut({ buckets, total }) {
   )
 }
 
-/** Timeline horizontal del día con las citas y la línea "ahora". */
+/** Timeline horizontal del dia con las citas y la linea "ahora" */
 function TodayTimeline({ list, now, onSelect, dayStart = 9, dayEnd = 21 }) {
-  // Rango horario derivado de business_hours; 9-21 es el fallback.
+  // Rango horario derivado de business_hours; 9-21 es el alternativa
   const DAY_START = dayStart, DAY_END = dayEnd
   const totalMin = (DAY_END - DAY_START) * 60
   const minutesFrom = (iso) => {
@@ -264,7 +259,7 @@ function TodayTimeline({ list, now, onSelect, dayStart = 9, dayEnd = 21 }) {
   )
 }
 
-/** Ranking compacto con barra de progreso para top servicios o empleados. */
+/** Ranking compacto con barra de progreso para top servicios o empleados */
 function TopList({ title, sub, items, renderMeta }) {
   const max = items[0]?.count ?? 1
   return (
@@ -299,13 +294,13 @@ function TopList({ title, sub, items, renderMeta }) {
   )
 }
 
-/** Dashboard principal con KPIs, agenda del día, distribución mensual y rankings. */
+/** Dashboard principal con KPIs, agenda del dia, distribucion mensual y rankings */
 export default function Dashboard() {
   const { user } = useAuth()
   const toast = useToast()
   const bId = user?.businessId
 
-  // Tick cada minuto para el countdown de "próxima cita" y la línea "ahora"
+  // Tick cada minuto para el countdown de "proxima cita" y la linea "ahora"
   const [now, setNow] = useState(new Date())
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60_000)
@@ -324,16 +319,16 @@ export default function Dashboard() {
   const [hours, setHours]         = useState([])
   const [loading, setLoading]     = useState(true)
   const [filter, setFilter]       = useState('Todas')   // estado
-  const [selected, setSelected]   = useState(null)      // cita abierta en el modal
+  const [selected, setSelected]   = useState(null)      // cita abierta en el ventana
 
-  // Carga inicial — paralelo, igual que el Dashboard original
+  // Carga inicial - paralelo, igual que el Dashboard original
   const fetchAll = useCallback(() => {
     if (!bId) return
     setLoading(true)
     Promise.all([
       api.get(`/api/businesses/${bId}/clients?size=1`),
       api.get(`/api/businesses/${bId}/services?size=1`),
-      // size 100 = tope de Pageable del backend.
+      // size 100 = tope de Pageable del servidor
       api.get(`/api/businesses/${bId}/appointments`, { params: { from: today, to: today, size: 100 } }),
       api.get(`/api/businesses/${bId}/appointments`, { params: { from: monthStart, to: monthEnd, size: 100 } }),
       api.get(`/api/businesses/${bId}/hours`),
@@ -352,20 +347,19 @@ export default function Dashboard() {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  /* ---------- Derivados ---------- */
 
   const activeToday   = useMemo(() => todayList.filter(a => ACTIVE_STATUSES.includes(a.statusName)), [todayList])
   const todayRevenue  = useMemo(
     () => activeToday.reduce((acc, a) => acc + parseFloat(totalBooked(a.bookedServices)), 0),
     [activeToday],
   )
-  // PENDING en las próximas 24h; se filtra sobre monthList para cubrir las de mañana de noche.
+  // PENDING en las proximas 24h; se filtra sobre monthList para cubrir las de manana de noche
   const pendingAttention = useMemo(() => {
     const limit = new Date(now.getTime() + 24 * 60 * 60 * 1000)
     return monthList.filter(a => a.statusName === 'PENDING' && new Date(a.startDateTime) <= limit).length
   }, [monthList, now])
 
-  // Rango horario derivado de business_hours; 9-21 como fallback.
+  // Rango horario derivado de business_hours; 9-21 como alternativa
   const timelineRange = useMemo(() => {
     const open = hours.filter((h) => !h.isClosed && h.startTime && h.endTime)
     if (open.length === 0) return { start: 9, end: 21 }
@@ -378,7 +372,7 @@ export default function Dashboard() {
     return { start: s, end: e }
   }, [hours])
 
-  // Próxima cita
+  // Proxima cita
   const upcoming = useMemo(
     () => activeToday.filter(a => new Date(a.startDateTime) > now)
                      .sort((x, y) => new Date(x.startDateTime) - new Date(y.startDateTime)),
@@ -410,7 +404,7 @@ export default function Dashboard() {
     return [...m.values()].sort((a, b) => b.count - a.count).slice(0, 4)
   }, [monthList])
 
-  // Top empleados del mes, excluyendo canceladas y no presentado.
+  // Top empleados del mes, excluyendo canceladas y no presentado
   const topEmployees = useMemo(() => {
     const m = new Map()
     monthList
@@ -423,20 +417,18 @@ export default function Dashboard() {
     return [...m.values()].sort((a, b) => b.count - a.count).slice(0, 3)
   }, [monthList])
 
-  // Tabla "agenda de hoy" — filtrada y ordenada por hora
+  // Tabla "agenda de hoy" - filtrada y ordenada por hora
   const visibleToday = useMemo(() => {
     const list = filter === 'Todas' ? todayList : todayList.filter(a => a.statusName === filter)
     return [...list].sort((a, b) => new Date(a.startDateTime) - new Date(b.startDateTime))
   }, [todayList, filter])
 
-  /* ---------- Render ---------- */
 
   const firstName = user?.fullName?.split(/\s+/)[0] || ''
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8">
 
-      {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-[#1e3a5f] tracking-tight">
@@ -465,10 +457,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Onboarding: solo se muestra mientras falten pasos por configurar. */}
       <OnboardingChecklist businessId={bId} />
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
           label="Citas hoy"
@@ -501,14 +491,11 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Two columns */}
       <div className="grid lg:grid-cols-10 gap-6">
 
-        {/* LEFT — Agenda de hoy */}
         <div className="lg:col-span-7 min-w-0">
           <div className="bg-white rounded-2xl border border-slate-100/80 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)] flex flex-col">
 
-            {/* Card header */}
             <div className="flex flex-wrap items-center gap-3 px-6 pt-5 pb-4 border-b border-slate-100">
               <div className="flex-1">
                 <div className="text-base font-bold text-[#1e3a5f] flex items-center gap-2"><CalendarDays size={16} /> Agenda de hoy</div>
@@ -531,7 +518,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Timeline */}
             {!loading && todayList.length > 0 && (
               <TodayTimeline
                 list={todayList} now={now} onSelect={setSelected}
@@ -539,7 +525,6 @@ export default function Dashboard() {
               />
             )}
 
-            {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -632,7 +617,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* RIGHT — sidebar */}
         <div className="lg:col-span-3 space-y-5 min-w-0">
 
           {next && <NextAppointmentHero appt={next} mins={nextInMin} onOpen={() => setSelected(next)} />}
@@ -656,7 +640,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Modal de detalle — reutiliza el componente que ya existe */}
       <AppointmentDetailModal
         appointment={selected}
         bId={bId}

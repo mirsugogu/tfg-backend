@@ -6,13 +6,13 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-/** Acceso al catalogo global de estados de cita. */
+/** consultas de los estados de cita */
 @Repository
 public interface AppointmentStatusRepository extends JpaRepository<AppointmentStatus, Long> {
 
     /**
-     * Busca un estado por su nombre exacto (ej: "PENDING").
-     * Devuelve Optional porque en teoría podría no existir.
+     * busca un estado por su nombre exacto
+     * puede no existir y por eso devuelve optional
      */
     Optional<AppointmentStatus> findByName(String name);
 }

@@ -1,3 +1,4 @@
+// Restablecimiento de contrasena con codigo temporal enviado por email
 import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import {
@@ -34,7 +35,7 @@ const tokenInputCls =
   'h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-11 pr-12 text-sm text-[#1f2c4a] placeholder:text-slate-400 ' +
   'font-mono transition-all focus:outline-none focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-100'
 
-/** Reset de contraseña con el token efímero (1h, un solo uso) recibido por email. */
+/** Cambio de contrasena con codigo temporal de email */
 export default function ResetPassword() {
   const { user } = useAuth()
   const [params] = useSearchParams()
@@ -50,7 +51,7 @@ export default function ResetPassword() {
   const [expired, setExpired] = useState(false)
   const [success, setSuccess] = useState(false)
 
-  // autoFocus en el token si está vacío
+  // Foco inicial cuando el codigo esta vacio
   useEffect(() => {
     if (!token && tokenRef.current) tokenRef.current.focus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -65,7 +66,7 @@ export default function ResetPassword() {
       const txt = await navigator.clipboard.readText()
       if (txt) setToken(txt.trim())
     } catch {
-      // El usuario tendrá que pegar a mano (Ctrl+V)
+      // El usuario tendra que pegar a mano (Ctrl+V)
     }
   }
 
@@ -90,8 +91,8 @@ export default function ResetPassword() {
     } catch (err) {
       const msg = getErrorMessage(err, 'No se pudo restablecer la contraseña.')
       const lower = msg.toLowerCase()
-      // Detectamos mensaje genérico de "no válido o caducado" para mostrar
-      // un banner más explicativo con CTA a /forgot-password.
+      // Detectamos mensaje generico de "no valido o caducado" para mostrar
+      // un banner mas explicativo con CTA a /forgot-password
       if (lower.includes('caduc') || lower.includes('expir') || lower.includes('inválid') || lower.includes('válid')) {
         setExpired(true); setError('')
       } else {
@@ -131,7 +132,6 @@ export default function ResetPassword() {
               <p className="mt-2 text-sm text-slate-500">Pega el código que te llegó por email y crea una contraseña nueva.</p>
 
               <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-                {/* Código */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Código de recuperación</label>
                   <div className="relative">
@@ -163,7 +163,6 @@ export default function ResetPassword() {
                   )}
                 </div>
 
-                {/* Nueva contraseña */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Nueva contraseña</label>
                   <div className="relative">
@@ -207,7 +206,6 @@ export default function ResetPassword() {
                   )}
                 </div>
 
-                {/* Confirmar */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Confirmar contraseña</label>
                   <div className="relative">

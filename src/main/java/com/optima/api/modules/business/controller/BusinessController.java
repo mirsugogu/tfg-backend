@@ -12,7 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/** Gestion del negocio (tenant) del propio usuario. */
+/** gestion del negocio negocio del propio usuario */
 @RestController
 @RequestMapping("/api/businesses")
 @RequiredArgsConstructor
@@ -21,7 +21,7 @@ public class BusinessController {
 
     private final BusinessService businessService;
 
-    /** Crea un negocio nuevo. */
+    /** crea un negocio nuevo */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
@@ -29,20 +29,20 @@ public class BusinessController {
         return businessService.create(request);
     }
 
-    /** Obtiene los datos de un negocio. */
+    /** obtiene los datos de un negocio */
     @GetMapping("/{id}")
     public BusinessResponse getById(@PathVariable @Positive Long id) {
         return businessService.getById(id);
     }
 
-    /** Actualiza los datos de un negocio. */
+    /** actualiza los datos de un negocio */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public BusinessResponse update(@PathVariable @Positive Long id, @Valid @RequestBody UpdateBusinessRequest request) {
         return businessService.update(id, request);
     }
 
-    /** Desactiva un negocio sin borrar su historico. */
+    /** desactiva un negocio sin borrar su historico */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")
@@ -50,7 +50,7 @@ public class BusinessController {
         businessService.deactivate(id);
     }
 
-    /** Reactiva un negocio desactivado. */
+    /** reactiva un negocio desactivado */
     @PatchMapping("/{id}/reactivate")
     @PreAuthorize("hasRole('ADMIN')")
     public BusinessResponse reactivate(@PathVariable @Positive Long id) {

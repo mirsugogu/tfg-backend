@@ -10,8 +10,8 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 /**
- * Entidad que relaciona un usuario con un negocio y un rol.
- * Permite que una misma persona pertenezca a varios negocios.
+ * relacion entre un usuario con un negocio y un rol
+ * una persona puede estar en varios negocios
  */
 @Entity
 @Table(
@@ -32,34 +32,34 @@ public class Membership {
     @Column(name = "id_membership")
     private Long id;
 
-    /** Identidad: a que persona pertenece esta membresia. */
+    /** identidad: a que persona pertenece esta membresia */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_user", nullable = false)
     private User user;
 
-    /** Negocio (tenant) donde el usuario tiene la membresia. */
+    /** negocio donde el usuario tiene la membresia */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_business", nullable = false)
     private Business business;
 
-    /** Rol del usuario en este negocio (ADMIN o EMPLOYEE). */
+    /** rol del usuario en este negocio admin o employee */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_role", nullable = false)
     private Role role;
 
-    /** Indica si la membresia sigue activa. */
+    /** indica si la membresia sigue activa */
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    /** Color usado por el frontend para identificar al empleado. */
+    /** color usado por la interfaz para identificar al empleado */
     @Column(name = "color")
     private String color;
 
-    /** Fecha y hora en que se creo la membresia (rellenado por @PrePersist). */
+    /** fecha y hora en que se creo la membresia */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /** Asigna la fecha de creacion antes de guardar. */
+    /** asigna la fecha de creacion antes de guardar */
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

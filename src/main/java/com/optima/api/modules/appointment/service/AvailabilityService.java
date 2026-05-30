@@ -60,6 +60,7 @@ public class AvailabilityService {
                                                 Long membershipId,
                                                 Long boothId,
                                                 Long excludeAppointmentId) {
+        // se obtiene la duracion total para construir los huecos
 
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
@@ -68,7 +69,7 @@ public class AvailabilityService {
         int totalDuration = resolveServicesAndSumDuration(businessId, serviceIds);
 
         // un mismo dia puede tener varios tramos abiertos
-        int dayOfWeek = date.getDayOfWeek().getValue(); // 1=Lunes..7=Domingo
+        int dayOfWeek = date.getDayOfWeek().getValue(); // 1 lunes 7 domingo
         List<BusinessHour> openHours = businessHourRepository
                 .findAllByBusinessIdAndDayOfWeekOrderByStartTimeAsc(businessId, dayOfWeek)
                 .stream()
@@ -95,11 +96,12 @@ public class AvailabilityService {
                 .map(b -> b.getBooth().getId())
                 .toList();
 
+        // se decide que empleados y cabinas entran en la busqueda
         List<Membership> candidates = resolveEmployeeCandidates(businessId, membershipId);
 
         List<Booth> candidateBooths = resolveBoothCandidates(businessId, boothId);
 
-        // al editar, la propia cita no debe contar como ocupada
+        // al editar la propia cita no debe contar como ocupada
         LocalDateTime dayWindowStart = date.atStartOfDay();
         LocalDateTime dayWindowEnd = date.plusDays(1).atStartOfDay();
         List<Appointment> activeAppointments =
@@ -132,6 +134,7 @@ public class AvailabilityService {
                         .stream()
                         .collect(Collectors.groupingBy(a -> a.getMembership().getId()));
 
+        // luego se recorre empleado por empleado para montar huecos
         for (Membership emp : candidates) {
             if (blockedEmployeeIds.contains(emp.getId())) continue;
 
@@ -165,9 +168,11 @@ public class AvailabilityService {
                 .comparing(AvailabilitySlotResponse::startTime)
                 .thenComparing(AvailabilitySlotResponse::membershipId));
 
+        // al final se devuelven ordenados por hora
         return new AvailabilityResponse(date, businessId, totalDuration, slots);
     }
 
+    /** busca los servicios y suma su duracion total */
     private int resolveServicesAndSumDuration(Long businessId, List<Long> serviceIds) {
         if (serviceIds == null || serviceIds.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -199,6 +204,7 @@ public class AvailabilityService {
         return services.stream().mapToInt(BusinessService::getDurationMinutes).sum();
     }
 
+    /** devuelve los empleados que se van a revisar */
     private List<Membership> resolveEmployeeCandidates(Long businessId, Long membershipId) {
         if (membershipId == null) {
             return membershipRepository.findAllByBusinessIdAndIsActiveTrue(businessId);
@@ -214,6 +220,7 @@ public class AvailabilityService {
         return List.of(emp);
     }
 
+    /** devuelve las cabinas que se van a revisar */
     private List<Booth> resolveBoothCandidates(Long businessId, Long boothId) {
         if (boothId == null) {
             return boothRepository.findAllByBusinessIdAndIsActiveTrue(businessId);
@@ -230,8 +237,8 @@ public class AvailabilityService {
     }
 
     /**
-     * Recorre un tramo del empleado en pasos del intervalo del negocio y
-     * añade a `slots` cada hueco valido encontrado.
+     * recorre un tramo del empleado usando el intervalo del negocio
+     * va guardando cada hueco valido encontrado
      */
     private void addSlotsForEmployeeRange(
             List<AvailabilitySlotResponse> slots,
@@ -248,6 +255,7 @@ public class AvailabilityService {
             List<Long> blockedBoothIds,
             List<Appointment> allActiveAppointments
     ) {
+        // se cruza el horario del empleado con el tramo del negocio
         LocalDateTime rangeStart = max(date.atTime(range.getStartTime()), dayStart);
         LocalDateTime rangeEnd   = min(date.atTime(range.getEndTime()),   dayEnd);
 
@@ -258,12 +266,13 @@ public class AvailabilityService {
             LocalDateTime slotStart = cursor;
             LocalDateTime slotEnd = cursor.plusMinutes(totalDuration);
 
+            // solo se guarda si no pisa ausencias citas o cabinas ocupadas
             if (!conflictsWith(slotStart, slotEnd, absences, empAppts)) {
                 Booth booth = pickFreeBooth(
                         slotStart, slotEnd,
                         candidateBooths, blockedBoothIds, allActiveAppointments);
 
-                // si el negocio no trabaja con cabinas, el hueco sigue siendo valido
+                // si el negocio no trabaja con cabinas el hueco sigue siendo valido
                 boolean boothConstraintSatisfied =
                         candidateBooths.isEmpty() || booth != null;
 
@@ -282,6 +291,7 @@ public class AvailabilityService {
         }
     }
 
+    /** revisa si el hueco choca con ausencias o citas */
     private boolean conflictsWith(LocalDateTime start, LocalDateTime end,
                                   List<EmployeeAbsence> absences,
                                   List<Appointment> empAppts) {
@@ -294,7 +304,7 @@ public class AvailabilityService {
         return false;
     }
 
-    /** devuelve la primera cabina libre del rango o null si no hay */
+    /** devuelve la primera cabina libre del rango o vacio si no hay */
     private Booth pickFreeBooth(LocalDateTime start, LocalDateTime end,
                                 List<Booth> candidates,
                                 List<Long> blockedBoothIds,
@@ -311,6 +321,7 @@ public class AvailabilityService {
         return null;
     }
 
+    /** ajusta la hora al siguiente corte del intervalo */
     private LocalDateTime alignUpToInterval(LocalDateTime t, int interval) {
         int minute = t.getMinute();
         int mod = minute % interval;
@@ -319,10 +330,12 @@ public class AvailabilityService {
                 .withSecond(0).withNano(0);
     }
 
+    /** devuelve la fecha mas tardia */
     private LocalDateTime max(LocalDateTime a, LocalDateTime b) {
         return a.isAfter(b) ? a : b;
     }
 
+    /** devuelve la fecha mas temprana */
     private LocalDateTime min(LocalDateTime a, LocalDateTime b) {
         return a.isBefore(b) ? a : b;
     }

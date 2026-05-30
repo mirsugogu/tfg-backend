@@ -1,10 +1,11 @@
+// Layout principal de la app: sidebar persistente y area de contenido con Outlet
 import { useCallback, useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { Sidebar } from './Sidebar'
 
-/** Layout de páginas protegidas: sidebar fijo en escritorio, drawer en móvil. */
+/** Layout de paginas protegidas: sidebar fijo en escritorio, panel en movil */
 export function AppLayout() {
   const { user } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -17,7 +18,6 @@ export function AppLayout() {
       <Sidebar mobileOpen={mobileOpen} onMobileClose={closeMobile} />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Barra superior — solo móvil/tablet */}
         <header className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5 lg:hidden">
           <button
             onClick={() => setMobileOpen(true)}

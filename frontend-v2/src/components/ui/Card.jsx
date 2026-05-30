@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 
-/** Contenedor blanco con borde y sombra suave. */
+/** Contenedor blanco con borde y sombra suave */
 export function Card({ children, className, ...props }) {
   return (
     <div

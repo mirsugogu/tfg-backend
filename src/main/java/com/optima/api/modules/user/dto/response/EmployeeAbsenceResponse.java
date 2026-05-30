@@ -5,13 +5,13 @@ import com.optima.api.modules.user.model.EmployeeAbsence;
 import java.time.LocalDateTime;
 
 /**
- * Respuesta de una ausencia de empleado.
+ * respuesta de una ausencia de empleado
  */
 public record EmployeeAbsenceResponse(
         Long id,
         Long businessId,
 
-        // Se devuelve la membership y el nombre visible del empleado.
+        // devuelve relacion y nombre del empleado
         Long membershipId,
         String userFullName,
 

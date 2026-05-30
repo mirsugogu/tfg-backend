@@ -1,3 +1,4 @@
+// Gestion de empleados con detalle, horario semanal, ausencias y desactivacion
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -19,9 +20,6 @@ import api, { getErrorMessage } from '@/lib/api'
 import { totalBooked } from '@/lib/format'
 import { employeeDotClass } from '@/lib/employeeColor'
 
-/* ============================================================
-   CONSTANTES Y HELPERS
-   ============================================================ */
 
 const DAYS_SHORT = ['', 'L', 'M', 'X', 'J', 'V', 'S', 'D']
 const DAYS_FULL = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
@@ -39,9 +37,9 @@ const avatarColor = (id) => AVATAR_COLORS[(id ?? 0) % AVATAR_COLORS.length]
 
 const empty = { fullName: '', email: '', phone: '', password: '', roleId: '', color: '' }
 
-// Paleta fija para el color del empleado en el calendario. Los nombres
-// coinciden con PALETTES de components/calendar/utils.js; varias personas
-// pueden compartir color a proposito.
+// Paleta fija para el color del empleado en el calendario Los nombres
+// coinciden con PALETTES de components/calendar/utilsjs; varias personas
+// pueden compartir color a proposito
 const COLOR_OPTIONS = [
   { name: 'cyan', cls: 'bg-cyan-500' }, { name: 'amber', cls: 'bg-amber-500' },
   { name: 'emerald', cls: 'bg-emerald-500' }, { name: 'indigo', cls: 'bg-indigo-500' },
@@ -78,7 +76,7 @@ const todayDow = () => {
 
 const telHref = (phone) => 'tel:' + String(phone || '').replace(/\s/g, '')
 
-/** Listado de empleados con atajos a detalle, horario semanal y ausencias. */
+/** Listado de empleados con atajos a detalle, horario semanal y ausencias */
 export default function Empleados() {
   const { user } = useAuth()
   const { roles, roleLabel } = useCatalog()
@@ -91,10 +89,7 @@ export default function Empleados() {
   const [pageSize, setPageSize] = useState(() => parseInt(localStorage.getItem('optima_emp_size') || '20', 10))
   useEffect(() => { localStorage.setItem('optima_emp_size', String(pageSize)) }, [pageSize])
 
-  // El endpoint de usuarios pagina memberships: el nombre se ordena por el
-  // path anidado 'user.fullName' (el campo fullName vive en la entidad User,
-  // no en Membership). Se descarta el 'fullName' suelto que guardaban
-  // versiones anteriores del frontend, que el backend rechaza con 400.
+  // Orden estable por nombre del usuario
   const [sortKey, setSortKey] = useState(() => {
     const stored = localStorage.getItem('optima_emp_sortkey')
     return stored === 'createdAt' ? stored : 'user.fullName'
@@ -104,35 +99,35 @@ export default function Empleados() {
   useEffect(() => { localStorage.setItem('optima_emp_sortdir', sortDir) }, [sortDir])
 
   const onSortChange = (value) => {
-    // value formato "fullName,asc" — el select envía las dos partes juntas.
+    // value formato "fullName,asc" - el select envia las dos partes juntas
     const [k, d] = value.split(',')
     setSortKey(k); setSortDir(d)
   }
 
-  // Vista activos / archivados — sin persistir (cada visita empieza en activos)
+  // Vista activos / archivados - sin persistir (cada visita empieza en activos)
   const [view, setView] = useState('active') // 'active' | 'archived'
   const isArchived = view === 'archived'
 
-  // Filtros que viajan al backend: ordenación + flag de soft-delete.
+  // Filtros que viajan al servidor: ordenacion + flag de archivado
   const queryParams = useMemo(
     () => ({ sort: `${sortKey},${sortDir}`, active: view === 'active' }),
     [sortKey, sortDir, view],
   )
 
-  // Listado: se cargan TODOS los empleados (size=100, tope del backend) para
-  // que la búsqueda y la paginación operen sobre el conjunto completo.
+  // Listado: se cargan TODOS los empleados (size=100, tope del servidor) para
+  // que la busqueda y la paginacion operen sobre el conjunto completo
   const { items: employees, totalElements, loading, refresh } =
     usePagedFetch(bId ? `/api/businesses/${bId}/users` : null, { size: 100, params: queryParams })
 
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL') // ALL | ADMIN | EMPLOYEE
-  const [drawer, setDrawer] = useState(null) // empleado seleccionado para el drawer
+  const [drawer, setDrawer] = useState(null) // empleado seleccionado para el panel
   const [modal, setModal] = useState(null)
   const [selected, setSelected] = useState(null)
   const [form, setForm] = useState(empty)
   const [saving, setSaving] = useState(false)
 
-  // Cierra el drawer con Esc
+  // Cierra el panel con Esc
   useEffect(() => {
     if (!drawer) return
     const handler = (e) => { if (e.key === 'Escape') setDrawer(null) }
@@ -147,7 +142,7 @@ export default function Empleados() {
       e.email?.toLowerCase().includes(search.toLowerCase())
     )
 
-  // Paginación en cliente sobre el resultado ya filtrado.
+  // Paginacion en cliente sobre el resultado ya filtrado
   const [page, setPage] = useState(0)
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safePage = Math.min(page, totalPages - 1)
@@ -168,15 +163,14 @@ export default function Empleados() {
     })
     setModal('edit')
   }
-  // Conteo de citas proximas del empleado seleccionado para el aviso del modal
-  // de desactivacion (E del audit). null mientras carga, numero cuando llega.
-  // Si la consulta falla, se asume 0 para no bloquear la acción por un error
-  // ortogonal (el backend tiene la red final si hay alguna inconsistencia).
-  //
-  // Cancelacion: si el admin cierra el modal antes de que llegue la respuesta,
-  // o abre el modal de otro empleado mientras la consulta esta en vuelo, se
-  // aborta para evitar (a) un warning de setState sobre estado huerfano,
-  // (b) que se vea brevemente el conteo del empleado anterior.
+  // Conteo de citas proximas del empleado seleccionado para el aviso del ventana
+  // de desactivacion (E del audit) null mientras carga, numero cuando llega
+  // Si la consulta falla, se asume 0 para no bloquear la accion por un error
+  // ortogonal (el servidor tiene la red final si hay alguna inconsistencia)
+  // Cancelacion: si el admin cierra el ventana antes de que llegue la respuesta
+  // o abre el ventana de otro empleado mientras la consulta esta en vuelo, se
+  // aborta para evitar (a) un warning de setState sobre estado huerfano
+  // (b) que se vea brevemente el conteo del empleado anterior
   const [upcomingInfo, setUpcomingInfo] = useState({ loading: false, count: null })
   const upcomingAbortRef = useRef(null)
 
@@ -199,16 +193,16 @@ export default function Empleados() {
       if (controller.signal.aborted) return
       setUpcomingInfo({ loading: false, count: r.data.totalElements ?? 0 })
     } catch (err) {
-      // axios marca las cancelaciones como CanceledError; las ignoramos
-      // porque significan "el admin cerro el modal antes que llegara".
+      // peticion marca las cancelaciones como CanceledError; las ignoramos
+      // porque significan "el admin cerro el ventana antes que llegara"
       if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return
       setUpcomingInfo({ loading: false, count: 0 })
     }
   }
   const closeModal = () => {
     // Cancela la consulta de citas proximas si quedaba alguna en vuelo y
-    // resetea upcomingInfo, asi al reabrir el modal con otro empleado no se
-    // ve por un instante el conteo del anterior.
+    // resetea upcomingInfo, asi al reabrir el ventana con otro empleado no se
+    // ve por un instante el conteo del anterior
     upcomingAbortRef.current?.abort()
     setUpcomingInfo({ loading: false, count: null })
     setModal(null)
@@ -242,8 +236,8 @@ export default function Empleados() {
         })
         toast({ type: 'success', message: 'Empleado creado correctamente.' })
       } else {
-        // El PUT gobierna la "pieza local" de la membership: rol + color.
-        // Nombre/email/teléfono son de la identidad: se editan en /perfil.
+        // El PUT gobierna la "pieza local" de la membership: rol + color
+        // Nombre/email/telefono son de la identidad: se editan en /perfil
         await api.put(`/api/businesses/${bId}/users/${selected.id}`, {
           roleId: Number(form.roleId),
           color: form.color || null,
@@ -252,7 +246,7 @@ export default function Empleados() {
       }
       closeModal()
       refresh()
-      // si el drawer estaba abierto sobre este, refresca también su rol
+      // si el panel estaba abierto sobre este, refresca tambien su rol
       if (drawer?.id === selected?.id) setDrawer(null)
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err, 'Error al guardar.') })
@@ -276,7 +270,7 @@ export default function Empleados() {
     }
   }
 
-  // Reactivar es un clic directo (no destructivo): sin modal de confirmación.
+  // Reactivar es un clic directo (no destructivo): sin ventana de confirmacion
   const handleReactivate = async (emp) => {
     try {
       await api.patch(`/api/businesses/${bId}/users/${emp.id}/reactivate`)
@@ -288,12 +282,10 @@ export default function Empleados() {
     }
   }
 
-  /* ---------- Render ---------- */
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8">
 
-      {/* Header */}
       <div className="mb-7 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-[#1e3a5f] tracking-tight">Empleados</h1>
@@ -323,7 +315,6 @@ export default function Empleados() {
         </div>
       </div>
 
-      {/* Toolbar */}
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[240px] max-w-md">
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -335,7 +326,6 @@ export default function Empleados() {
           />
         </div>
 
-        {/* Filtro por rol */}
         <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
           {[
             { key: 'ALL',      label: 'Todos' },
@@ -357,7 +347,6 @@ export default function Empleados() {
           ))}
         </div>
 
-        {/* Vista activos / archivados */}
         <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
           {[{ key: 'active', label: 'Activos' }, { key: 'archived', label: 'Desactivados' }].map(({ key, label }) => (
             <button key={key} type="button" onClick={() => setView(key)}
@@ -367,7 +356,6 @@ export default function Empleados() {
           ))}
         </div>
 
-        {/* Ordenación */}
         <select
           value={`${sortKey},${sortDir}`}
           onChange={(e) => onSortChange(e.target.value)}
@@ -379,7 +367,6 @@ export default function Empleados() {
           <option value="createdAt,asc">Más antiguos</option>
         </select>
 
-        {/* Tamaño de página */}
         <div className="ml-auto flex items-center gap-2 text-xs text-slate-500">
           <span>Mostrar</span>
           <select
@@ -394,7 +381,6 @@ export default function Empleados() {
         </div>
       </div>
 
-      {/* Cards grid */}
       <div className="card-grid">
         {loading ? (
           [...Array(4)].map((_, i) => (
@@ -436,7 +422,6 @@ export default function Empleados() {
         )}
       </div>
 
-      {/* Paginación */}
       <div className="mt-6 rounded-2xl border border-slate-100 overflow-hidden bg-white">
         <Pagination
           page={safePage}
@@ -446,7 +431,6 @@ export default function Empleados() {
         />
       </div>
 
-      {/* Drawer */}
       {drawer && (
         <EmployeeDrawer
           key={drawer.id}
@@ -462,7 +446,6 @@ export default function Empleados() {
         />
       )}
 
-      {/* Modal crear / editar rol */}
       <Modal
         open={modal === 'create' || modal === 'edit'}
         onClose={closeModal}
@@ -557,11 +540,8 @@ export default function Empleados() {
         </div>
       </Modal>
 
-      {/* Modal desactivar */}
       <Modal open={modal === 'deactivate'} onClose={closeModal} title="Desactivar empleado" size="sm">
         <div className="space-y-5">
-          {/* Aviso base con tono segun el conteo: si tiene citas proximas,
-              fondo rose con explicacion del impacto; si no, amber neutro. */}
           {upcomingInfo.count != null && upcomingInfo.count > 0 ? (
             <div className="flex items-start gap-3 rounded-2xl bg-rose-50 border border-rose-200 px-4 py-4">
               <UserMinus size={20} className="text-rose-600 shrink-0 mt-0.5" />
@@ -595,7 +575,7 @@ export default function Empleados() {
                 variant="primary"
                 onClick={() => {
                   // Pre-seleccionamos el filtro de empleado en Citas via
-                  // localStorage (la pagina lo lee al montarse) y navegamos.
+                  // almacen local (la pagina lo lee al montarse) y navegamos
                   if (selected?.id) localStorage.setItem('optima_citas_emp', String(selected.id))
                   closeModal()
                   navigate('/citas')
@@ -622,14 +602,11 @@ export default function Empleados() {
   )
 }
 
-/* ============================================================
-   EMPLOYEE CARD
-   ============================================================ */
 
-/** Tarjeta de empleado con avatar coloreado, rol y CTA al detalle. */
+/** Tarjeta de empleado con avatar coloreado, rol y CTA al detalle */
 function EmployeeCard({ emp, onOpen, showReactivate, onReactivate }) {
   const isAdmin = emp.roleName === 'ADMIN'
-  // Si el admin asignó color, sólido; si no, gradient automático determinista por id.
+  // Si el admin asigno color, solido; si no, gradient automatico determinista por id
   const dotBg = emp.color ? employeeDotClass(emp) : null
   const avatarClass = dotBg
     ? dotBg
@@ -696,16 +673,12 @@ function EmployeeCard({ emp, onOpen, showReactivate, onReactivate }) {
   )
 }
 
-/* ============================================================
-   EMPLOYEE DRAWER — carga horarios + ausencias + citas del mes
-   ============================================================ */
 
-/** Drawer lateral con detalle del empleado, horario semanal y ausencias. */
+/** panel lateral con detalle del empleado, horario semanal y ausencias */
 function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDeactivate, onReactivate, onAfterChange }) {
   const toast = useToast()
   const empUrl = `/api/businesses/${bId}/users/${emp.id}`
 
-  // ---- Schedules ----
   const [schedules, setSchedules] = useState(null)
   const [schedReload, setSchedReload] = useState(0)
   useEffect(() => {
@@ -718,7 +691,6 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
   }, [empUrl, schedReload, toast])
   const refreshSchedules = useCallback(() => setSchedReload((v) => v + 1), [])
 
-  // ---- Absences (paginadas, size 10) ----
   const {
     items: absences,
     page: absPage,
@@ -729,10 +701,9 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
     refresh: refreshAbsences,
   } = usePagedFetch(`${empUrl}/absences`, { size: 10 })
 
-  // ---- KPI del mes: citas + ingresos + horas ----
-  // Una sola llamada a /appointments filtrada por membershipId. El backend
+  // Una sola llamada a /appointments filtrada por membershipId El servidor
   // cappea Pageable en 100; si un empleado superara 100 citas en un mes el
-  // KPI saldria parcial (improbable para un empleado individual).
+  // KPI saldria parcial (improbable para un empleado individual)
   const [kpi, setKpi] = useState(null)
   useEffect(() => {
     const from = ymd(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
@@ -754,7 +725,6 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
       .catch(() => setKpi({ citas: 0, ingresos: 0, horas: 0 }))
   }, [bId, emp.id])
 
-  // ---- Estado del empleado HOY ----
   const dow = todayDow()
   const todaySch = (schedules ?? []).find((s) => s.dayOfWeek === dow)
   const now = new Date()
@@ -776,7 +746,6 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
           cls:   'bg-slate-100 text-slate-600 ring-slate-200',
           dot:   'bg-slate-400' }
 
-  // ---- Modales de schedule/absence (mismos que el original) ----
   const [scheduleModal, setScheduleModal]   = useState(null) // create | edit | delete | copyweek
   const [absenceModal, setAbsenceModal]     = useState(null)
   const [selectedSch, setSelectedSch]       = useState(null)
@@ -801,9 +770,9 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
   }
   const openSchedDelete = (s) => { setSelectedSch(s); setScheduleModal('delete') }
 
-  // Quick action: clona los tramos del lunes en martes-viernes. Sobrescribe:
-  // borra antes lo que cada dia tenga, porque el backend valida solapes al
-  // crear (POST 409), asi que hay que vaciar el dia antes de copiar.
+  // Quick action: clona los tramos del lunes en martes-viernes Sobrescribe
+  // borra antes lo que cada dia tenga, porque el servidor valida solapes al
+  // crear (POST 409), asi que hay que vaciar el dia antes de copiar
   const handleCopyMonToWeek = async () => {
     const all = schedules ?? []
     const mondayTramos = all.filter((s) => s.dayOfWeek === 1)
@@ -935,7 +904,6 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
       />
       <aside className="fixed top-0 right-0 z-50 h-[100dvh] w-[540px] max-w-[95vw] bg-white shadow-[0_28px_56px_-16px_rgba(15,23,42,0.22)] flex flex-col animate-[slideInRight_240ms_cubic-bezier(0.2,0.7,0.2,1)]">
 
-        {/* Head */}
         <div className="px-6 pt-6 pb-5 border-b border-slate-100">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-4 min-w-0 flex-1">
@@ -967,7 +935,6 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
 
-          {/* KPIs del mes */}
           <div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-2">Resumen del mes</div>
             <div className="grid grid-cols-3 gap-2">
@@ -977,7 +944,6 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
             </div>
           </div>
 
-          {/* Contacto */}
           <div>
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-2">Contacto</div>
             <div className="grid grid-cols-2 gap-2">
@@ -1005,7 +971,6 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
             </div>
           </div>
 
-          {/* Horario semanal — vista grid */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5">
@@ -1033,7 +998,6 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
             />
           </div>
 
-          {/* Ausencias */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5">
@@ -1085,7 +1049,6 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
           </div>
         </div>
 
-        {/* Foot */}
         {isAdmin && (
           <div className="px-6 py-4 border-t border-slate-100 flex gap-2">
             {archived ? (
@@ -1106,7 +1069,6 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
         )}
       </aside>
 
-      {/* Schedule modals */}
       <Modal
         open={scheduleModal === 'create' || scheduleModal === 'edit'}
         onClose={closeSched}
@@ -1178,7 +1140,6 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
         </div>
       </Modal>
 
-      {/* Absence modals */}
       <Modal
         open={absenceModal === 'create' || absenceModal === 'edit'}
         onClose={closeAbs}
@@ -1186,9 +1147,6 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
         size="sm"
       >
         <div className="space-y-4">
-          {/* Sin 'min': el backend acepta ausencias con inicio en el pasado
-              (caso real: a las 14:00 registras una baja que empezó a las 8:00).
-              handleAbsSave ya valida que el fin sea posterior al inicio. */}
           <Input
             label="Inicio *"
             type="datetime-local"
@@ -1235,11 +1193,8 @@ function EmployeeDrawer({ emp, bId, isAdmin, archived, onClose, onEditRole, onDe
   )
 }
 
-/* ============================================================
-   KPI TILE + SCHEDULE GRID
-   ============================================================ */
 
-/** Tarjeta de KPI compacta del drawer. */
+/** Tarjeta de KPI compacta del panel */
 function KpiTile({ label, value }) {
   return (
     <div className="rounded-xl border border-slate-100 px-3 py-3 text-center">
@@ -1249,13 +1204,13 @@ function KpiTile({ label, value }) {
   )
 }
 
-/** Rejilla de horario semanal por día con acciones de admin. */
+/** Rejilla de horario semanal por dia con acciones de admin */
 function ScheduleGrid({ schedules, loading, isAdmin, onEdit, onDelete, onAdd }) {
   // Rango visual adaptativo: mismo problema que la rejilla de horarios
-  // del negocio (HoursTab). Con un tramo 2:00-22:00 la formula calcula
+  // del negocio (HoursTab) Con un tramo 2:00-22:00 la formula calcula
   // width > 100% sobre el rango fijo 8-22 y la barra desborda la
-  // tarjeta. Calculo min/max del horario real del empleado; defaults
-  // 8-22 si todavia no hay nada; cap [0, 24] defensivo.
+  // tarjeta Calculo min/max del horario real del empleado; defaults
+  // 8-22 si todavia no hay nada; cap [0, 24] defensivo
   const { DAY_START, DAY_END } = useMemo(() => {
     let minH = 24, maxH = 0
     ;(schedules ?? []).forEach((s) => {
@@ -1284,17 +1239,7 @@ function ScheduleGrid({ schedules, loading, isAdmin, onEdit, onDelete, onAdd }) 
     )
   }
 
-  /*
-   * Aplanado del horario en un unico array de filas. Es clave para que
-   * React reconcilie bien: con el patron anterior
-   *   [1..7].map((d) => rows.map(...))
-   * React veia un array de arrays sin key estable a nivel de dia y,
-   * al borrar el primer tramo de un dia con turno partido, las
-   * etiquetas DAYS_SHORT[d] se desplazaban a la fila siguiente porque
-   * dependian del idx local del sub-map. flatMap + isFirstOfDay
-   * calculado por item arregla el reciclaje y la posicion de la
-   * etiqueta queda anclada al tramo correcto.
-   */
+  /* Filas planas para mantener cada tramo en su dia */
   const flatRows = [1, 2, 3, 4, 5, 6, 7].flatMap((d) => {
     const daySchedules = schedules
       .filter((s) => s.dayOfWeek === d)
@@ -1376,13 +1321,3 @@ function ScheduleGrid({ schedules, loading, isAdmin, onEdit, onDelete, onAdd }) 
     </div>
   )
 }
-
-/* ------------------------------------------------------------
-   Animaciones del drawer — añade al final de src/index.css
-
-   @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-   @keyframes slideInRight {
-     from { transform: translateX(100%) }
-     to   { transform: translateX(0) }
-   }
-   ------------------------------------------------------------ */

@@ -3,12 +3,12 @@ package com.optima.api;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-/** Clase principal del backend; desde aqui Spring detecta los componentes. */
+/** clase principal del servidor */
 @SpringBootApplication
 public class ApiApplication {
 
 	/**
-	 * Arranca Spring Boot y crea el contexto de la aplicacion.
+	 * arranca la aplicacion del servidor
 	 */
 	public static void main(String[] args) {
 		SpringApplication.run(ApiApplication.class, args);

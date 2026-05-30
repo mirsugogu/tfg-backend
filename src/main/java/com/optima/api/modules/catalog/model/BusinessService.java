@@ -12,8 +12,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Entidad que representa un servicio ofrecido por un negocio.
- * Se llama BusinessService para no confundirse con @Service de Spring.
+ * servicio ofrecido por un negocio
+ * nombre separado del servicio interno
  */
 @Entity
 @Table(name = "services")
@@ -28,50 +28,50 @@ public class BusinessService {
     @Column(name = "id_service")
     private Long id;
 
-    /** Negocio al que pertenece este servicio. */
+    /** negocio al que pertenece este servicio */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_business", nullable = false)
     private Business business;
 
-    /** Categoría a la que pertenece este servicio. */
+    /** categoria a la que pertenece este servicio */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_category", nullable = false)
     private ServiceCategory category;
 
-    /** Impuesto aplicado al precio de este servicio. */
+    /** impuesto aplicado al precio de este servicio */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_tax", nullable = false)
     private Tax tax;
 
-    /** Nombre visible del servicio (ej. "Corte de pelo", "Tinte completo"). */
+    /** nombre visible del servicio ej "corte de pelo" "tinte completo" */
     @Column(name = "name", nullable = false, length = 150)
     private String name;
 
-    /** Descripción opcional del servicio (TEXT: admite texto largo). */
+    /** descripcion opcional del servicio */
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    /** Precio base del servicio, sin impuesto aplicado. */
+    /** precio base del servicio sin impuesto aplicado */
     @Column(name = "price", nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
 
-    /** Duración del servicio en minutos. Debe ser mayor que 0. */
+    /** duracion del servicio en minutos debe ser mayor que 0 */
     @Column(name = "duration_minutes", nullable = false)
     private Integer durationMinutes;
 
-    /** Indica si el servicio sigue disponible en el catalogo. */
+    /** indica si el servicio sigue disponible en el catalogo */
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    /** Fecha y hora en que se creo el servicio (rellenado por @PrePersist). */
+    /** fecha de creacion del servicio */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /** Momento de la desactivacion (null mientras el servicio este activo). */
+    /** momento de la desactivacion sin valor mientras el servicio este activo */
     @Column(name = "deactivated_at")
     private LocalDateTime deactivatedAt;
 
-    /** Asigna la fecha de creacion antes de guardar. */
+    /** asigna la fecha de creacion antes de guardar */
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

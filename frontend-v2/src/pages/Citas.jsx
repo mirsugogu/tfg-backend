@@ -1,3 +1,4 @@
+// Listado paginado de citas con filtros por fecha, estado, empleado y wizard de creacion
 import { useEffect, useMemo, useState } from 'react'
 import {
   Plus, Search, CalendarDays, Clock, User, Scissors, MapPin, FilterX,
@@ -19,11 +20,8 @@ import api, { getErrorMessage } from '@/lib/api'
 import { formatDateTime, totalBooked } from '@/lib/format'
 import { dotClassFromColorAndId } from '@/lib/employeeColor'
 
-/* ============================================================
-   CONSTANTES Y HELPERS
-   ============================================================ */
 
-// Degradado del bloque de fecha de cada tarjeta, según el estado.
+// Degradado del bloque de fecha de cada tarjeta, segun el estado
 const TINTS = {
   PENDING:     'from-amber-400 to-orange-500',
   CONFIRMED:   'from-blue-500 to-indigo-500',
@@ -115,7 +113,7 @@ const fmtMinsLeft = (m) => {
   return r ? `${h} h ${r} min` : `${h} h`
 }
 
-/** Listado de citas con filtros por fecha, empleado y estado, y wizard para crear o editar. */
+/** Listado de citas con filtros por fecha, empleado y estado, y wizard para crear o editar */
 export default function Citas() {
   const { user } = useAuth()
   const { statuses, statusLabel } = useCatalog()
@@ -129,20 +127,19 @@ export default function Citas() {
     return () => clearInterval(t)
   }, [])
 
-  /* ---- Preferencias persistidas ---- */
   const [pageSize, setPageSize] = useState(() => parseInt(localStorage.getItem('optima_citas_size') || '20', 10))
   useEffect(() => { localStorage.setItem('optima_citas_size', String(pageSize)) }, [pageSize])
 
-  // D2: selector temporal "Próximas" (futuras asc) / "Pasadas" (pasadas desc).
-  // Sustituye al "asc/desc" ambiguo anterior. La key cambia para no heredar
-  // valores antiguos del localStorage.
+  // D2: selector temporal "Proximas" (futuras asc) / "Pasadas" (pasadas desc)
+  // Sustituye al "asc/desc" ambiguo anterior La key cambia para no heredar
+  // valores antiguos del almacen local
   const [timeMode, setTimeMode] = useState(() => localStorage.getItem('optima_citas_timemode') || 'upcoming')
   useEffect(() => { localStorage.setItem('optima_citas_timemode', timeMode) }, [timeMode])
 
   const [view, setView] = useState(() => localStorage.getItem('optima_citas_view') || 'list')
   useEffect(() => { localStorage.setItem('optima_citas_view', view) }, [view])
 
-  // Filtros server-side persistidos (rango y empleado).
+  // Filtros en servidor persistidos (rango y empleado)
   const [fromDate, setFromDate]         = useState(() => localStorage.getItem('optima_citas_from') || '')
   const [toDate, setToDate]             = useState(() => localStorage.getItem('optima_citas_to') || '')
   const [employeeFilter, setEmployeeFilter] = useState(() => localStorage.getItem('optima_citas_emp') || '')
@@ -150,9 +147,9 @@ export default function Citas() {
   useEffect(() => { localStorage.setItem('optima_citas_to',   toDate) },   [toDate])
   useEffect(() => { localStorage.setItem('optima_citas_emp',  employeeFilter) }, [employeeFilter])
 
-  // Solo se incluyen las claves con valor; el backend rechaza ?from= vacío.
-  // sort: la auditoría I.010 dice que solo `startDateTime` es seguro como sort.
-  // El timeMode "upcoming" -> asc, "past" -> desc.
+  // Solo se envian claves con valor
+  // sort: la auditoria I010 dice que solo `startDateTime` es seguro como sort
+  // El timeMode "upcoming" -> asc, "past" -> desc
   const listParams = useMemo(() => {
     const p = { sort: `startDateTime,${timeMode === 'past' ? 'desc' : 'asc'}` }
     if (fromDate) p.from = fromDate
@@ -161,8 +158,8 @@ export default function Citas() {
     return p
   }, [fromDate, toDate, employeeFilter, timeMode])
 
-  // Se cargan TODAS las citas del rango (size=100, tope del backend) para que
-  // la búsqueda y la paginación operen sobre el conjunto completo.
+  // Se cargan TODAS las citas del rango (size=100, tope del servidor) para que
+  // la busqueda y la paginacion operen sobre el conjunto completo
   const {
     items: appointments, totalElements, loading, refresh,
   } = usePagedFetch(bId ? `/api/businesses/${bId}/appointments` : null, { size: 100, params: listParams })
@@ -176,22 +173,21 @@ export default function Citas() {
       .catch((err) => toast({ type: 'error', message: getErrorMessage(err, 'No se pudieron cargar los empleados.') }))
   }, [bId, toast])
 
-  // Map membershipId -> color asignado al empleado. Sirve para pintar el
+  // Map membershipId -> color asignado al empleado Sirve para pintar el
   // punto de identidad visual del empleado en cada cita (tarjeta y detalle)
-  // de forma coherente con el calendario. F del audit de UI.
+  // de forma coherente con el calendario F del audit de interfaz
   const empColorMap = useMemo(
     () => new Map(employees.map((e) => [e.id, e.color])),
     [employees],
   )
 
-  /* ---- Filtros client-side sobre el conjunto completo ---- */
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [unpaidOnly, setUnpaidOnly] = useState(false)
 
-  // Frontera temporal: las citas de HOY se consideran "Próximas" todo el día
-  // (no se mueven de modo durante la jornada). Comparar contra startOfToday
-  // en lugar de `now` evita reordenes y movimientos inesperados.
+  // Frontera temporal: las citas de HOY se consideran "Proximas" todo el dia
+  // (no se mueven de modo durante la jornada) Comparar contra startOfToday
+  // en lugar de `now` evita reordenes y movimientos inesperados
   const startOfToday = useMemo(() => {
     const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime()
   }, [now])
@@ -208,13 +204,11 @@ export default function Citas() {
     return matchSearch && matchStatus && matchPaid
   })
 
-  /* ---- Paginación en cliente sobre el resultado ya filtrado ---- */
   const [page, setPage] = useState(0)
   const totalPages = Math.max(1, Math.ceil(visible.length / pageSize))
   const safePage = Math.min(page, totalPages - 1)
   const paged = visible.slice(safePage * pageSize, safePage * pageSize + pageSize)
 
-  /* ---- Estado "en curso ahora" ---- */
   const inProgressNow = useMemo(
     () =>
       appointments.find(
@@ -228,7 +222,6 @@ export default function Citas() {
     ? Math.max(0, Math.round((new Date(inProgressNow.endDateTime) - now) / 60000))
     : null
 
-  /* ---- Stats del conjunto filtrado ---- */
   const pageStats = useMemo(() => {
     const considered = visible.filter((a) => a.statusName !== 'CANCELLED' && a.statusName !== 'NO_SHOW')
     const total = considered.reduce((acc, a) => acc + parseFloat(totalBooked(a.bookedServices)), 0)
@@ -239,7 +232,6 @@ export default function Citas() {
     return { count: visible.length, total, paid, unpaidCount, lost }
   }, [visible])
 
-  /* ---- Estado tabs + presets ---- */
   const statusTabs = [
     { key: '', label: 'Todos' },
     ...statuses.map((s) => ({ key: s.name, label: statusLabel(s.name) })),
@@ -267,15 +259,11 @@ export default function Citas() {
   )
   const hasServerFilters = Boolean(fromDate || toDate || employeeFilter)
 
-  /* ---- Modales compartidos ----
-     wizardOpen abre el asistente en modo "Nueva cita". editingAppt lo abre
-     en modo edición (P9): el wizard recibe la cita y oculta el ClientPicker.
-     El detail modal cede el flujo al wizard al pulsar "Editar cita". */
   const [wizardOpen, setWizardOpen] = useState(false)
   const [editingAppt, setEditingAppt] = useState(null)
   const [detailAppt, setDetailAppt] = useState(null)
-  // startEditing apaga explícitamente cualquier otro estado que pudiera
-  // mantener el wizard abierto en modo crear; así no hay solape de modos.
+  // startEditing apaga explicitamente cualquier otro estado que pudiera
+  // mantener el wizard abierto en modo crear; asi no hay solape de modos
   const startEditing = (appt) => {
     setDetailAppt(null)
     setWizardOpen(false)
@@ -283,14 +271,10 @@ export default function Citas() {
   }
   const closeWizard = () => { setWizardOpen(false); setEditingAppt(null) }
 
-  /* ============================================================
-     RENDER
-     ============================================================ */
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 xl:px-10 py-8">
 
-      {/* Header */}
       <div className="mb-7 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-[#1e3a5f] tracking-tight">Citas</h1>
@@ -314,7 +298,6 @@ export default function Citas() {
         </div>
       </div>
 
-      {/* Stats strip — sobre la página filtrada */}
       <div className="mb-5 grid grid-cols-2 md:grid-cols-5 gap-3">
         <StatTile label="En esta página" value={pageStats.count} tone="default" />
         <StatTile label="€ previstos"    value={`${pageStats.total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} tone="default" />
@@ -323,7 +306,6 @@ export default function Citas() {
         <StatTile label="Canceladas / no show" value={pageStats.lost} tone="danger" />
       </div>
 
-      {/* Toolbar fila 1: buscar + sort + view + page size */}
       <div className="mb-3 flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -383,7 +365,6 @@ export default function Citas() {
         </div>
       </div>
 
-      {/* Toolbar fila 2: estado + pago */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mr-1">Estado</span>
         {statusTabs.map(({ key, label }) => (
@@ -413,7 +394,6 @@ export default function Citas() {
         </button>
       </div>
 
-      {/* Toolbar fila 3: presets + rango + empleado + limpiar */}
       <div className="mb-5 bg-white border border-slate-100 rounded-2xl px-4 py-3 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.05)] space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mr-1">Atajos</span>
@@ -454,7 +434,6 @@ export default function Citas() {
         </div>
       </div>
 
-      {/* Pin "ahora en curso" */}
       {inProgressNow && (
         <div className="mb-4 bg-gradient-to-br from-sky-50 via-cyan-50 to-blue-50 border border-sky-200 rounded-2xl p-4 flex items-center gap-4 shadow-[0_4px_16px_-4px_rgba(14,165,233,0.25)]">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white shrink-0 animate-pulse">
@@ -482,7 +461,6 @@ export default function Citas() {
         </div>
       )}
 
-      {/* Listado */}
       {loading ? (
         <div className="appt-grid">
           {[...Array(5)].map((_, i) => (
@@ -511,7 +489,7 @@ export default function Citas() {
         <DayGroupedList list={paged} onOpen={setDetailAppt} empColorMap={empColorMap} />
       ) : (
         // Rejilla en vez de lista vertical: en 2K/4K una sola columna estiraba
-        // cada tarjeta a 3000+ px dejando un hueco enorme entre datos e importe.
+        // cada tarjeta a 3000+ px dejando un hueco enorme entre datos e importe
         <div className="appt-grid">
           {paged.map((a) => (
             <AppointmentCard
@@ -524,14 +502,12 @@ export default function Citas() {
         </div>
       )}
 
-      {/* Paginación */}
       {totalPages > 1 && (
         <div className="mt-6 bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)]">
           <Pagination page={safePage} totalPages={totalPages} totalElements={visible.length} onChange={setPage} />
         </div>
       )}
 
-      {/* Modales compartidos */}
       <AppointmentWizard
         open={wizardOpen || Boolean(editingAppt)}
         onClose={closeWizard}
@@ -551,11 +527,8 @@ export default function Citas() {
   )
 }
 
-/* ============================================================
-   SUBCOMPONENTES
-   ============================================================ */
 
-/** Tarjeta de KPI del strip superior. */
+/** Tarjeta de KPI del strip superior */
 function StatTile({ label, value, tone }) {
   const tones = {
     default: 'text-[#1e3a5f]',
@@ -572,21 +545,21 @@ function StatTile({ label, value, tone }) {
 }
 
 // D3: estados terminales en los que NO se muestra el chip "Pasada" (la cita
-// ya fue cerrada manualmente por el admin, su pasado es esperado).
+// ya fue cerrada manualmente por el admin, su pasado es esperado)
 const STATES_CERRADOS = new Set(['COMPLETED', 'CANCELLED', 'NO_SHOW'])
 
-/** Tarjeta de cita con bloque de fecha, datos del cliente y resumen del estado. */
+/** Tarjeta de cita con bloque de fecha, datos del cliente y resumen del estado */
 function AppointmentCard({ appointment: a, onClick, employeeColor }) {
   const isInProgress = a.statusName === 'IN_PROGRESS'
   const servicesLabel = a.bookedServices?.map((b) => b.serviceName).join(' + ') || 'Sin servicios'
   const showUnpaidChip = !a.isPaid && (a.statusName === 'COMPLETED' || a.statusName === 'IN_PROGRESS')
-  // Chip "Pasada": SOLO indicador visual, no cambia el estado en BD. Avisa
+  // Chip "Pasada": SOLO indicador visual, no cambia el estado en BD Avisa
   // al admin que la cita esta sin cerrar y deberia marcarla manualmente
-  // (COMPLETED / CANCELLED / NO_SHOW segun lo que ocurrio).
+  // (COMPLETED / CANCELLED / NO_SHOW segun lo que ocurrio)
   const isOverdue = new Date(a.endDateTime).getTime() < Date.now()
                     && !STATES_CERRADOS.has(a.statusName)
-  // Punto del color del empleado (F del audit): si el admin asignó color
-  // en Empleados.jsx, ese; si no, color automatico por membershipId.
+  // Punto del color del empleado (F del audit): si el admin asigno color
+  // en Empleadosjsx, ese; si no, color automatico por membershipId
   const empDot = dotClassFromColorAndId(employeeColor, a.membershipId)
   return (
     <div
@@ -654,9 +627,9 @@ function AppointmentCard({ appointment: a, onClick, employeeColor }) {
   )
 }
 
-/** Lista agrupada por día con cabeceras y AppointmentCard por cita. */
+/** Lista agrupada por dia con cabeceras y AppointmentCard por cita */
 function DayGroupedList({ list, onOpen, empColorMap }) {
-  // Agrupa por fecha (yyyy-mm-dd) manteniendo el orden de `list`.
+  // Agrupa por fecha (yyyy-mm-dd) manteniendo el orden de `list`
   const groups = useMemo(() => {
     const m = new Map()
     list.forEach((a) => {

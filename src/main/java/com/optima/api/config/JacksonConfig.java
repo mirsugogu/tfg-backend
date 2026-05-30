@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilde
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** configura jackson para las fechas de la api */
+/** ajusta las fechas del servicio */
 @Configuration
 public class JacksonConfig {
 

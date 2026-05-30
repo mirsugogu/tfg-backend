@@ -5,7 +5,7 @@ import com.optima.api.modules.catalog.model.BusinessService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** DTO de salida con los datos de un servicio del catalogo. */
+/** datos de un servicio del catalogo */
 public record BusinessServiceResponse(
         Long id,
         Long businessId,

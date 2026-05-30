@@ -18,7 +18,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-/** Entidad que guarda un token temporal de recuperacion de contrasena. */
+/** codigo temporal de recuperacion de contrasena */
 @Entity
 @Table(name = "password_resets")
 @Getter
@@ -48,6 +48,7 @@ public class PasswordResetToken {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /** asigna la fecha de creacion si no se ha fijado manualmente */
     @PrePersist
     protected void onCreate() {
         if (this.createdAt == null) {

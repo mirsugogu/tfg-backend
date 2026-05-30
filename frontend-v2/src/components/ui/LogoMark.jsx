@@ -1,4 +1,4 @@
-/** Marca de OPTIMA dibujada inline en SVG. */
+/** Marca visual de OPTIMA */
 export function LogoMark({ size = 44 }) {
   const inner = Math.round(size * 0.52)
   return (

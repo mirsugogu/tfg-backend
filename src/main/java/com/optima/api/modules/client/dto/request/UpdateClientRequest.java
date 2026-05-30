@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Datos para actualizar un cliente existente.
+ * datos para actualizar un cliente existente
  */
 public record UpdateClientRequest(
 

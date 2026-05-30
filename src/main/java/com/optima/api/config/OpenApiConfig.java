@@ -8,7 +8,7 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** configura openapi y el esquema de jwt */
+/** configura Swagger con el esquema JWT de autenticacion */
 @Configuration
 public class OpenApiConfig {
 
@@ -29,7 +29,7 @@ public class OpenApiConfig {
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
                                         .bearerFormat("JWT")
-                                        // deja listo swagger para probar endpoints con jwt
+                                        // deja lista la documentacion para probar rutas con token JWT
                                         .description("Pega el JWT obtenido en POST /api/auth/token. " +
                                                 "Swagger anadira automaticamente la cabecera " +
                                                 "Authorization: Bearer <token>.")));

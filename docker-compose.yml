@@ -29,15 +29,11 @@ services:
       - .:/app
       - ~/.m2:/root/.m2
     command: mvn spring-boot:run
-    # `.env` se reserva para SECRETS (JWT_SECRET, MAIL_PASSWORD, etc.) y para
-    # valores que cambian entre entornos. Las SPRING_DATASOURCE_* viven aqui
-    # porque apuntan al hostname interno de Docker (`mysqldb:3306`) que NO es
-    # un secret ni cambia segun entorno.
+    # variables privadas y valores de entorno
     env_file:
       - .env
     environment:
-      # characterEncoding+useUnicode garantizan UTF-8 en el handshake JDBC,
-      # alineando con el `CHARACTER SET utf8mb4` declarado en el schema.
+      # conexion de base de datos en utf8
       SPRING_DATASOURCE_URL: jdbc:mysql://mysqldb:3306/optima_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8&useUnicode=true
       SPRING_DATASOURCE_USERNAME: optima_user
       SPRING_DATASOURCE_PASSWORD: optima_pass

@@ -1,3 +1,4 @@
+// Modal de detalle de cita con cambio de estado y marcado de pago
 import { useState } from 'react'
 import { MapPin, Pencil, Ban } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -9,10 +10,10 @@ import api, { getErrorMessage } from '@/lib/api'
 import { formatDateTime, totalBooked } from '@/lib/format'
 import { dotClassFromColorAndId } from '@/lib/employeeColor'
 
-// Estados que bloquean la edición de la cita; debe coincidir con el backend.
+// Estados que bloquean la edicion de la cita; debe coincidir con el servidor
 const NON_EDITABLE_STATUSES = new Set(['COMPLETED'])
 
-// Transiciones válidas espejo de AppointmentValidator.VALID_TRANSITIONS del backend.
+// Transiciones validas espejo de AppointmentValidatorVALID_TRANSITIONS del servidor
 const VALID_TRANSITIONS = {
   PENDING:     ['CONFIRMED', 'CANCELLED'],
   CONFIRMED:   ['IN_PROGRESS', 'CANCELLED', 'NO_SHOW'],
@@ -22,7 +23,7 @@ const VALID_TRANSITIONS = {
   NO_SHOW:     [],
 }
 
-/** Detalle de una cita con cambio de estado, marcado de pago y entrada al modo edición. */
+/** Detalle de una cita con cambio de estado, marcado de pago y entrada al modo edicion */
 export function AppointmentDetailModal({
   appointment, bId, onClose, onChanged, onEdit,
   appliedBlock, appliedAbsence, employeeColor,
@@ -30,7 +31,7 @@ export function AppointmentDetailModal({
   const toast = useToast()
   const { statusLabel } = useCatalog()
 
-  // Copia local de la cita; se resincroniza solo si el padre selecciona otra distinta.
+  // Copia local de la cita; se resincroniza solo si el padre selecciona otra distinta
   const [current, setCurrent] = useState(appointment)
   const [trackedId, setTrackedId] = useState(appointment?.id ?? null)
   const [saving, setSaving] = useState(false)
@@ -76,7 +77,7 @@ export function AppointmentDetailModal({
 
   const transitions = current ? (VALID_TRANSITIONS[current.statusName] ?? []) : []
 
-  // Etiqueta del motivo del bloqueo; si falta reason, deduce el tipo (global/empleado/cabina).
+  // Etiqueta del motivo del bloqueo; si falta reason, deduce el tipo (global/empleado/cabina)
   const blockLabel = appliedBlock
     ? (appliedBlock.reason && appliedBlock.reason.trim()
         ? appliedBlock.reason

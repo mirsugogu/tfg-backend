@@ -11,27 +11,27 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-/** Repositorio de servicios del catalogo. */
+/** consultas de servicios del catalogo */
 @Repository
 public interface BusinessServiceRepository extends JpaRepository<BusinessService, Long> {
 
-    /** Para validar unicidad del nombre dentro del negocio (case-insensitive). */
+    /** para validar unicidad del nombre dentro del negocio */
     boolean existsByBusinessIdAndNameIgnoreCase(Long businessId, String name);
 
-    /** Lista paginada de servicios activos de un negocio. */
+    /** lista de servicios activos de un negocio */
     @EntityGraph(attributePaths = {"category", "tax"})
     Page<BusinessService> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
-    /** Lista paginada de servicios INACTIVOS (archivados) de un negocio. */
+    /** lista de servicios inactivos archivados de un negocio */
     @EntityGraph(attributePaths = {"category", "tax"})
     Page<BusinessService> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
 
-    /** Busca por id dentro del negocio. */
+    /** busca por id dentro del negocio */
     Optional<BusinessService> findByIdAndBusinessId(Long id, Long businessId);
 
-    /** Carga varios servicios de un negocio en una sola consulta. */
+    /** carga varios servicios de un negocio en una sola consulta */
     List<BusinessService> findAllByIdInAndBusinessId(Collection<Long> ids, Long businessId);
 
-    /** Cuenta los servicios activos asociados a una categoria. */
+    /** cuenta los servicios activos asociados a una categoria */
     long countByCategoryIdAndIsActiveTrue(Long categoryId);
 }

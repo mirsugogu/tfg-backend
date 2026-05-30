@@ -4,7 +4,7 @@ import com.optima.api.modules.catalog.model.ServiceCategory;
 
 import java.time.LocalDateTime;
 
-/** Respuesta con una categoria de servicios. */
+/** datos de categoria de servicios */
 public record ServiceCategoryResponse(
         Long id,
         Long businessId,

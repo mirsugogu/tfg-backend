@@ -1,4 +1,4 @@
-/* Celdas y eventos del calendario: rejilla horaria, slots, línea "ahora", evento posicionado y chip. */
+/* Celdas y eventos del calendario: rejilla horaria, slots, linea "ahora", evento posicionado y chip */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Ban, Clock, User, MapPin, Scissors } from 'lucide-react'
@@ -8,7 +8,7 @@ import { totalBooked } from '@/lib/format'
 import { useDragAppointment } from './drag'
 import { useCatalog } from '@/context/CatalogContext'
 
-/** Hook de hover con delay de 250ms; devuelve handlers y un tooltip listo para inyectar. */
+/** Funcion de hover con delay de 250ms; devuelve handlers y un tooltip listo para inyectar */
 function useApptHover(appt, employeeColor) {
   const [rect, setRect] = useState(null)
   const timerRef = useRef(null)
@@ -28,7 +28,7 @@ function useApptHover(appt, employeeColor) {
   return { onMouseEnter, onMouseLeave, tooltip }
 }
 
-/** Tarjeta flotante portaleada con el resumen de la cita; se ancla a un rect dado. */
+/** Tarjeta flotante portaleada con el resumen de la cita; se ancla a un rect dado */
 function ApptHoverCard({ appt, anchorRect, employeeColor }) {
   const { statusLabel } = useCatalog()
   const CARD_W = 280
@@ -98,7 +98,7 @@ function ApptHoverCard({ appt, anchorRect, employeeColor }) {
   )
 }
 
-/** Columna izquierda con las etiquetas horarias del día. */
+/** Columna izquierda con las etiquetas horarias del dia */
 export function HourColumn({ withHeader = true, dayStart, dayEnd, hourPx }) {
   const hours = []
   for (let h = dayStart; h < dayEnd; h++) hours.push(h)
@@ -107,7 +107,6 @@ export function HourColumn({ withHeader = true, dayStart, dayEnd, hourPx }) {
       {withHeader && <div className="h-10 border-b-2 border-slate-300" />}
       {hours.map((h, idx) => (
         <div key={h} style={{ height: hourPx }} className="relative border-b border-slate-200">
-          {/* idx=0 mantiene el label dentro del slot para no salirse del header. */}
           <span className={`absolute ${idx === 0 ? 'top-1' : '-top-2'} right-1.5 text-[10px] font-semibold text-slate-500 bg-white px-1`}>
             {pad2(h)}:00
           </span>
@@ -117,7 +116,7 @@ export function HourColumn({ withHeader = true, dayStart, dayEnd, hourPx }) {
   )
 }
 
-/** Slots horarios clicables del día; pinta cerrado fuera del negocio/empleado y bloqueado en blocks. */
+/** Slots horarios clicables del dia; pinta cerrado fuera del negocio/empleado y bloqueado en blocks */
 export function HourSlots({
   dayKey, onSlotClick, dayStart, dayEnd, hourPx, closedRanges,
   workingRanges = null,
@@ -125,10 +124,10 @@ export function HourSlots({
 }) {
   const hours = []
   for (let h = dayStart; h < dayEnd; h++) hours.push(h)
-  // Una hora está abierta si cae en algún tramo; soporta 0/1/N tramos (turno partido).
+  // Una hora esta abierta si cae en algun tramo; soporta 0/1/N tramos (turno partido)
   const inRange = (h, ranges) => ranges.some(([s, e]) => h >= s && h < e)
   const closedByBusiness  = (h) => !inRange(h, closedRanges)
-  // Si la columna es de un empleado con horario propio, su descanso también cierra el slot.
+  // Si la columna es de un empleado con horario propio, su descanso tambien cierra el slot
   const closedByEmployee  = (h) => workingRanges != null && !inRange(h, workingRanges)
   return (
     <>
@@ -137,7 +136,7 @@ export function HourSlots({
         const byEmployee = !byBusiness && closedByEmployee(h)
         const closed = byBusiness || byEmployee
         const zebra = idx % 2 === 0 ? 'bg-slate-50/40' : 'bg-white'
-        // Inactivo si cerrado por horario o si hay bloqueo aplicable; el backend valida igual con 409.
+        // Inactivo si cerrado por horario o si hay bloqueo aplicable; el servidor valida igual con 409
         const inactive = closed || isBlocked
         const title = byBusiness ? 'Fuera de horario'
                     : byEmployee ? 'Fuera del horario del empleado'
@@ -165,10 +164,10 @@ export function HourSlots({
   )
 }
 
-/** Franja roja con trama diagonal que cubre las horas de ausencia del empleado en la columna. */
+/** Franja roja con trama diagonal que cubre las horas de ausencia del empleado en la columna */
 export function AbsenceOverlay({ absences, dayDate, dayStart, dayEnd, hourPx }) {
   if (!absences || absences.length === 0) return null
-  // Clamp al rango visible (dayStart..dayEnd), no al día completo.
+  // Recorta cada ausencia al rango visible (dayStart-dayEnd) para calcular top y height en px
   const dayMidnightMs = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate()).getTime()
   const gridStartMs = dayMidnightMs + dayStart * 60 * 60 * 1000
   const gridEndMs = dayMidnightMs + dayEnd * 60 * 60 * 1000
@@ -184,7 +183,7 @@ export function AbsenceOverlay({ absences, dayDate, dayStart, dayEnd, hourPx }) 
         const minutesFromGridStart = (visStart - gridStartMs) / 60000
         const durationMinutes = (visEnd - visStart) / 60000
         const topPx = (minutesFromGridStart / 60) * hourPx
-        // Clamp final: nunca exceder el contenedor.
+        // Clamp final: nunca exceder el contenedor
         const rawHeight = (durationMinutes / 60) * hourPx
         const heightPx = Math.max(8, Math.min(rawHeight, gridTotalPx - topPx))
         const label = abs.reason ? `Ausencia: ${abs.reason}` : 'Ausencia'
@@ -216,7 +215,7 @@ export function AbsenceOverlay({ absences, dayDate, dayStart, dayEnd, hourPx }) 
   )
 }
 
-/** Capa con trama diagonal e icono Ban que cubre la celda cuando hay un bloqueo aplicable. */
+/** Capa con trama diagonal e icono Ban que cubre la celda cuando hay un bloqueo aplicable */
 export function BlockOverlay({ blocks }) {
   if (!blocks || blocks.length === 0) return null
   const label = labelForBlock(blocks[0])
@@ -241,7 +240,7 @@ export function BlockOverlay({ blocks }) {
   )
 }
 
-/** Línea horizontal que marca la hora actual sobre la rejilla. */
+/** Linea horizontal que marca la hora actual sobre la rejilla */
 export function NowLine({ now, dayStart, dayEnd, hourPx }) {
   const minutes = now.getHours() * 60 + now.getMinutes() - dayStart * 60
   const total = (dayEnd - dayStart) * 60
@@ -255,11 +254,11 @@ export function NowLine({ now, dayStart, dayEnd, hourPx }) {
   )
 }
 
-// Umbrales de altura para mostrar hora+nombre, solo nombre o nada.
+// Umbrales de altura para mostrar hora+nombre, solo nombre o nada
 const POS_EVENT_TEXT_HEIGHT      = 28
 const POS_EVENT_TWO_LINES_HEIGHT = 44
 
-/** Cápsula de cita posicionada en la rejilla Día/Semana con drag-and-drop y tooltip. */
+/** Capsula de cita posicionada en la rejilla Dia/Semana con arrastre y tooltip */
 export function PositionedEvent({ appt, onClick, onDrop, col, cols, colorBy, dayStart, hourPx }) {
   const topPx = ((minutesOf(appt.startDateTime) - dayStart * 60) / 60) * hourPx
   const heightPx = Math.max(22, (apptDuration(appt) / 60) * hourPx)
@@ -275,7 +274,7 @@ export function PositionedEvent({ appt, onClick, onDrop, col, cols, colorBy, day
 
   const hover = useApptHover(appt, appt.employeeColor)
 
-  // Drag activo solo si el padre da onDrop y la cita no es terminal.
+  // arrastre activo solo si el padre da onDrop y la cita no es terminal
   const isDraggable = Boolean(onDrop) && !isTerminal
   const drag = useDragAppointment({
     appt,
@@ -288,7 +287,7 @@ export function PositionedEvent({ appt, onClick, onDrop, col, cols, colorBy, day
     <>
       <button
         onPointerDown={(e) => {
-          // preventDefault evita el click sintético post-pointerup; el hook lo re-emite si no hubo drag.
+          // preventDefault evita el click sintetico post-pointerup; el funcion lo re-emite si no hubo arrastre
           e.preventDefault()
           e.stopPropagation()
           drag.onPointerDown(e)
@@ -321,7 +320,7 @@ export function PositionedEvent({ appt, onClick, onDrop, col, cols, colorBy, day
   )
 }
 
-/** Chip plano de cita en variante 'grid' (Mes, solo hora) o 'list' (sidebar, nombre + hora). */
+/** Chip plano de cita en variante 'grid' (Mes, solo hora) o 'list' (sidebar, nombre + hora) */
 export function EventChip({ appt, onClick, colorBy, variant = 'list' }) {
   const s = styleFor(appt, colorBy)
   const isInProgress = appt.statusName === 'IN_PROGRESS'

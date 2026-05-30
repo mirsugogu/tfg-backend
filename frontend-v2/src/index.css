@@ -1,3 +1,4 @@
+/* Estilos globales: tema, rejillas responsive, scrollbar y animaciones */
 @import "tailwindcss";
 
 @theme {
@@ -5,21 +6,9 @@
   --shadow-float: 0 12px 40px -12px rgba(15, 23, 42, 0.15);
 }
 
-/*
- * Rejillas responsive de la app. Se definen como clases propias y NO con
- * variantes Tailwind (sm:/lg:/2xl:/3xl:...) por una limitacion real de
- * Tailwind v4: los breakpoints custom y las variantes arbitrarias
- * `min-[...]` se emiten en el CSS ANTES que los integrados (sm..2xl), asi
- * que `2xl` ganaba siempre la cascada y las rejillas se quedaban clavadas
- * en 4 columnas por encima de 2200px (en una pantalla 2K/4K no reflúian).
- * Con media queries propias, en orden ascendente y dentro de un mismo
- * @layer, la cascada es correcta por construccion: gana la ultima que
- * cumple. Van en `@layer components` para que una utilidad Tailwind
- * (p.ej. `gap-6`) las pueda seguir sobreescribiendo si hiciera falta.
- */
+/* Rejillas propias para controlar columnas en pantallas grandes */
 @layer components {
-  /* Tarjetas de clientes, empleados, servicios, categorias y cabinas:
-     reflujo 1 -> 2 -> 3 -> 4 -> 5 -> 6 columnas. */
+  /* Tarjetas principales con columnas progresivas */
   .card-grid {
     display: grid;
     gap: 1rem;
@@ -31,9 +20,7 @@
   @media (min-width: 2200px) { .card-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
   @media (min-width: 3000px) { .card-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 
-  /* Lista de citas: tarjetas anchas horizontales. En 1 sola columna se
-     estiraban a 3000+ px en 4K dejando un hueco enorme entre los datos y
-     el importe; en 2K/4K pasan a 2 y 3 columnas. */
+  /* Lista de citas con ancho visual controlado */
   .appt-grid {
     display: grid;
     gap: 0.75rem;
@@ -43,13 +30,7 @@
   @media (min-width: 3000px) { .appt-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 }
 
-/*
- * NOTA: NO se añade un reset propio `* { margin:0; padding:0 }` aquí.
- * Iría sin capa CSS y, en Tailwind v4, el CSS sin capa gana a las
- * @layer — anularía TODAS las utilidades de espaciado (p-*, m-*,
- * space-*). El preflight de Tailwind ya aplica box-sizing y los
- * resets de margen de forma correcta (dentro de @layer base).
- */
+/* Sin reset propio para respetar el espaciado base */
 
 html {
   scroll-behavior: smooth;
@@ -89,12 +70,7 @@ body {
   background: #94a3b8;
 }
 
-/*
- * Keyframes para las animaciones de entrada de los drawers laterales
- * (Clientes, Empleados, Catalogo, Citas, Perfil). Se referencian inline
- * con `animate-[...]` en esas paginas. Sin esto los drawers siguen
- * funcionando, solo aparecen sin transicion de entrada.
- */
+/* Animaciones de entrada de paneles laterales */
 @keyframes fadeIn {
   from { opacity: 0 }
   to   { opacity: 1 }

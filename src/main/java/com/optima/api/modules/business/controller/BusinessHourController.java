@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** CRUD de horarios semanales del negocio. */
+/** gestion de horarios semanales del negocio */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/hours")
 @RequiredArgsConstructor
@@ -23,7 +23,7 @@ public class BusinessHourController {
 
     private final BusinessHourService hourService;
 
-    /** Crea un tramo del horario. */
+    /** crea un tramo del horario */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ADMIN')")
@@ -32,20 +32,20 @@ public class BusinessHourController {
         return hourService.create(businessId, request);
     }
 
-    /** Lista de tramos del horario. */
+    /** lista de tramos del horario */
     @GetMapping
     public List<BusinessHourResponse> listByBusiness(@PathVariable @Positive Long businessId) {
         return hourService.listByBusiness(businessId);
     }
 
-    /** Devuelve el detalle de un tramo horario del negocio. */
+    /** devuelve el detalle de un tramo horario del negocio */
     @GetMapping("/{id}")
     public BusinessHourResponse getById(@PathVariable @Positive Long businessId,
                                         @PathVariable @Positive Long id) {
         return hourService.getById(businessId, id);
     }
 
-    /** Sustituye el dia y las horas de un tramo. */
+    /** sustituye el dia y las horas de un tramo */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public BusinessHourResponse update(@PathVariable @Positive Long businessId,
@@ -54,7 +54,7 @@ public class BusinessHourController {
         return hourService.update(businessId, id, request);
     }
 
-    /** Borra un tramo horario del negocio. */
+    /** borra un tramo horario del negocio */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasRole('ADMIN')")

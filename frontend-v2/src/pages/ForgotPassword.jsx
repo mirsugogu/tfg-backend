@@ -1,3 +1,4 @@
+// Solicitud de recuperacion de contrasena con proteccion anti-enumeracion
 import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Mail, MailCheck, AlertCircle } from 'lucide-react'
@@ -14,7 +15,7 @@ const inputErr =
   'h-12 w-full rounded-2xl border border-amber-300 bg-white pl-11 pr-4 text-sm text-[#1f2c4a] placeholder:text-slate-400 ' +
   'transition-all focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-100'
 
-/** Solicitud de reset de contraseña; el backend responde con mensaje neutro anti-enumeración. */
+/** Solicitud de reset de contrasena; el servidor responde con mensaje neutro anti-enumeracion */
 export default function ForgotPassword() {
   const { user } = useAuth()
   const [email, setEmail] = useState(() => localStorage.getItem('optima_last_email') || '')
@@ -43,7 +44,7 @@ export default function ForgotPassword() {
     setLoading(true)
     try {
       await api.post('/api/auth/forgot-password', { email: trimmed })
-      // Anti-enumeration: el backend responde 204 exista o no el usuario.
+      // Anti-enumeration: el servidor responde 204 exista o no el usuario
       localStorage.setItem('optima_last_email', trimmed)
       setResult({
         type: 'success',

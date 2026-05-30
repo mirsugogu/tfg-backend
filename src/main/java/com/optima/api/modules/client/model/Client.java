@@ -9,7 +9,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-/** Entidad que representa a un cliente de un negocio. */
+/** cliente de un negocio */
 @Entity
 @Table(name = "clients")
 @Getter
@@ -23,40 +23,40 @@ public class Client {
     @Column(name = "id_client")
     private Long id;
 
-    /** Negocio al que pertenece este cliente. */
+    /** negocio al que pertenece este cliente */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_business", nullable = false)
     private Business business;
 
-    /** Nombre completo del cliente. */
+    /** nombre completo del cliente */
     @Column(name = "full_name", nullable = false, length = 150)
     private String fullName;
 
-    /** Email de contacto opcional. */
+    /** email de contacto opcional */
     @Column(name = "email", length = 150)
     private String email;
 
-    /** Telefono de contacto opcional. */
+    /** telefono de contacto opcional */
     @Column(name = "phone", length = 20)
     private String phone;
 
-    /** Notas internas del negocio sobre el cliente. */
+    /** notas internas del negocio sobre el cliente */
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
-    /** Indica si el cliente sigue activo. */
+    /** indica si el cliente sigue activo */
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    /** Fecha y hora de creacion del cliente. */
+    /** fecha y hora de creacion del cliente */
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    /** Momento en que se desactivo el cliente. */
+    /** momento en que se desactivo el cliente */
     @Column(name = "deactivated_at")
     private LocalDateTime deactivatedAt;
 
-    /** Asigna la fecha de creacion antes de guardar. */
+    /** asigna la fecha de creacion antes de guardar */
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

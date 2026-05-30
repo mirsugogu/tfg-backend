@@ -18,7 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 
-/** aqui se queda la logica de clientes */
+/** se queda la logica de clientes */
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -28,7 +28,7 @@ public class ClientService {
     private final BusinessRepository businessRepository;
     private final AppointmentRepository appointmentRepository;
 
-    /** crea el cliente dentro del negocio que toque */
+    /** crea el cliente dentro del negocio correspondiente */
     public ClientResponse create(Long businessId, CreateClientRequest request) {
         Business business = businessRepository.findById(businessId)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -46,7 +46,7 @@ public class ClientService {
         return ClientResponse.from(clientRepository.save(c));
     }
 
-    /** lista clientes y si hace falta filtra por busqueda */
+    /** lista clientes y cuando corresponde filtra por busqueda */
     @Transactional(readOnly = true)
     public Page<ClientResponse> listByBusiness(Long businessId, boolean active, String search, Pageable pageable) {
         String q = search == null ? "" : search.trim();
@@ -61,7 +61,7 @@ public class ClientService {
         return page.map(ClientResponse::from);
     }
 
-    /** saca un cliente concreto */
+    /** obtiene un cliente concreto */
     @Transactional(readOnly = true)
     public ClientResponse getById(Long businessId, Long id) {
         return ClientResponse.from(findOrThrow(businessId, id));
@@ -84,7 +84,7 @@ public class ClientService {
         return ClientResponse.from(clientRepository.save(c));
     }
 
-    /** no dejamos archivarlo si aun tiene citas por delante */
+    /** no se permite archivarlo si aun tiene citas pendientes */
     public void deactivate(Long businessId, Long id) {
         Client c = findOrThrow(businessId, id);
         if (!c.getIsActive()) {
@@ -124,7 +124,7 @@ public class ClientService {
                                 + " en el negocio con ID: " + businessId));
     }
 
-    /** esto limpia campos opcionales para que no se guarden vacios raros */
+    /** limpia campos opcionales para que no se guarden vacios innecesarios */
     private String normalize(String value) {
         if (value == null) return null;
         String trimmed = value.trim();

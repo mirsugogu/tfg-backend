@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Datos para crear un cliente dentro de un negocio.
+ * datos para crear un cliente dentro de un negocio
  */
 public record CreateClientRequest(
 

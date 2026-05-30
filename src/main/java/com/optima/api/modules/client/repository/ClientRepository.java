@@ -10,22 +10,22 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
-/** Repositorio de clientes filtrados por negocio. */
+/** consultas de clientes filtrados por negocio */
 @Repository
 public interface ClientRepository extends JpaRepository<Client, Long> {
 
     /**
-     * Lista paginada de clientes activos de un negocio.
+     * lista de clientes activos de un negocio
      */
     Page<Client> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
     /**
-     * Lista paginada de clientes archivados de un negocio.
+     * lista de clientes archivados de un negocio
      */
     Page<Client> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
 
     /**
-     * Busca clientes activos por nombre, email o telefono.
+     * busca clientes activos por nombre email o telefono
      */
     @Query("SELECT c FROM Client c WHERE c.business.id = :businessId "
          + "AND c.isActive = true AND ("
@@ -37,7 +37,7 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
                                         Pageable pageable);
 
     /**
-     * Busca un cliente dentro de un negocio concreto.
+     * busca un cliente dentro de un negocio concreto
      */
     Optional<Client> findByIdAndBusinessId(Long id, Long businessId);
 }

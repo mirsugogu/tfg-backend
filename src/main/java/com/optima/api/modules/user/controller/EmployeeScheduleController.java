@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** Endpoints del horario semanal de un empleado. */
+/** rutas del horario semanal de un empleado */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/users/{userId}/schedules")
 @RequiredArgsConstructor
@@ -24,7 +24,7 @@ public class EmployeeScheduleController {
     private final EmployeeScheduleService scheduleService;
 
     /**
-     * Crea un tramo del horario semanal del empleado.
+     * crea un tramo del horario semanal del empleado
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -36,7 +36,7 @@ public class EmployeeScheduleController {
     }
 
     /**
-     * Lista todos los tramos del horario del empleado.
+     * lista todos los tramos del horario del empleado
      */
     @GetMapping
     public List<EmployeeScheduleResponse> listByEmployee(@PathVariable @Positive Long businessId,
@@ -45,7 +45,7 @@ public class EmployeeScheduleController {
     }
 
     /**
-     * Obtiene un tramo concreto del horario.
+     * obtiene un tramo concreto del horario
      */
     @GetMapping("/{id}")
     public EmployeeScheduleResponse getById(@PathVariable @Positive Long businessId,
@@ -55,7 +55,7 @@ public class EmployeeScheduleController {
     }
 
     /**
-     * Actualiza dia y horas de un tramo existente.
+     * actualiza dia y horas de un tramo existente
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -67,7 +67,7 @@ public class EmployeeScheduleController {
     }
 
     /**
-     * Elimina un tramo del horario.
+     * elimina un tramo del horario
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

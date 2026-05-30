@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Datos para registrar un negocio y su primer administrador.
+ * datos para registrar un negocio y su primer administrador
  */
 public record RegisterRequest(
 
@@ -23,7 +23,7 @@ public record RegisterRequest(
 ) {
 
     /**
-     * Datos personales del usuario administrador inicial.
+     * datos personales del usuario administrador inicial
      */
     public record AdminAccount(
 

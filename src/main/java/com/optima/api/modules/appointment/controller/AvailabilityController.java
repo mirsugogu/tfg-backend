@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.util.List;
 
-/** Consulta huecos libres para una fecha y unos servicios. */
+/** consulta huecos libres para una fecha y unos servicios */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/availability")
 @RequiredArgsConstructor
@@ -27,7 +27,7 @@ public class AvailabilityController {
 
     private final AvailabilityService availabilityService;
 
-    /** Calcula los huecos. */
+    /** calcula los huecos */
     @GetMapping
     public AvailabilityResponse getAvailability(
             @PathVariable @Positive Long businessId,

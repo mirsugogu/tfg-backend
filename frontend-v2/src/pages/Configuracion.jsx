@@ -1,3 +1,4 @@
+// Configuracion del negocio: datos generales, horarios, impuestos, cabinas y bloqueos
 import { useEffect, useMemo, useState } from 'react'
 import {
   Plus, Pencil, Trash2, Archive, ArchiveRestore, Percent, Clock, Save, Building2, Store,
@@ -24,7 +25,7 @@ const TH   = 'px-6 py-3.5 text-left text-[11px] font-semibold text-slate-400 upp
 const emptyTax   = { name: '', percentage: '' }
 const emptyHour  = { dayOfWeek: '1', startTime: '09:00', endTime: '18:00', isClosed: false }
 
-/** Cabecera azul con descripción breve de la pestaña activa. */
+/** Cabecera azul con descripcion breve de la pestana activa */
 function SectionHint({ title, children }) {
   return (
     <div className="mb-5 flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
@@ -38,9 +39,9 @@ function SectionHint({ title, children }) {
 }
 const emptyBooth = { name: '', color: '' }
 
-// [L] Paleta de la cabina en el calendario. Mismos nombres que en
-// memberships.color y components/calendar/utils.js. Varias cabinas pueden
-// compartir color a proposito.
+// [L] Paleta de la cabina en el calendario Mismos nombres que en
+// membershipscolor y components/calendar/utilsjs Varias cabinas pueden
+// compartir color a proposito
 const BOOTH_COLOR_OPTIONS = [
   { name: 'cyan', cls: 'bg-cyan-500' }, { name: 'amber', cls: 'bg-amber-500' },
   { name: 'emerald', cls: 'bg-emerald-500' }, { name: 'indigo', cls: 'bg-indigo-500' },
@@ -66,7 +67,7 @@ const BOOTH_PALETTE = [
 ]
 const boothColor = (id) => BOOTH_PALETTE[(id ?? 0) % BOOTH_PALETTE.length]
 
-/** Configuración del negocio por pestañas: datos, horario, impuestos, cabinas y bloqueos. */
+/** Configuracion del negocio por pestanas: datos, horario, impuestos, cabinas y bloqueos */
 export default function Configuracion() {
   const { user } = useAuth()
   const bId = user?.businessId
@@ -117,13 +118,10 @@ export default function Configuracion() {
   )
 }
 
-/* ============================================================
-   NEGOCIO
-   ============================================================ */
 
 const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim())
 
-/** Pestaña de datos generales del negocio. */
+/** Pestana de datos generales del negocio */
 function BusinessTab({ bId, isAdmin }) {
   const toast = useToast()
   const [biz, setBiz]   = useState(null)
@@ -218,7 +216,6 @@ function BusinessTab({ bId, isAdmin }) {
         </div>
       )}
 
-      {/* Quick contact strip */}
       <div className={`${CARD} p-4 flex flex-wrap items-center gap-3`}>
         <a href={`mailto:${biz.email}`} className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-blue-50/50 text-blue-700 hover:bg-blue-100 transition truncate max-w-full">
           <Mail size={12} /> {biz.email}
@@ -238,7 +235,6 @@ function BusinessTab({ bId, isAdmin }) {
         </span>
       </div>
 
-      {/* Form */}
       <div className={`${CARD} p-6 space-y-6`}>
         <div className="grid sm:grid-cols-2 gap-4">
           <Input label="Nombre *" value={form.name} onChange={(e) => set('name', e.target.value)} disabled={!isAdmin} maxLength={150} />
@@ -310,11 +306,8 @@ function BusinessTab({ bId, isAdmin }) {
   )
 }
 
-/* ============================================================
-   IMPUESTOS
-   ============================================================ */
 
-/** Pestaña de impuestos con CRUD y soft delete. */
+/** Pestana de impuestos con gestion y archivado */
 function TaxesTab({ bId, isAdmin }) {
   const toast = useToast()
   const [pageSize, setPageSize] = useState(() => parseInt(localStorage.getItem('optima_cfg_taxes_size') || '20', 10))
@@ -322,7 +315,7 @@ function TaxesTab({ bId, isAdmin }) {
   const [sortDir, setSortDir] = useState(() => localStorage.getItem('optima_cfg_taxes_sort') || 'asc')
   useEffect(() => { localStorage.setItem('optima_cfg_taxes_sort', sortDir) }, [sortDir])
 
-  // Vista activos / archivados — sin persistir
+  // Vista activos / archivados - sin persistir
   const [view, setView] = useState('active')
   const isArchived = view === 'archived'
   const queryParams = useMemo(() => ({ sort: `name,${sortDir}`, active: view === 'active' }), [sortDir, view])
@@ -330,7 +323,7 @@ function TaxesTab({ bId, isAdmin }) {
   const { items: taxes, page, totalPages, totalElements, loading, setPage, refresh } =
     usePagedFetch(bId ? `/api/businesses/${bId}/taxes` : null, { size: pageSize, params: queryParams })
 
-  // Carga del catálogo para contar uso por impuesto (sin endpoint dedicado).
+  // Carga del catalogo para contar uso por impuesto (sin rutas dedicado)
   const [services, setServices] = useState([])
   useEffect(() => {
     if (!bId) return
@@ -386,7 +379,7 @@ function TaxesTab({ bId, isAdmin }) {
     } finally { setSaving(false) }
   }
 
-  // Restaurar es un clic directo (no destructivo): sin modal de confirmación.
+  // Restaurar es un clic directo (no destructivo): sin ventana de confirmacion
   const handleReactivate = async (tax) => {
     try {
       await api.patch(`/api/businesses/${bId}/taxes/${tax.id}/reactivate`)
@@ -507,11 +500,8 @@ function TaxesTab({ bId, isAdmin }) {
   )
 }
 
-/* ============================================================
-   HORARIOS — vista visual semanal + acciones rápidas
-   ============================================================ */
 
-/** Pestaña del horario semanal de apertura del negocio. */
+/** Pestana del horario semanal de apertura del negocio */
 function HoursTab({ bId, isAdmin }) {
   const toast = useToast()
   const [hours, setHours] = useState(null)
@@ -590,10 +580,10 @@ function HoursTab({ bId, isAdmin }) {
     } finally { setSaving(false) }
   }
 
-  // Quick action: clona los tramos del lunes en Mar-Vie. Sobrescribe: borra
+  // Quick action: clona los tramos del lunes en Mar-Vie Sobrescribe: borra
   // antes los tramos de cada dia y crea los del lunes (turno partido se copia
-  // completo). DELETE antes que POST porque el backend valida solape al crear
-  // (409). Mismo patron que Empleados.handleCopyMonToWeek.
+  // completo) DELETE antes que POST porque el servidor valida solape al crear
+  // (409) Mismo patron que EmpleadoshandleCopyMonToWeek
   const handleCopyMonToFriday = async () => {
     const all = hours ?? []
     const mondayTramos = all.filter((h) => h.dayOfWeek === 1 && !h.isClosed)
@@ -623,8 +613,7 @@ function HoursTab({ bId, isAdmin }) {
     } finally { setSaving(false) }
   }
 
-  // Borra todos los tramos de sabado/domingo y crea uno con isClosed=true.
-  // Asi un fin de semana con turno partido previo queda limpiamente "cerrado".
+  // Marca el fin de semana como cerrado
   const handleCloseWeekend = async () => {
     const all = hours ?? []
     setSaving(true)
@@ -656,10 +645,10 @@ function HoursTab({ bId, isAdmin }) {
   }, [hours])
 
   // Rango visual de la rejilla, adaptativo al horario realmente
-  // configurado. Si el negocio abre 2:00-22:00 la barra ya no se
+  // configurado Si el negocio abre 2:00-22:00 la barra ya no se
   // calcula sobre 8-22 (lo que producia width > 100% y desbordaba la
-  // tarjeta) sino sobre 2-22. Defaults 8-22 si no hay nada que pintar.
-  // Cap defensivo [0, 24] por si alguna fila tiene una hora rara.
+  // tarjeta) sino sobre 2-22 Defaults 8-22 si no hay nada que pintar
+  // Cap defensivo [0, 24] por si alguna fila tiene una hora rara
   const { DAY_START, DAY_END } = useMemo(() => {
     let minH = 24, maxH = 0
     ;(hours ?? []).forEach((h) => {
@@ -704,15 +693,6 @@ function HoursTab({ bId, isAdmin }) {
         <div className={`${CARD} p-5 space-y-2`}>{[...Array(7)].map((_, i) => <div key={i} className="h-8 bg-slate-100 rounded-md animate-pulse" />)}</div>
       ) : (
         <div className={`${CARD} p-5`}>
-          {/*
-              Aplanado del listado a un solo array. Mismo motivo que en
-              Empleados.ScheduleGrid: con un nested [1..7].map(d => rows.map(...))
-              React no encontraba key estable a nivel de dia y, al borrar
-              el primer tramo de un dia con turno partido, la etiqueta
-              DAYS[d] (que dependia del idx local del sub-map) se
-              desplazaba al tramo siguiente. flatMap + isFirstOfDay por
-              item arregla el reciclaje.
-          */}
           <div className="space-y-2">
             {[1, 2, 3, 4, 5, 6, 7].flatMap((d) => {
               const dayHours = (hours ?? [])
@@ -815,11 +795,8 @@ function HoursTab({ bId, isAdmin }) {
   )
 }
 
-/* ============================================================
-   CABINAS
-   ============================================================ */
 
-/** Pestaña de cabinas físicas con CRUD y color asignado. */
+/** Pestana de cabinas fisicas con gestion y color asignado */
 function BoothsTab({ bId, isAdmin }) {
   const toast = useToast()
   const [pageSize, setPageSize] = useState(() => parseInt(localStorage.getItem('optima_cfg_booths_size') || '20', 10))
@@ -827,7 +804,7 @@ function BoothsTab({ bId, isAdmin }) {
   const [sortDir, setSortDir] = useState(() => localStorage.getItem('optima_cfg_booths_sort') || 'asc')
   useEffect(() => { localStorage.setItem('optima_cfg_booths_sort', sortDir) }, [sortDir])
 
-  // Vista activos / archivados — sin persistir
+  // Vista activos / archivados - sin persistir
   const [view, setView] = useState('active')
   const isArchived = view === 'archived'
   const queryParams = useMemo(() => ({ sort: `name,${sortDir}`, active: view === 'active' }), [sortDir, view])
@@ -874,7 +851,7 @@ function BoothsTab({ bId, isAdmin }) {
     } finally { setSaving(false) }
   }
 
-  // Restaurar es un clic directo (no destructivo): sin modal de confirmación.
+  // Restaurar es un clic directo (no destructivo): sin ventana de confirmacion
   const handleReactivate = async (booth) => {
     try {
       await api.patch(`/api/businesses/${bId}/booths/${booth.id}/reactivate`)
@@ -1018,19 +995,16 @@ function BoothsTab({ bId, isAdmin }) {
   )
 }
 
-/* ============================================================
-   BLOQUEOS
-   ============================================================ */
 
-/** Pestaña de bloqueos de agenda (global, por empleado o por cabina). */
+/** Pestana de bloqueos de agenda (global, por empleado o por cabina) */
 function BlocksTab({ bId, isAdmin }) {
   const toast = useToast()
   const [typeFilter, setTypeFilter] = useState('ALL')
 
-  // Sin paginación: esta pestaña agrupa los bloqueos en secciones (En curso /
-  // Próximos / Pasados). Paginar descuadraría el recuento de cada sección
-  // frente al total. size=100 es el tope del backend, de sobra para los
-  // bloqueos de agenda de un negocio.
+  // Sin paginacion: esta pestana agrupa los bloqueos en secciones (En curso /
+  // Proximos / Pasados) Paginar descuadraria el recuento de cada seccion
+  // frente al total size=100 es el tope del servidor, de sobra para los
+  // bloqueos de agenda de un negocio
   const { items: blocks, totalElements, loading, refresh } =
     usePagedFetch(bId ? `/api/businesses/${bId}/schedule-blocks` : null, { size: 100 })
 
@@ -1247,11 +1221,8 @@ function BlocksTab({ bId, isAdmin }) {
   )
 }
 
-/* ============================================================
-   TOOLBAR — barra superior reutilizable para Impuestos / Cabinas
-   ============================================================ */
 
-/** Barra superior con contador, filtros, orden y acción principal. */
+/** Barra superior con contador, filtros, orden y accion principal */
 function Toolbar({ rightCount, rightLabel, extraStats, filter, sortOptions, sortValue, onSortChange, pageSize, onPageSize, onRefresh, loading, primary }) {
   return (
     <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -1290,8 +1261,8 @@ function Toolbar({ rightCount, rightLabel, extraStats, filter, sortOptions, sort
   )
 }
 
-/* Control segmentado Activos / Archivados — compartido por Impuestos y Cabinas */
-/** Toggle Activos/Archivados para los listados con soft delete. */
+/* Control segmentado Activos / Archivados - compartido por Impuestos y Cabinas */
+/** Toggle Activos/Archivados para los listados con archivado */
 function ArchiveViewToggle({ view, onChange }) {
   return (
     <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">

@@ -13,28 +13,28 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
-/** Repositorio de cabinas del negocio. */
+/** consultas de cabinas del negocio */
 @Repository
 public interface BoothRepository extends JpaRepository<Booth, Long> {
 
-    /** Lista paginada de cabinas activas (excluye soft-deleted) de un negocio. */
+    /** lista de cabinas activas excluye archivadas de un negocio */
     Page<Booth> findByBusinessIdAndIsActiveTrue(Long businessId, Pageable pageable);
 
-    /** Lista cabinas archivadas de un negocio. */
+    /** lista cabinas archivadas de un negocio */
     Page<Booth> findByBusinessIdAndIsActiveFalse(Long businessId, Pageable pageable);
 
-    /** Lista todas las cabinas activas para calcular disponibilidad. */
+    /** lista todas las cabinas activas para calcular disponibilidad */
     List<Booth> findAllByBusinessIdAndIsActiveTrue(Long businessId);
 
-    /** Busca por id dentro del negocio. */
+    /** busca por id dentro del negocio */
     Optional<Booth> findByIdAndBusinessId(Long id, Long businessId);
 
-    /** Busca una cabina aplicando bloqueo pesimista. */
+    /** busca una cabina aplicando bloqueo pesimista */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT b FROM Booth b WHERE b.id = :id AND b.business.id = :businessId")
     Optional<Booth> findByIdAndBusinessIdForUpdate(@Param("id") Long id,
                                                   @Param("businessId") Long businessId);
 
-    /** Para validar unicidad del nombre dentro del negocio (case-insensitive). */
+    /** para validar unicidad del nombre dentro del negocio */
     boolean existsByBusinessIdAndNameIgnoreCase(Long businessId, String name);
 }

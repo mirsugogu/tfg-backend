@@ -8,8 +8,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * DTO de entrada para editar o reagendar una cita.
- * No modifica cliente, estado ni pago.
+ * datos de entrada para editar una cita
+ * no cambia cliente estado ni pago
  */
 public record UpdateAppointmentRequest(
 

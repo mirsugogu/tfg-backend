@@ -5,7 +5,7 @@ import com.optima.api.modules.user.model.EmployeeSchedule;
 import java.time.LocalTime;
 
 /**
- * Respuesta de un tramo del horario semanal de un empleado.
+ * respuesta de un tramo del horario semanal de un empleado
  */
 public record EmployeeScheduleResponse(
         Long id,

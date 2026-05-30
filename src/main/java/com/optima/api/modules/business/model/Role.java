@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Entidad que representa un rol global del sistema. */
+/** rol global del sistema */
 @Entity
 @Table(name = "roles")
 @Getter
@@ -20,6 +20,7 @@ public class Role {
     @Column(name = "id_role")
     private Long id;
 
+    /** nombre del rol como ADMIN o EMPLOYEE */
     @Column(name = "name", nullable = false, length = 30, unique = true)
     private String name;
 }

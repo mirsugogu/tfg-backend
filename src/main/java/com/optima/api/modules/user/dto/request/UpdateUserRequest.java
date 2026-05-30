@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 
 /**
- * Datos para actualizar la membership de un empleado en un negocio.
+ * datos para actualizar la relacion de un empleado en un negocio
  */
 public record UpdateUserRequest(
 

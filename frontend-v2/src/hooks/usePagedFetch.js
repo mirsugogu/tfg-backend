@@ -1,8 +1,9 @@
+// Hook generico de paginacion server-side con reset automatico de filtros
 import { useCallback, useEffect, useRef, useState } from 'react'
 import api, { getErrorMessage } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 
-/** Hook para endpoints paginados Spring Page<T>; resetea a página 0 si cambian los params. */
+/** Carga listados paginados y reinicia al cambiar filtros */
 export function usePagedFetch(url, { size = 20, params } = {}) {
   const [page, setPage] = useState(0)
   const [data, setData] = useState({ content: [], number: 0, size, totalElements: 0, totalPages: 0 })
@@ -10,13 +11,13 @@ export function usePagedFetch(url, { size = 20, params } = {}) {
   const [version, setVersion] = useState(0)
   const toast = useToast()
 
-  // Serializa los filtros para usarlos en deps sin depender de la identidad del objeto.
+  // Serializa los filtros para usarlos en dependencias sin depender de la identidad del objeto
   const paramsKey = params ? JSON.stringify(params) : ''
   const prevParamsKey = useRef(paramsKey)
 
   useEffect(() => {
     if (!url) { setLoading(false); return }
-    // Cambio de filtros y no estamos en página 0: resetea y deja que el re-render dispare el fetch.
+    // Cambio de filtros y no estamos en pagina 0: resetea y deja que el redibujado dispare el fetch
     if (prevParamsKey.current !== paramsKey) {
       prevParamsKey.current = paramsKey
       if (page !== 0) { setPage(0); return }

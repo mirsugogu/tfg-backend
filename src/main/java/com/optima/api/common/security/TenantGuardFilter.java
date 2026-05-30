@@ -26,19 +26,19 @@ import java.util.regex.Pattern;
 
 /**
  * comprueba que el usuario solo entre en su negocio
- * tambien revisa que la membership siga activa
+ * tambien revisa que la relacion siga activa
  */
 @Component
 @RequiredArgsConstructor
 public class TenantGuardFilter extends OncePerRequestFilter {
 
-    // esta regex saca el id del negocio de la url
+    // este patron obtiene el id del negocio de la ruta
     private static final Pattern BUSINESS_PATH = Pattern.compile("^/api/businesses/([^/]+)(/.*)?$");
 
     private final ObjectMapper objectMapper;
     private final MembershipRepository membershipRepository;
 
-    /** compara el negocio de la url con el del token */
+    /** compara el negocio de la ruta con el del token */
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
@@ -97,7 +97,7 @@ public class TenantGuardFilter extends OncePerRequestFilter {
         writeError(response, HttpStatus.UNAUTHORIZED, message);
     }
 
-    /** escribe el error en json */
+    /** escribe el error en formato comun */
     private void writeError(HttpServletResponse response, HttpStatus status, String message) throws IOException {
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

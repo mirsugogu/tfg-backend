@@ -14,7 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-/** Endpoints para ausencias puntuales de empleados. */
+/** rutas para ausencias puntuales de empleados */
 @RestController
 @RequestMapping("/api/businesses/{businessId}/users/{userId}/absences")
 @RequiredArgsConstructor
@@ -24,7 +24,7 @@ public class EmployeeAbsenceController {
     private final EmployeeAbsenceService absenceService;
 
     /**
-     * Crea una ausencia para el empleado indicado.
+     * crea una ausencia para el empleado indicado
      */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -36,7 +36,7 @@ public class EmployeeAbsenceController {
     }
 
     /**
-     * Lista paginada de ausencias del empleado.
+     * lista de ausencias del empleado
      */
     @GetMapping
     public Page<EmployeeAbsenceResponse> listByEmployee(@PathVariable @Positive Long businessId,
@@ -46,7 +46,7 @@ public class EmployeeAbsenceController {
     }
 
     /**
-     * Obtiene una ausencia concreta del empleado.
+     * obtiene una ausencia concreta del empleado
      */
     @GetMapping("/{id}")
     public EmployeeAbsenceResponse getById(@PathVariable @Positive Long businessId,
@@ -56,7 +56,7 @@ public class EmployeeAbsenceController {
     }
 
     /**
-     * Actualiza el rango y motivo de una ausencia.
+     * actualiza el rango y motivo de una ausencia
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -68,7 +68,7 @@ public class EmployeeAbsenceController {
     }
 
     /**
-     * Elimina una ausencia.
+     * elimina una ausencia
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

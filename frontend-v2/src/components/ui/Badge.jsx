@@ -1,3 +1,4 @@
+// Badges de color y StatusBadge para estados del ciclo de vida de citas
 import { cn } from '@/lib/utils'
 
 const variants = {
@@ -12,7 +13,7 @@ const variants = {
   purple:   'bg-purple-50 text-purple-700 ring-1 ring-purple-200',
 }
 
-/** Etiqueta pequeña de color con variantes predefinidas. */
+/** Etiqueta pequena de color con variantes predefinidas */
 export function Badge({ children, variant = 'default', className }) {
   return (
     <span
@@ -36,7 +37,7 @@ const STATUS_MAP = {
   NO_SHOW:     { label: 'No presentado', variant: 'default',  dot: 'bg-slate-400' },
 }
 
-/** Badge para el estado de una cita: traduce el nombre técnico y aplica color. */
+/** Badge para el estado de una cita: traduce el nombre tecnico y aplica color */
 export function StatusBadge({ status }) {
   const config = STATUS_MAP[status] ?? { label: status, variant: 'default', dot: 'bg-slate-400' }
   return (
