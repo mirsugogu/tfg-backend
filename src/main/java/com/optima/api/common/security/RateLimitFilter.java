@@ -95,7 +95,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return null;
         }
         String uri = request.getRequestURI();
-        String ip = request.getRemoteAddr();
+        // en produccion con Caddy la ip real llega en X-Forwarded-For
+        String xff = request.getHeader("X-Forwarded-For");
+        String ip = (xff != null && !xff.isBlank()) ? xff.split(",")[0].trim() : request.getRemoteAddr();
         if ("/api/auth/token".equals(uri)) {
             return loginBuckets.computeIfAbsent(ip, k -> LOGIN_BUCKET.get());
         }
