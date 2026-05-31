@@ -69,12 +69,9 @@ public class TenantGuardFilter extends OncePerRequestFilter {
                 }
 
                 // se revisa en base de datos por si ha cambiado algo
-                Optional<Membership> membershipOpt = membershipRepository
-                        .findForSessionGuard(principal.userId(), principal.businessId());
-                if (membershipOpt.isEmpty()
-                        || !Boolean.TRUE.equals(membershipOpt.get().getIsActive())) {
-                    writeUnauthorized(response,
-                            "Tu acceso a este negocio ha sido revocado. Vuelve a iniciar sesión.");
+                Optional<Membership> membershipOpt = membershipRepository.findForSessionGuard(principal.userId(), principal.businessId());
+                if (membershipOpt.isEmpty() || !Boolean.TRUE.equals(membershipOpt.get().getIsActive())) {
+                    writeUnauthorized(response, "Tu acceso a este negocio ha sido revocado. Vuelve a iniciar sesión.");
                     return;
                 }
                 // si el rol cambio se obliga a iniciar sesion otra vez

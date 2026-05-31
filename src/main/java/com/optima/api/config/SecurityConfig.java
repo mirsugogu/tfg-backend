@@ -116,7 +116,7 @@ public class SecurityConfig {
         return source;
     }
 
-    /** crea el cifrado usado para las contrasenas */
+    /** crea el cifrado usado para las contraseñas */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
