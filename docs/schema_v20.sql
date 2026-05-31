@@ -593,6 +593,314 @@ INSERT INTO employee_absences (id_membership, start_datetime, end_datetime, reas
 VALUES (8, '2026-05-27 10:00:00', '2026-05-27 14:00:00', 'Cita medica');
 
 
+SET @biz_demo = (SELECT id_business FROM businesses WHERE slug = 'demo');
+SET @role_employee = (SELECT id_role FROM roles WHERE name = 'EMPLOYEE');
+SET @status_pending = (SELECT id_status FROM appointment_statuses WHERE name = 'PENDING');
+SET @status_confirmed = (SELECT id_status FROM appointment_statuses WHERE name = 'CONFIRMED');
+SET @status_completed = (SELECT id_status FROM appointment_statuses WHERE name = 'COMPLETED');
+SET @status_cancelled = (SELECT id_status FROM appointment_statuses WHERE name = 'CANCELLED');
+
+-- Tercera cabina para que el ADMIN vea 3 espacios de trabajo en su negocio.
+INSERT IGNORE INTO booths (id_business, name, color, is_active)
+VALUES (@biz_demo, 'Sala 3', '#F59E0B', TRUE);
+
+SET @booth_sala1 = (SELECT id_booth FROM booths WHERE id_business = @biz_demo AND name = 'Sala 1');
+SET @booth_sala2 = (SELECT id_booth FROM booths WHERE id_business = @biz_demo AND name = 'Sala 2');
+SET @booth_sala3 = (SELECT id_booth FROM booths WHERE id_business = @biz_demo AND name = 'Sala 3');
+
+-- Empleados extra para enseñar distintos tipos de jornada.
+INSERT IGNORE INTO users (full_name, email, password_hash, phone)
+VALUES ('Paula Navas', 'paula.navas@optima.com',
+        '$2a$10$fCI9ZhcMUj5Z.fmPX2nZ7.SrSn22K42fxU8dvf8GCm8NUDoGud8xq',
+        '600111005');
+
+INSERT IGNORE INTO users (full_name, email, password_hash, phone)
+VALUES ('Nerea Valverde', 'nerea.valverde@optima.com',
+        '$2a$10$fCI9ZhcMUj5Z.fmPX2nZ7.SrSn22K42fxU8dvf8GCm8NUDoGud8xq',
+        '600111006');
+
+SET @u_paula = (SELECT id_user FROM users WHERE email = 'paula.navas@optima.com');
+SET @u_nerea = (SELECT id_user FROM users WHERE email = 'nerea.valverde@optima.com');
+
+INSERT IGNORE INTO memberships (id_user, id_business, id_role, color)
+VALUES (@u_paula, @biz_demo, @role_employee, '#0EA5E9');
+
+INSERT IGNORE INTO memberships (id_user, id_business, id_role, color)
+VALUES (@u_nerea, @biz_demo, @role_employee, '#8B5CF6');
+
+SET @m_empleado = (SELECT m.id_membership FROM memberships m JOIN users u ON u.id_user = m.id_user WHERE m.id_business = @biz_demo AND u.email = 'empleado@optima.com');
+SET @m_maria = (SELECT m.id_membership FROM memberships m JOIN users u ON u.id_user = m.id_user WHERE m.id_business = @biz_demo AND u.email = 'maria@optima.com');
+SET @m_carlos = (SELECT m.id_membership FROM memberships m JOIN users u ON u.id_user = m.id_user WHERE m.id_business = @biz_demo AND u.email = 'carlos@optima.com');
+SET @m_paula = (SELECT m.id_membership FROM memberships m JOIN users u ON u.id_user = m.id_user WHERE m.id_business = @biz_demo AND u.email = 'paula.navas@optima.com');
+SET @m_nerea = (SELECT m.id_membership FROM memberships m JOIN users u ON u.id_user = m.id_user WHERE m.id_business = @biz_demo AND u.email = 'nerea.valverde@optima.com');
+
+-- Jornada completa: Paula trabaja en un unico tramo continuado.
+INSERT INTO employee_schedules (id_membership, day_of_week, start_time, end_time) VALUES
+                                                                                      (@m_paula, 1, '09:00:00', '17:00:00'),
+                                                                                      (@m_paula, 2, '09:00:00', '17:00:00'),
+                                                                                      (@m_paula, 3, '09:00:00', '17:00:00'),
+                                                                                      (@m_paula, 4, '09:00:00', '17:00:00'),
+                                                                                      (@m_paula, 5, '09:00:00', '17:00:00'),
+                                                                                      (@m_paula, 6, '10:00:00', '14:00:00');
+
+-- Jornada partida: Nerea trabaja manana y tarde con pausa al mediodia.
+INSERT INTO employee_schedules (id_membership, day_of_week, start_time, end_time) VALUES
+                                                                                      (@m_nerea, 1, '09:00:00', '13:00:00'), (@m_nerea, 1, '15:00:00', '18:00:00'),
+                                                                                      (@m_nerea, 2, '09:00:00', '13:00:00'), (@m_nerea, 2, '15:00:00', '18:00:00'),
+                                                                                      (@m_nerea, 3, '09:00:00', '13:00:00'), (@m_nerea, 3, '15:00:00', '18:00:00'),
+                                                                                      (@m_nerea, 4, '09:00:00', '13:00:00'), (@m_nerea, 4, '15:00:00', '18:00:00'),
+                                                                                      (@m_nerea, 5, '09:00:00', '13:00:00'), (@m_nerea, 5, '15:00:00', '18:00:00'),
+                                                                                      (@m_nerea, 6, '10:00:00', '14:00:00');
+
+-- Clientes adicionales del negocio Demo para llenar la agenda del ADMIN.
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+SELECT @biz_demo, 'Clara Santos', 'clara.santos@email.com', '600555001', 'Prefiere primera hora', TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM clients WHERE id_business = @biz_demo AND email = 'clara.santos@email.com');
+
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+SELECT @biz_demo, 'Daniel Perez', 'daniel.perez@email.com', '600555002', 'Cliente nuevo', TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM clients WHERE id_business = @biz_demo AND email = 'daniel.perez@email.com');
+
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+SELECT @biz_demo, 'Sara Molina', 'sara.molina@email.com', '600555003', 'Quiere recordatorio por email', TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM clients WHERE id_business = @biz_demo AND email = 'sara.molina@email.com');
+
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+SELECT @biz_demo, 'Isabel Romero', 'isabel.romero@email.com', '600555004', 'Tinte sin amoniaco', TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM clients WHERE id_business = @biz_demo AND email = 'isabel.romero@email.com');
+
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+SELECT @biz_demo, 'Jorge Navarro', 'jorge.navarro@email.com', '600555005', 'Paga con tarjeta', TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM clients WHERE id_business = @biz_demo AND email = 'jorge.navarro@email.com');
+
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+SELECT @biz_demo, 'Paula Vega', 'paula.vega@email.com', '600555006', 'Preparacion para evento', TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM clients WHERE id_business = @biz_demo AND email = 'paula.vega@email.com');
+
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+SELECT @biz_demo, 'Marcos Prieto', 'marcos.prieto@email.com', '600555007', 'Cliente recurrente', TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM clients WHERE id_business = @biz_demo AND email = 'marcos.prieto@email.com');
+
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+SELECT @biz_demo, 'Alicia Torres', 'alicia.torres@email.com', '600555008', 'Prefiere Sala 2', TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM clients WHERE id_business = @biz_demo AND email = 'alicia.torres@email.com');
+
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+SELECT @biz_demo, 'Ruben Castillo', 'ruben.castillo@email.com', '600555009', 'Solo puede por la tarde', TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM clients WHERE id_business = @biz_demo AND email = 'ruben.castillo@email.com');
+
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+SELECT @biz_demo, 'Noelia Cano', 'noelia.cano@email.com', '600555010', 'Quiere presupuesto de color', TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM clients WHERE id_business = @biz_demo AND email = 'noelia.cano@email.com');
+
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+SELECT @biz_demo, 'Oscar Benitez', 'oscar.benitez@email.com', '600555011', 'Cita mensual', TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM clients WHERE id_business = @biz_demo AND email = 'oscar.benitez@email.com');
+
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+SELECT @biz_demo, 'Alba Reyes', 'alba.reyes@email.com', '600555012', 'Mechas para evento familiar', TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM clients WHERE id_business = @biz_demo AND email = 'alba.reyes@email.com');
+
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+SELECT @biz_demo, 'Fernando Soto', 'fernando.soto@email.com', '600555013', 'Necesita factura', TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM clients WHERE id_business = @biz_demo AND email = 'fernando.soto@email.com');
+
+INSERT INTO clients (id_business, full_name, email, phone, notes, is_active)
+SELECT @biz_demo, 'Elena Suarez', 'elena.suarez@email.com', '600555014', 'Cambio de look', TRUE
+    WHERE NOT EXISTS (SELECT 1 FROM clients WHERE id_business = @biz_demo AND email = 'elena.suarez@email.com');
+
+SET @c_clara = (SELECT id_client FROM clients WHERE id_business = @biz_demo AND email = 'clara.santos@email.com');
+SET @c_daniel = (SELECT id_client FROM clients WHERE id_business = @biz_demo AND email = 'daniel.perez@email.com');
+SET @c_sara = (SELECT id_client FROM clients WHERE id_business = @biz_demo AND email = 'sara.molina@email.com');
+SET @c_isabel = (SELECT id_client FROM clients WHERE id_business = @biz_demo AND email = 'isabel.romero@email.com');
+SET @c_jorge = (SELECT id_client FROM clients WHERE id_business = @biz_demo AND email = 'jorge.navarro@email.com');
+SET @c_paula = (SELECT id_client FROM clients WHERE id_business = @biz_demo AND email = 'paula.vega@email.com');
+SET @c_marcos = (SELECT id_client FROM clients WHERE id_business = @biz_demo AND email = 'marcos.prieto@email.com');
+SET @c_alicia = (SELECT id_client FROM clients WHERE id_business = @biz_demo AND email = 'alicia.torres@email.com');
+SET @c_ruben = (SELECT id_client FROM clients WHERE id_business = @biz_demo AND email = 'ruben.castillo@email.com');
+SET @c_noelia = (SELECT id_client FROM clients WHERE id_business = @biz_demo AND email = 'noelia.cano@email.com');
+SET @c_oscar = (SELECT id_client FROM clients WHERE id_business = @biz_demo AND email = 'oscar.benitez@email.com');
+SET @c_alba = (SELECT id_client FROM clients WHERE id_business = @biz_demo AND email = 'alba.reyes@email.com');
+SET @c_fernando = (SELECT id_client FROM clients WHERE id_business = @biz_demo AND email = 'fernando.soto@email.com');
+SET @c_elena = (SELECT id_client FROM clients WHERE id_business = @biz_demo AND email = 'elena.suarez@email.com');
+
+SET @svc_corte_caballero = (SELECT id_service FROM services WHERE id_business = @biz_demo AND name = 'Corte caballero');
+SET @svc_corte_senora = (SELECT id_service FROM services WHERE id_business = @biz_demo AND name = 'Corte senora');
+SET @svc_tinte = (SELECT id_service FROM services WHERE id_business = @biz_demo AND name = 'Tinte completo');
+SET @svc_mechas = (SELECT id_service FROM services WHERE id_business = @biz_demo AND name = 'Mechas');
+SET @svc_peinado = (SELECT id_service FROM services WHERE id_business = @biz_demo AND name = 'Peinado evento');
+
+-- Ausencias puntuales para demostrar huecos reales en la agenda.
+INSERT INTO employee_absences (id_membership, start_datetime, end_datetime, reason) VALUES
+                                                                                        (@m_nerea,  '2026-06-02 09:00:00', '2026-06-02 10:00:00', 'Gestion personal'),
+                                                                                        (@m_maria,  '2026-06-03 10:00:00', '2026-06-03 11:00:00', 'Cita medica'),
+                                                                                        (@m_paula,  '2026-06-04 13:00:00', '2026-06-04 15:00:00', 'Formacion interna'),
+                                                                                        (@m_carlos, '2026-06-05 16:00:00', '2026-06-05 17:00:00', 'Asunto familiar');
+
+-- Bloqueos de agenda de ejemplo: una cabina y el cierre semanal.
+INSERT INTO schedule_blocks (id_business, id_membership, id_booth, start_date, end_date, reason) VALUES
+                                                                                                     (@biz_demo, NULL, @booth_sala3, '2026-06-05', '2026-06-05', 'Mantenimiento de Sala 3'),
+                                                                                                     (@biz_demo, NULL, NULL,         '2026-06-07', '2026-06-07', 'Cierre por descanso semanal');
+
+-- Citas de la semana 1-7 de junio de 2026 para el ADMIN.
+-- Lunes 2026-06-01
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_clara, @m_empleado, @booth_sala1, @status_confirmed, FALSE, '2026-06-01 09:00:00', '2026-06-01 09:30:00', 'Demo semana 1-7: corte rapido confirmado');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_corte_caballero, 15.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_sara, @m_maria, @booth_sala2, @status_pending, FALSE, '2026-06-01 09:30:00', '2026-06-01 10:15:00', 'Demo semana 1-7: pendiente de confirmar');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_corte_senora, 25.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_isabel, @m_paula, @booth_sala3, @status_confirmed, FALSE, '2026-06-01 10:30:00', '2026-06-01 12:00:00', 'Demo semana 1-7: tinte en nueva Sala 3');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_tinte, 50.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_jorge, @m_nerea, @booth_sala1, @status_confirmed, FALSE, '2026-06-01 15:00:00', '2026-06-01 16:00:00', 'Demo semana 1-7: jornada partida por la tarde');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_peinado, 35.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_paula, @m_maria, @booth_sala2, @status_pending, FALSE, '2026-06-01 16:00:00', '2026-06-01 18:00:00', 'Demo semana 1-7: mechas pendientes');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_mechas, 60.00, 21.00);
+
+-- Martes 2026-06-02
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_marcos, @m_empleado, @booth_sala1, @status_confirmed, FALSE, '2026-06-02 09:00:00', '2026-06-02 09:45:00', 'Demo semana 1-7: corte de senora');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_corte_senora, 25.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_ruben, @m_maria, @booth_sala2, @status_confirmed, TRUE, '2026-06-02 10:00:00', '2026-06-02 10:30:00', 'Demo semana 1-7: cita pagada');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_corte_caballero, 15.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_noelia, @m_carlos, @booth_sala3, @status_pending, FALSE, '2026-06-02 11:00:00', '2026-06-02 12:30:00', 'Demo semana 1-7: color pendiente');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_tinte, 50.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_oscar, @m_paula, @booth_sala1, @status_confirmed, FALSE, '2026-06-02 15:00:00', '2026-06-02 16:00:00', 'Demo semana 1-7: empleado con jornada completa');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_peinado, 35.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_alba, @m_nerea, @booth_sala3, @status_confirmed, FALSE, '2026-06-02 16:30:00', '2026-06-02 18:00:00', 'Demo semana 1-7: mechas sin conflicto con cita existente');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_mechas, 60.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_fernando, @m_empleado, @booth_sala1, @status_cancelled, FALSE, '2026-06-02 12:00:00', '2026-06-02 12:30:00', 'Demo semana 1-7: cita cancelada visible en historico');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_corte_caballero, 15.00, 21.00);
+
+-- Miercoles 2026-06-03
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_elena, @m_empleado, @booth_sala1, @status_confirmed, FALSE, '2026-06-03 09:00:00', '2026-06-03 09:30:00', 'Demo semana 1-7: primera cita del dia');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_corte_caballero, 15.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_clara, @m_paula, @booth_sala2, @status_pending, FALSE, '2026-06-03 10:00:00', '2026-06-03 10:45:00', 'Demo semana 1-7: hueco mientras Maria esta ausente');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_corte_senora, 25.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_daniel, @m_carlos, @booth_sala3, @status_confirmed, FALSE, '2026-06-03 11:30:00', '2026-06-03 13:00:00', 'Demo semana 1-7: tinte confirmado');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_tinte, 50.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_sara, @m_maria, @booth_sala1, @status_confirmed, FALSE, '2026-06-03 15:00:00', '2026-06-03 16:00:00', 'Demo semana 1-7: Maria vuelve tras ausencia puntual');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_peinado, 35.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_isabel, @m_nerea, @booth_sala2, @status_pending, FALSE, '2026-06-03 16:15:00', '2026-06-03 17:45:00', 'Demo semana 1-7: servicio largo por la tarde');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_mechas, 60.00, 21.00);
+
+-- Jueves 2026-06-04
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_jorge, @m_empleado, @booth_sala1, @status_confirmed, FALSE, '2026-06-04 09:30:00', '2026-06-04 10:15:00', 'Demo semana 1-7: corte de mantenimiento');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_corte_senora, 25.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_paula, @m_maria, @booth_sala2, @status_confirmed, FALSE, '2026-06-04 10:30:00', '2026-06-04 11:30:00', 'Demo semana 1-7: peinado para evento');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_peinado, 35.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_marcos, @m_nerea, @booth_sala1, @status_pending, FALSE, '2026-06-04 12:00:00', '2026-06-04 13:00:00', 'Demo semana 1-7: antes de pausa de jornada partida');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_peinado, 35.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_alicia, @m_carlos, @booth_sala2, @status_confirmed, FALSE, '2026-06-04 16:00:00', '2026-06-04 17:30:00', 'Demo semana 1-7: tinte de tarde');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_tinte, 50.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_ruben, @m_paula, @booth_sala1, @status_pending, FALSE, '2026-06-04 15:00:00', '2026-06-04 16:00:00', 'Demo semana 1-7: Paula vuelve tras formacion');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_peinado, 35.00, 21.00);
+
+-- Viernes 2026-06-05
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_noelia, @m_empleado, @booth_sala1, @status_confirmed, FALSE, '2026-06-05 09:00:00', '2026-06-05 09:30:00', 'Demo semana 1-7: cita corta');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_corte_caballero, 15.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_oscar, @m_maria, @booth_sala2, @status_pending, FALSE, '2026-06-05 10:00:00', '2026-06-05 11:30:00', 'Demo semana 1-7: color pendiente');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_tinte, 50.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_alba, @m_paula, @booth_sala1, @status_confirmed, FALSE, '2026-06-05 11:30:00', '2026-06-05 12:15:00', 'Demo semana 1-7: Sala 3 bloqueada por mantenimiento');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_corte_senora, 25.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_fernando, @m_nerea, @booth_sala2, @status_confirmed, FALSE, '2026-06-05 15:00:00', '2026-06-05 16:00:00', 'Demo semana 1-7: ultima cita antes de ausencia de Carlos');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_peinado, 35.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_elena, @m_maria, @booth_sala1, @status_cancelled, FALSE, '2026-06-05 16:00:00', '2026-06-05 17:00:00', 'Demo semana 1-7: cancelada por cliente');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_peinado, 35.00, 21.00);
+
+-- Sabado 2026-06-06
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_clara, @m_maria, @booth_sala1, @status_confirmed, FALSE, '2026-06-06 10:00:00', '2026-06-06 10:30:00', 'Demo semana 1-7: sabado por la manana');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_corte_caballero, 15.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_daniel, @m_carlos, @booth_sala2, @status_pending, FALSE, '2026-06-06 10:30:00', '2026-06-06 11:30:00', 'Demo semana 1-7: pendiente de confirmacion');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_peinado, 35.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_isabel, @m_paula, @booth_sala3, @status_confirmed, FALSE, '2026-06-06 12:00:00', '2026-06-06 13:00:00', 'Demo semana 1-7: uso de tercera cabina en sabado');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_peinado, 35.00, 21.00);
+
+INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
+VALUES (@biz_demo, @c_jorge, @m_nerea, @booth_sala1, @status_confirmed, TRUE, '2026-06-06 13:00:00', '2026-06-06 14:00:00', 'Demo semana 1-7: ultima cita pagada del sabado');
+SET @appt = LAST_INSERT_ID();
+INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_peinado, 35.00, 21.00);
+
+-- Domingo 2026-06-07 queda sin citas para mostrar negocio cerrado y bloqueo global.
+
 DROP USER IF EXISTS 'optima_user'@'%';
 DROP USER IF EXISTS 'optima_user'@'localhost';
 CREATE USER 'optima_user'@'%' IDENTIFIED BY 'optima_pass';
