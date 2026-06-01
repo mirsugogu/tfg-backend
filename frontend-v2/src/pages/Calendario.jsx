@@ -459,7 +459,7 @@ export default function Calendario() {
         <StatTile label="En curso ahora" value={rangeStats.inProgressCount} tone="cyan" />
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100/80 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)] overflow-hidden print-area">
+      <div className="bg-white rounded-2xl border border-slate-100/80 shadow-[0_2px_12px_-2px_rgba(15,23,42,0.06)] print-area">
 
         <div className="flex flex-wrap items-center gap-3 px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-1.5">
@@ -499,95 +499,97 @@ export default function Calendario() {
           statusLabel={statusLabel}
         />
 
-        {loading ? (
-          <div className="p-16 text-center text-slate-400 text-sm">Cargando agenda…</div>
-        ) : view === 'Mes' ? (
-          <MonthGrid
-            cursor={cursor} today={today} eventsByDay={eventsByDay} colorBy={colorBy}
-            onCellClick={onCellClick} onSelectEvent={setDetailAppt} onOpenDay={onOpenDay}
-            blocks={blocksInRange}
-          />
-        ) : view === 'Semana' && groupBy === 'booth' ? (
-          <WeekResourceGrid
-            cursor={cursor} today={today} eventsByDay={eventsByDay} colorBy={colorBy}
-            onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
-            dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
-            businessHours={businessHours} now={now}
-            resources={boothResources}
-            resourceFor={(a) => a.boothId}
-            unassignedShort="S/C"
-            blocks={blocksInRange}
-            resourceType="booth"
-            onDropAppointment={handleDropAppointment}
-            appointmentInterval={appointmentInterval}
-          />
-        ) : view === 'Semana' && groupBy === 'employee' ? (
-          <WeekResourceGrid
-            cursor={cursor} today={today} eventsByDay={eventsByDay} colorBy={colorBy}
-            onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
-            dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
-            businessHours={businessHours} now={now}
-            resources={employeeResources}
-            resourceFor={(a) => a.membershipId}
-            unassignedShort="S/E"
-            blocks={blocksInRange}
-            resourceType="employee"
-            absences={absences}
-            schedulesByMembership={schedulesByMembership}
-            onDropAppointment={handleDropAppointment}
-            appointmentInterval={appointmentInterval}
-          />
-        ) : view === 'Semana' ? (
-          <WeekGrid
-            cursor={cursor} today={today} eventsByDay={eventsByDay} colorBy={colorBy}
-            onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
-            dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
-            businessHours={businessHours} now={now}
-            blocks={blocksInRange}
-            onDropAppointment={handleDropAppointment}
-            appointmentInterval={appointmentInterval}
-          />
-        ) : groupBy === 'booth' ? (
-          <ResourceDayGrid
-            cursor={cursor} eventsByDay={eventsByDay} colorBy={colorBy}
-            onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
-            dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
-            businessHours={businessHours} now={now}
-            resources={boothResources}
-            resourceFor={(a) => a.boothId}
-            unassignedLabel="Sin cabina"
-            blocks={blocksInRange}
-            resourceType="booth"
-            onDropAppointment={handleDropAppointment}
-            appointmentInterval={appointmentInterval}
-          />
-        ) : groupBy === 'employee' ? (
-          <ResourceDayGrid
-            cursor={cursor} eventsByDay={eventsByDay} colorBy={colorBy}
-            onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
-            dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
-            businessHours={businessHours} now={now}
-            resources={employeeResources}
-            resourceFor={(a) => a.membershipId}
-            unassignedLabel="Sin empleado"
-            blocks={blocksInRange}
-            resourceType="employee"
-            absences={absences}
-            schedulesByMembership={schedulesByMembership}
-            onDropAppointment={handleDropAppointment}
-            appointmentInterval={appointmentInterval}
-          />
-        ) : (
-          <DayGrid
-            cursor={cursor} eventsByDay={eventsByDay} colorBy={colorBy}
-            onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
-            statusLabel={statusLabel} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
-            businessHours={businessHours} now={now}
-            blocks={blocksInRange}
-            onDropAppointment={handleDropAppointment}
-            appointmentInterval={appointmentInterval}
-          />
-        )}
+        <div className="overflow-hidden rounded-b-2xl">
+          {loading ? (
+            <div className="p-16 text-center text-slate-400 text-sm">Cargando agenda…</div>
+          ) : view === 'Mes' ? (
+            <MonthGrid
+              cursor={cursor} today={today} eventsByDay={eventsByDay} colorBy={colorBy}
+              onCellClick={onCellClick} onSelectEvent={setDetailAppt} onOpenDay={onOpenDay}
+              blocks={blocksInRange}
+            />
+          ) : view === 'Semana' && groupBy === 'booth' ? (
+            <WeekResourceGrid
+              cursor={cursor} today={today} eventsByDay={eventsByDay} colorBy={colorBy}
+              onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
+              dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
+              businessHours={businessHours} now={now}
+              resources={boothResources}
+              resourceFor={(a) => a.boothId}
+              unassignedShort="S/C"
+              blocks={blocksInRange}
+              resourceType="booth"
+              onDropAppointment={handleDropAppointment}
+              appointmentInterval={appointmentInterval}
+            />
+          ) : view === 'Semana' && groupBy === 'employee' ? (
+            <WeekResourceGrid
+              cursor={cursor} today={today} eventsByDay={eventsByDay} colorBy={colorBy}
+              onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
+              dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
+              businessHours={businessHours} now={now}
+              resources={employeeResources}
+              resourceFor={(a) => a.membershipId}
+              unassignedShort="S/E"
+              blocks={blocksInRange}
+              resourceType="employee"
+              absences={absences}
+              schedulesByMembership={schedulesByMembership}
+              onDropAppointment={handleDropAppointment}
+              appointmentInterval={appointmentInterval}
+            />
+          ) : view === 'Semana' ? (
+            <WeekGrid
+              cursor={cursor} today={today} eventsByDay={eventsByDay} colorBy={colorBy}
+              onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
+              dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
+              businessHours={businessHours} now={now}
+              blocks={blocksInRange}
+              onDropAppointment={handleDropAppointment}
+              appointmentInterval={appointmentInterval}
+            />
+          ) : groupBy === 'booth' ? (
+            <ResourceDayGrid
+              cursor={cursor} eventsByDay={eventsByDay} colorBy={colorBy}
+              onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
+              dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
+              businessHours={businessHours} now={now}
+              resources={boothResources}
+              resourceFor={(a) => a.boothId}
+              unassignedLabel="Sin cabina"
+              blocks={blocksInRange}
+              resourceType="booth"
+              onDropAppointment={handleDropAppointment}
+              appointmentInterval={appointmentInterval}
+            />
+          ) : groupBy === 'employee' ? (
+            <ResourceDayGrid
+              cursor={cursor} eventsByDay={eventsByDay} colorBy={colorBy}
+              onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
+              dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
+              businessHours={businessHours} now={now}
+              resources={employeeResources}
+              resourceFor={(a) => a.membershipId}
+              unassignedLabel="Sin empleado"
+              blocks={blocksInRange}
+              resourceType="employee"
+              absences={absences}
+              schedulesByMembership={schedulesByMembership}
+              onDropAppointment={handleDropAppointment}
+              appointmentInterval={appointmentInterval}
+            />
+          ) : (
+            <DayGrid
+              cursor={cursor} eventsByDay={eventsByDay} colorBy={colorBy}
+              onSelectEvent={setDetailAppt} onSlotClick={onSlotClick}
+              statusLabel={statusLabel} dayStart={dayStart} dayEnd={dayEnd} hourPx={hourPx}
+              businessHours={businessHours} now={now}
+              blocks={blocksInRange}
+              onDropAppointment={handleDropAppointment}
+              appointmentInterval={appointmentInterval}
+            />
+          )}
+        </div>
       </div>
 
       <AppointmentWizard
@@ -984,7 +986,7 @@ function FiltersBar({
 
   return (
     <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-slate-100 bg-slate-50/40 no-print">
-      <div className="relative">
+      <div className="relative z-50">
         <button
           ref={btnRef}
           onClick={() => setOpen((v) => !v)}
@@ -1006,7 +1008,7 @@ function FiltersBar({
         {open && (
           <div
             ref={popRef}
-            className="absolute left-0 top-[calc(100%+8px)] z-30 w-[320px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl border border-slate-200 shadow-[0_20px_50px_-10px_rgba(15,23,42,0.18)] p-4"
+            className="absolute left-0 top-[calc(100%+8px)] z-50 w-[320px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl border border-slate-200 shadow-[0_20px_50px_-10px_rgba(15,23,42,0.18)] p-4"
           >
             <div className="space-y-4">
               <FilterRow label="Empleado">

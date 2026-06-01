@@ -730,20 +730,17 @@ SET @svc_tinte = (SELECT id_service FROM services WHERE id_business = @biz_demo 
 SET @svc_mechas = (SELECT id_service FROM services WHERE id_business = @biz_demo AND name = 'Mechas');
 SET @svc_peinado = (SELECT id_service FROM services WHERE id_business = @biz_demo AND name = 'Peinado evento');
 
--- Ausencias puntuales para demostrar huecos reales en la agenda.
+
 INSERT INTO employee_absences (id_membership, start_datetime, end_datetime, reason) VALUES
                                                                                         (@m_nerea,  '2026-06-02 09:00:00', '2026-06-02 10:00:00', 'Gestion personal'),
                                                                                         (@m_maria,  '2026-06-03 10:00:00', '2026-06-03 11:00:00', 'Cita medica'),
                                                                                         (@m_paula,  '2026-06-04 13:00:00', '2026-06-04 15:00:00', 'Formacion interna'),
                                                                                         (@m_carlos, '2026-06-05 16:00:00', '2026-06-05 17:00:00', 'Asunto familiar');
 
--- Bloqueos de agenda de ejemplo: una cabina y el cierre semanal.
 INSERT INTO schedule_blocks (id_business, id_membership, id_booth, start_date, end_date, reason) VALUES
                                                                                                      (@biz_demo, NULL, @booth_sala3, '2026-06-05', '2026-06-05', 'Mantenimiento de Sala 3'),
                                                                                                      (@biz_demo, NULL, NULL,         '2026-06-07', '2026-06-07', 'Cierre por descanso semanal');
 
--- Citas de la semana 1-7 de junio de 2026 para el ADMIN.
--- Lunes 2026-06-01
 INSERT INTO appointments (id_business, id_client, id_membership, id_booth, id_status, is_paid, start_datetime, end_datetime, notes)
 VALUES (@biz_demo, @c_clara, @m_empleado, @booth_sala1, @status_confirmed, FALSE, '2026-06-01 09:00:00', '2026-06-01 09:30:00', 'Demo semana 1-7: corte rapido confirmado');
 SET @appt = LAST_INSERT_ID();
@@ -899,7 +896,6 @@ VALUES (@biz_demo, @c_jorge, @m_nerea, @booth_sala1, @status_confirmed, TRUE, '2
 SET @appt = LAST_INSERT_ID();
 INSERT INTO appointment_services (id_appointment, id_service, applied_price, applied_tax_percentage) VALUES (@appt, @svc_peinado, 35.00, 21.00);
 
--- Domingo 2026-06-07 queda sin citas para mostrar negocio cerrado y bloqueo global.
 
 DROP USER IF EXISTS 'optima_user'@'%';
 DROP USER IF EXISTS 'optima_user'@'localhost';

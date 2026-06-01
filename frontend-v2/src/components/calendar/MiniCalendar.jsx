@@ -105,7 +105,7 @@ export function MiniCalendarPopover({ cursor, today, onPick }) {
   }
 
   return (
-    <div className="relative">
+    <div className="relative z-50">
       <button
         ref={btnRef}
         onClick={() => setOpen((v) => !v)}
@@ -122,7 +122,7 @@ export function MiniCalendarPopover({ cursor, today, onPick }) {
       {open && (
         <div
           ref={popRef}
-          className="absolute left-0 top-[calc(100%+8px)] z-30 bg-white rounded-2xl border border-slate-200 shadow-[0_20px_50px_-10px_rgba(15,23,42,0.18)] p-3"
+          className="absolute left-0 top-[calc(100%+8px)] z-50 bg-white rounded-2xl border border-slate-200 shadow-[0_20px_50px_-10px_rgba(15,23,42,0.18)] p-3"
         >
           <MiniCalendar selected={cursor} today={today} onPick={handlePick} />
         </div>
